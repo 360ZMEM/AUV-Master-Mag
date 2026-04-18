@@ -1,4 +1,4 @@
-"""Zig-zag controller and simple AUV kinematics."""
+"""Behavior-tree-backed zig-zag controller and constrained AUV kinematics."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -6,8 +6,18 @@ from typing import Optional
 
 import numpy as np
 
+from .behavior_tree import BehaviorContext, BehaviorMode, BehaviorTree
 from .config import ScenarioConfig
-from .math_utils import Pose, closest_point_on_segment, heading_from_direction_xy, smallest_angle_error_deg, wrap_angle_deg
+from .math_utils import (
+    Pose,
+    build_polyline_projection_cache,
+    heading_from_direction_xy,
+    nearest_point_on_polyline,
+    sample_sine_overlay_path,
+    sample_spline_path,
+    smallest_angle_error_deg,
+    wrap_angle_deg,
+)
 from .perception import PerceptionState
 
 
@@ -17,6 +27,7 @@ class TrackingMode(str, Enum):
     TURN = "TURN"
     HOLD = "HOLD"
     LOST = "LOST"
+    SPIRAL_SEARCH = "SPIRAL_SEARCH"
 
 
 @dataclass
@@ -24,6 +35,11 @@ class GuidanceCommand:
     desired_heading_deg: float
     speed_mps: float
     mode: TrackingMode
+    guidance_source: str = "SEARCH"
+    commanded_turn_radius_m: float = float("inf")
+    yaw_rate_deg_s: float = 0.0
+    safe_lock_active: bool = False
+    zigzag_width_m: float = 0.0
 
 
 class ZigZagController:
@@ -31,89 +47,149 @@ class ZigZagController:
         self.scenario = scenario
         self.leg_sign = 1.0
         self.last_leg_flip_time_s = 0.0
+        self.behavior_tree = BehaviorTree()
+        self.spiral_start_time_s: Optional[float] = None
+        self.last_mode: Optional[TrackingMode] = None
+        self.nominal_route_xy = self._build_nominal_route_xy()
+        self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
+
+    def _build_nominal_route_xy(self) -> np.ndarray:
+        waypoints_xy = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
+        step_m = max(self.scenario.environment.field_segment_length_m * 0.5, 1.0)
+        if self.scenario.environment.cable_route_mode == "spline":
+            return sample_spline_path(waypoints_xy, step_m)
+        if self.scenario.environment.cable_route_mode == "sine":
+            return sample_sine_overlay_path(
+                waypoints_xy,
+                step_m,
+                amplitudes_m=self.scenario.environment.sine_amplitudes_m,
+                wavelengths_m=self.scenario.environment.sine_wavelengths_m,
+            )
+        return waypoints_xy.copy()
 
     def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
-        waypoints = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
-        best_point = waypoints[0]
-        best_tangent = waypoints[1] - waypoints[0]
-        best_distance = float("inf")
-        for start_xy, end_xy in zip(waypoints[:-1], waypoints[1:]):
-            nearest_point_xy, _ = closest_point_on_segment(position_xy_m, start_xy, end_xy)
-            distance = float(np.linalg.norm(position_xy_m - nearest_point_xy))
-            if distance < best_distance:
-                best_distance = distance
-                best_point = nearest_point_xy
-                best_tangent = end_xy - start_xy
-        tangent_norm = np.linalg.norm(best_tangent)
-        if tangent_norm < 1e-9:
-            best_tangent = np.array([1.0, 0.0], dtype=float)
-        else:
-            best_tangent = best_tangent / tangent_norm
+        best_point, best_tangent, best_distance, _, _ = nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
         return best_point, best_tangent, best_distance
 
-    def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
-        route_heading_deg = self.scenario.environment.nominal_route_heading_deg
-        if perception.line_heading_deg is not None and perception.confidence >= self.scenario.tracking.low_confidence_threshold:
-            route_heading_deg = perception.line_heading_deg
+    def _crossing_angle_deg(self, zigzag_width_m: float) -> float:
+        lookahead_distance_m = max(2.0 * self.scenario.vehicle.min_turning_radius_m, 10.0)
+        nominal_angle_deg = float(np.rad2deg(np.arctan2(max(zigzag_width_m, 1e-6), lookahead_distance_m)))
+        return float(np.clip(
+            nominal_angle_deg,
+            self.scenario.tracking.approach_angle_min_deg,
+            self.scenario.tracking.approach_angle_max_deg,
+        ))
 
-        has_detection_history = perception.last_detection_age_s < 1e8
-        nominal_point_xy, nominal_tangent_xy, nominal_distance_m = self._nominal_route_reference(
-            pose.position_ned_m[:2]
+    def _limited_yaw_rate_deg_s(self, speed_mps: float, desired_heading_deg: float, current_heading_deg: float) -> float:
+        heading_error_deg = smallest_angle_error_deg(desired_heading_deg, current_heading_deg)
+        max_radius_rate_deg_s = float(np.rad2deg(max(speed_mps, 1e-6) / max(self.scenario.vehicle.min_turning_radius_m, 1e-6)))
+        max_yaw_rate_deg_s = min(self.scenario.vehicle.max_yaw_rate_deg_s, max_radius_rate_deg_s)
+        requested_yaw_rate_deg_s = heading_error_deg / max(self.scenario.dt_s, 1e-6)
+        return float(np.clip(requested_yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+
+    def _spiral_guidance(self, pose: Pose, behavior, time_s: float) -> tuple:
+        if self.last_mode != TrackingMode.SPIRAL_SEARCH or self.spiral_start_time_s is None:
+            self.spiral_start_time_s = time_s
+        elapsed_s = max(time_s - self.spiral_start_time_s, 0.0)
+        commanded_turn_radius_m = min(
+            self.scenario.vehicle.min_turning_radius_m + self.scenario.tracking.spiral_radius_growth_mps * elapsed_s,
+            self.scenario.tracking.spiral_max_radius_m,
         )
-        nominal_route_heading_deg = heading_from_direction_xy(nominal_tangent_xy)
+        yaw_rate_deg_s = float(np.rad2deg(max(behavior.speed_mps, 1e-6) / max(commanded_turn_radius_m, 1e-6)))
+        yaw_rate_deg_s *= self.leg_sign
+        desired_heading_deg = wrap_angle_deg(pose.heading_deg + yaw_rate_deg_s * self.scenario.dt_s)
+        return desired_heading_deg, yaw_rate_deg_s, commanded_turn_radius_m
 
-        if perception.peak_detected:
+    def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
+        if self.scenario.tracking.use_nominal_route_prior:
+            nominal_point_xy, nominal_tangent_xy, nominal_distance_m = self._nominal_route_reference(pose.position_ned_m[:2])
+            nominal_route_heading_deg = heading_from_direction_xy(nominal_tangent_xy)
+            fused_heading_deg = perception.fused_heading_deg if perception.fused_heading_deg is not None else nominal_route_heading_deg
+        else:
+            nominal_point_xy = pose.position_ned_m[:2].copy()
+            nominal_distance_m = 0.0
+            # Deployment mode must not use any cable-angle prior.  Start from
+            # the vehicle's current heading and let the perception stack build
+            # a measurement-derived estimate from peak geometry.
+            nominal_route_heading_deg = pose.heading_deg
+            fused_heading_deg = perception.fused_heading_deg if perception.fused_heading_deg is not None else pose.heading_deg
+
+        if perception.peak_detected and not perception.safe_lock_active:
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
-            desired_heading_deg = wrap_angle_deg(
-                route_heading_deg + self.leg_sign * self.scenario.tracking.approach_angle_deg
-            )
-            return GuidanceCommand(
-                desired_heading_deg=desired_heading_deg,
-                speed_mps=self.scenario.vehicle.cruise_speed_mps,
-                mode=TrackingMode.TURN,
-            )
 
-        if not has_detection_history:
-            acquisition_band_m = 3.0
-            if nominal_distance_m > acquisition_band_m:
-                intercept_vector_xy = nominal_point_xy - pose.position_ned_m[:2]
-                intercept_heading_deg = heading_from_direction_xy(intercept_vector_xy)
-                return GuidanceCommand(
-                    desired_heading_deg=wrap_angle_deg(intercept_heading_deg),
-                    speed_mps=self.scenario.vehicle.search_speed_mps,
-                    mode=TrackingMode.SEARCH,
-                )
-            route_heading_deg = nominal_route_heading_deg
-
-        hold_ready = (
-            perception.line_heading_deg is not None
-            and np.isfinite(perception.fit_result.residual_m)
-            and perception.fit_result.residual_m <= 15.0
-            and perception.last_detection_age_s <= 0.75 * self.scenario.tracking.lost_timeout_s
+        intercept_vector_xy = nominal_point_xy - pose.position_ned_m[:2]
+        intercept_heading_deg = heading_from_direction_xy(intercept_vector_xy) if np.linalg.norm(intercept_vector_xy) > 1e-6 else nominal_route_heading_deg
+        behavior = self.behavior_tree.evaluate(
+            BehaviorContext(
+                time_s=perception.time_s,
+                nominal_heading_deg=nominal_route_heading_deg,
+                intercept_heading_deg=intercept_heading_deg,
+                nominal_distance_m=nominal_distance_m,
+                confidence=perception.confidence,
+                has_detection_history=perception.last_detection_age_s < 1e8,
+                last_detection_age_s=perception.last_detection_age_s,
+                fused_heading_deg=fused_heading_deg,
+                blind_heading_deg=None if not self.scenario.tracking.use_nominal_route_prior else perception.blind_heading_deg,
+                sonar_status=perception.sonar_status,
+                weak_signal_flag=perception.weak_signal_flag,
+                safe_lock_active=perception.safe_lock_active,
+                peak_detected=perception.peak_detected,
+                zigzag_width_m=perception.zigzag_width_m,
+                high_confidence_threshold=self.scenario.tracking.high_confidence_threshold,
+                low_confidence_threshold=self.scenario.tracking.low_confidence_threshold,
+                lost_timeout_s=self.scenario.tracking.lost_timeout_s,
+                guidance_memory_timeout_s=self.scenario.tracking.guidance_memory_timeout_s,
+                consecutive_miss_threshold=self.scenario.tracking.consecutive_miss_threshold,
+                spiral_entry_window_s=self.scenario.tracking.spiral_entry_window_s,
+                search_speed_mps=self.scenario.vehicle.search_speed_mps,
+                cruise_speed_mps=self.scenario.vehicle.cruise_speed_mps,
+                guidance_source=perception.guidance_source,
+                fit_residual_m=perception.fit_result.residual_m,
+                deployment_heading_confidence=perception.deployment_heading_confidence,
+                deployment_mode=not self.scenario.tracking.use_nominal_route_prior,
+                deployment_reacquire_required=perception.deployment_reacquire_required,
+            )
         )
 
-        if perception.confidence >= self.scenario.tracking.high_confidence_threshold and hold_ready:
-            mode = TrackingMode.HOLD
-            speed_mps = self.scenario.vehicle.cruise_speed_mps
-        elif perception.confidence >= self.scenario.tracking.low_confidence_threshold:
-            mode = TrackingMode.APPROACH
-            speed_mps = 0.95 * self.scenario.vehicle.cruise_speed_mps
+        if behavior.mode in {BehaviorMode.SEARCH, BehaviorMode.LOST, BehaviorMode.SPIRAL_SEARCH} and perception.time_s - self.last_leg_flip_time_s >= self.scenario.tracking.search_leg_time_s:
+            self.leg_sign *= -1.0
+            self.last_leg_flip_time_s = perception.time_s
+
+        crossing_angle_deg = 0.0 if behavior.force_centerline else self._crossing_angle_deg(behavior.zigzag_width_m)
+        desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+        if perception.safe_lock_active:
+            desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg)
+
+        mode = TrackingMode(behavior.mode.value)
+        if mode == TrackingMode.HOLD:
+            desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg)
+
+        if mode == TrackingMode.SPIRAL_SEARCH:
+            desired_heading_deg, yaw_rate_deg_s, turning_radius_from_command = self._spiral_guidance(pose, behavior, perception.time_s)
         else:
-            if perception.last_detection_age_s > self.scenario.tracking.lost_timeout_s:
-                mode = TrackingMode.LOST
-            else:
-                mode = TrackingMode.SEARCH
-            speed_mps = self.scenario.vehicle.search_speed_mps
-            if perception.time_s - self.last_leg_flip_time_s >= self.scenario.tracking.search_leg_time_s:
-                self.leg_sign *= -1.0
-                self.last_leg_flip_time_s = perception.time_s
+            if mode == TrackingMode.TURN:
+                desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+            yaw_rate_deg_s = self._limited_yaw_rate_deg_s(behavior.speed_mps, desired_heading_deg, pose.heading_deg)
+            turning_radius_from_command = float("inf")
+            if abs(yaw_rate_deg_s) > 1e-6:
+                turning_radius_from_command = max(behavior.speed_mps, 1e-6) / max(np.deg2rad(abs(yaw_rate_deg_s)), 1e-6)
 
-        search_bias_deg = 15.0 if mode in {TrackingMode.SEARCH, TrackingMode.LOST} else 0.0
-        desired_heading_deg = wrap_angle_deg(
-            route_heading_deg + self.leg_sign * (self.scenario.tracking.approach_angle_deg + search_bias_deg)
+        if mode != TrackingMode.SPIRAL_SEARCH:
+            self.spiral_start_time_s = None
+
+        self.last_mode = mode
+
+        return GuidanceCommand(
+            desired_heading_deg=desired_heading_deg,
+            speed_mps=behavior.speed_mps,
+            mode=mode,
+            guidance_source=behavior.guidance_source,
+            commanded_turn_radius_m=turning_radius_from_command,
+            yaw_rate_deg_s=yaw_rate_deg_s,
+            safe_lock_active=perception.safe_lock_active,
+            zigzag_width_m=behavior.zigzag_width_m,
         )
-        return GuidanceCommand(desired_heading_deg=desired_heading_deg, speed_mps=speed_mps, mode=mode)
 
 
 def apply_attitude_profile(pose: Pose, scenario: ScenarioConfig, time_s: float) -> None:
@@ -124,9 +200,14 @@ def apply_attitude_profile(pose: Pose, scenario: ScenarioConfig, time_s: float) 
 
 def propagate_vehicle(pose: Pose, command: GuidanceCommand, scenario: ScenarioConfig, seabed_depth_m: float, dt_s: float) -> Pose:
     updated_pose = pose.copy()
-    heading_error_deg = smallest_angle_error_deg(command.desired_heading_deg, updated_pose.heading_deg)
-    max_heading_step_deg = scenario.vehicle.max_yaw_rate_deg_s * dt_s
-    heading_step_deg = np.clip(heading_error_deg, -max_heading_step_deg, max_heading_step_deg)
+    speed_mps = max(command.speed_mps, 1e-6)
+    radius_limited_yaw_rate_deg_s = float(np.rad2deg(speed_mps / max(scenario.vehicle.min_turning_radius_m, 1e-6)))
+    max_yaw_rate_deg_s = min(scenario.vehicle.max_yaw_rate_deg_s, radius_limited_yaw_rate_deg_s)
+    commanded_yaw_rate_deg_s = float(np.clip(command.yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+    if abs(commanded_yaw_rate_deg_s) <= 1e-9:
+        heading_error_deg = smallest_angle_error_deg(command.desired_heading_deg, updated_pose.heading_deg)
+        commanded_yaw_rate_deg_s = float(np.clip(heading_error_deg / max(dt_s, 1e-6), -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+    heading_step_deg = commanded_yaw_rate_deg_s * dt_s
     updated_pose.heading_deg = wrap_angle_deg(updated_pose.heading_deg + heading_step_deg)
     updated_pose.speed_mps = command.speed_mps
 

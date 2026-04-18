@@ -1,20 +1,32 @@
 """Environment and magnetic field models."""
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 
 from .config import EnvironmentConfig, ScenarioConfig, SignalConfig
-from .math_utils import closest_point_on_segment, finite_wire_field_nT, polyline_length
+from .math_utils import (
+    build_polyline_projection_cache,
+    batch_finite_wire_field_nT,
+    estimate_polyline_curvature,
+    finite_wire_field_nT,
+    nearest_point_on_polyline,
+    polyline_length,
+    sample_sine_overlay_path,
+    sample_spline_path,
+)
 
 
 @dataclass
 class CableFitTruth:
     nearest_point_xy_m: np.ndarray
     tangent_xy: np.ndarray
+    heading_deg: float
     burial_depth_m: float
     cable_depth_m: float
+    curvature_1pm: float
+    progress_m: float
 
 
 class SeabedProfile:
@@ -30,37 +42,87 @@ class SeabedProfile:
 
 
 class CableRoute:
-    def __init__(self, waypoints_xy_m: Tuple[Tuple[float, float], ...]) -> None:
+    def __init__(self, config: EnvironmentConfig) -> None:
+        self.config = config
+        waypoints_xy_m = config.cable_waypoints_xy_m
         self.waypoints_xy_m = np.asarray(waypoints_xy_m, dtype=float)
         if self.waypoints_xy_m.ndim != 2 or self.waypoints_xy_m.shape[1] != 2:
             raise ValueError("Cable waypoints must be an Nx2 sequence.")
         if len(self.waypoints_xy_m) < 2:
             raise ValueError("Cable route requires at least two waypoints.")
+        self._sample_cache = {}
+        self._projection_cache = {}
+        if config.validate_curvature_on_build and config.min_cable_curvature_radius_m > 0:
+            self._validate_curvature(step_m=max(config.field_segment_length_m * 0.5, 1.0))
 
     def sample_xy(self, step_m: float = 2.0) -> np.ndarray:
-        sampled = [self.waypoints_xy_m[0]]
-        for start, end in zip(self.waypoints_xy_m[:-1], self.waypoints_xy_m[1:]):
-            segment = end - start
-            distance = np.linalg.norm(segment)
-            count = max(2, int(np.ceil(distance / max(step_m, 0.5))) + 1)
-            for alpha in np.linspace(0.0, 1.0, count)[1:]:
-                sampled.append(start + alpha * segment)
-        return np.asarray(sampled, dtype=float)
+        cache_key = round(float(step_m), 4)
+        if cache_key in self._sample_cache:
+            return self._sample_cache[cache_key].copy()
+
+        if self.config.cable_route_mode == "spline":
+            sampled = sample_spline_path(self.waypoints_xy_m, step_m)
+        elif self.config.cable_route_mode == "sine":
+            sampled = sample_sine_overlay_path(
+                self.waypoints_xy_m,
+                step_m,
+                amplitudes_m=self.config.sine_amplitudes_m,
+                wavelengths_m=self.config.sine_wavelengths_m,
+            )
+        else:
+            sampled = [self.waypoints_xy_m[0]]
+            for start, end in zip(self.waypoints_xy_m[:-1], self.waypoints_xy_m[1:]):
+                segment = end - start
+                distance = np.linalg.norm(segment)
+                count = max(2, int(np.ceil(distance / max(step_m, 0.5))) + 1)
+                for alpha in np.linspace(0.0, 1.0, count)[1:]:
+                    sampled.append(start + alpha * segment)
+            sampled = np.asarray(sampled, dtype=float)
+
+        self._sample_cache[cache_key] = np.asarray(sampled, dtype=float)
+        return self._sample_cache[cache_key].copy()
 
     def nearest_point_and_tangent(self, position_xy_m: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float]:
-        best_point = None
-        best_tangent = None
-        best_distance = float("inf")
-        for start, end in zip(self.waypoints_xy_m[:-1], self.waypoints_xy_m[1:]):
-            candidate_point, _ = closest_point_on_segment(position_xy_m, start, end)
-            distance = float(np.linalg.norm(candidate_point - position_xy_m))
-            if distance < best_distance:
-                best_distance = distance
-                best_point = candidate_point
-                tangent = end - start
-                tangent_norm = np.linalg.norm(tangent)
-                best_tangent = tangent / max(tangent_norm, 1e-9)
+        projection_cache = self.projection_cache(step_m=max(self.config.field_segment_length_m * 0.5, 1.0))
+        best_point, best_tangent, best_distance, _, _ = nearest_point_on_polyline(position_xy_m, projection_cache)
         return best_point, best_tangent, best_distance
+
+    def truth_at_xy(self, position_xy_m: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float, int]:
+        projection_cache = self.projection_cache(step_m=max(self.config.field_segment_length_m * 0.5, 1.0))
+        return nearest_point_on_polyline(position_xy_m, projection_cache)
+
+    def curvature_at_xy(self, position_xy_m: np.ndarray) -> float:
+        projection_cache = self.projection_cache(step_m=max(self.config.field_segment_length_m * 0.5, 1.0))
+        _, _, _, _, segment_index = nearest_point_on_polyline(position_xy_m, projection_cache)
+        return estimate_polyline_curvature(projection_cache.polyline_xy, segment_index)
+
+    def projection_cache(self, step_m: float) -> object:
+        cache_key = round(float(step_m), 4)
+        if cache_key not in self._projection_cache:
+            self._projection_cache[cache_key] = build_polyline_projection_cache(self.sample_xy(step_m))
+        return self._projection_cache[cache_key]
+
+    def _validate_curvature(self, step_m: float) -> None:
+        """Check that all segments satisfy the minimum curvature radius constraint."""
+        sampled = self.sample_xy(step_m)
+        min_radius_m = self.config.min_cable_curvature_radius_m
+        violations = []
+        for i in range(1, len(sampled) - 1):
+            curvature_1pm = estimate_polyline_curvature(sampled, i)
+            if abs(curvature_1pm) > 1e-9:
+                radius_m = 1.0 / abs(curvature_1pm)
+                if radius_m < min_radius_m:
+                    violations.append((i, radius_m))
+        if violations:
+            worst_idx, worst_radius = min(violations, key=lambda v: v[1])
+            import warnings
+            warnings.warn(
+                f"Cable route has {len(violations)} curvature violation(s): "
+                f"min radius {worst_radius:.1f}m at segment {worst_idx} "
+                f"(limit: {min_radius_m:.1f}m). "
+                f"Tracking may be unreliable in tight bends.",
+                stacklevel=3,
+            )
 
     @property
     def total_length_m(self) -> float:
@@ -84,6 +146,8 @@ class MagneticFieldModel:
         self.suspended_height_m = suspended_height_m
         self.segment_length_m = segment_length_m
         self.route_points_ned_m = self._build_3d_route()
+        self.route_segment_starts_ned_m = self.route_points_ned_m[:-1].copy()
+        self.route_segment_ends_ned_m = self.route_points_ned_m[1:].copy()
 
     def _build_3d_route(self) -> np.ndarray:
         route_xy = self.route.sample_xy(step_m=self.segment_length_m)
@@ -98,10 +162,15 @@ class MagneticFieldModel:
         current_a = self.signal.current_at_time(time_s)
         if abs(current_a) < 1e-9:
             return np.zeros(3, dtype=float)
-        total_field = np.zeros(3, dtype=float)
-        for start, end in zip(self.route_points_ned_m[:-1], self.route_points_ned_m[1:]):
-            total_field += finite_wire_field_nT(position_ned_m, start, end, current_a)
-        return total_field
+        return self.cable_field_gain_ned_nt(position_ned_m) * current_a
+
+    def cable_field_gain_ned_nt(self, position_ned_m: np.ndarray) -> np.ndarray:
+        return batch_finite_wire_field_nT(
+            position_ned_m,
+            self.route_segment_starts_ned_m,
+            self.route_segment_ends_ned_m,
+            1.0,
+        )
 
 
 class CableEnvironment:
@@ -113,7 +182,7 @@ class CableEnvironment:
             undulation_m=self.config.seabed_undulation_m,
             wavelength_m=self.config.seabed_wavelength_m,
         )
-        self.route = CableRoute(self.config.cable_waypoints_xy_m)
+        self.route = CableRoute(self.config)
         self.field_model = MagneticFieldModel(
             route=self.route,
             seabed=self.seabed,
@@ -128,14 +197,23 @@ class CableEnvironment:
         return self.background_field_ned_nt + self.field_model.cable_field_ned_nt(position_ned_m, time_s)
 
     def cable_truth_at_xy(self, position_xy_m: np.ndarray) -> CableFitTruth:
-        nearest_xy, tangent_xy, _ = self.route.nearest_point_and_tangent(position_xy_m)
+        nearest_xy, tangent_xy, _, progress_m, segment_index = self.route.truth_at_xy(position_xy_m)
         seabed_depth_m = self.seabed.depth_at_xy(nearest_xy[0], nearest_xy[1])
         cable_depth_m = seabed_depth_m + self.config.burial_depth_m - self.config.suspended_height_m
+        heading_deg = float(np.rad2deg(np.arctan2(tangent_xy[1], tangent_xy[0])))
+        projection_cache = self.route.projection_cache(step_m=max(self.config.field_segment_length_m * 0.5, 1.0))
+        curvature_1pm = estimate_polyline_curvature(
+            projection_cache.polyline_xy,
+            segment_index,
+        )
         return CableFitTruth(
             nearest_point_xy_m=nearest_xy,
             tangent_xy=tangent_xy,
+            heading_deg=heading_deg,
             burial_depth_m=self.config.burial_depth_m,
             cable_depth_m=cable_depth_m,
+            curvature_1pm=curvature_1pm,
+            progress_m=progress_m,
         )
 
     def seabed_depth_m(self, position_xy_m: np.ndarray) -> float:
