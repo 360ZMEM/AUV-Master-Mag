@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test-unittest-discover",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"unittest",
+				"discover",
+				"-s",
+				"tests"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		}
+	]
+}

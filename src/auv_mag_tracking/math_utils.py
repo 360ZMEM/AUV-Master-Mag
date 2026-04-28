@@ -13,6 +13,8 @@ MU0_OVER_4PI = 1e-7
 
 @dataclass
 class Pose:
+    """表示 AUV 在 NED 坐标系下的姿态与运动状态。"""
+
     position_ned_m: np.ndarray
     heading_deg: float
     pitch_deg: float
@@ -31,6 +33,8 @@ class Pose:
 
 @dataclass
 class PolylineProjectionCache:
+    """缓存折线路径的几何信息，便于快速执行投影与最近点查询。"""
+
     polyline_xy: np.ndarray
     segment_starts_xy: np.ndarray
     segment_vectors_xy: np.ndarray
@@ -41,14 +45,17 @@ class PolylineProjectionCache:
 
 
 def as_vector(values: Iterable[float]) -> np.ndarray:
+    """将任意可迭代数值转换为一维浮点向量。"""
     return np.asarray(list(values), dtype=float)
 
 
 def wrap_angle_deg(angle_deg: float) -> float:
+    """将角度规范化到 [−180, 180) 区间。"""
     return (angle_deg + 180.0) % 360.0 - 180.0
 
 
 def smallest_angle_error_deg(target_deg: float, current_deg: float) -> float:
+    """计算目标角与当前角之间的最小有符号误差。"""
     return wrap_angle_deg(target_deg - current_deg)
 
 
@@ -76,31 +83,38 @@ def rotation_matrix_body_to_ned(roll_deg: float, pitch_deg: float, yaw_deg: floa
 
 
 def rotation_matrix_sensor_to_body(roll_deg: float, pitch_deg: float, yaw_deg: float) -> np.ndarray:
+    """构造传感器坐标系到机体系的静态安装旋转矩阵。"""
     return rotation_matrix_body_to_ned(roll_deg, pitch_deg, yaw_deg)
 
 
 def body_to_ned(vector_body: Iterable[float], roll_deg: float, pitch_deg: float, yaw_deg: float) -> np.ndarray:
+    """将机体系向量旋转到 NED 坐标系。"""
     return rotation_matrix_body_to_ned(roll_deg, pitch_deg, yaw_deg) @ as_vector(vector_body)
 
 
 def ned_to_body(vector_ned: Iterable[float], roll_deg: float, pitch_deg: float, yaw_deg: float) -> np.ndarray:
+    """将 NED 向量旋转回机体系。"""
     rotation = rotation_matrix_body_to_ned(roll_deg, pitch_deg, yaw_deg)
     return rotation.T @ as_vector(vector_ned)
 
 
 def sensor_to_body(vector_sensor: Iterable[float], sensor_to_body_matrix: np.ndarray) -> np.ndarray:
+    """将传感器坐标系向量映射到机体系。"""
     return sensor_to_body_matrix @ as_vector(vector_sensor)
 
 
 def body_to_sensor(vector_body: Iterable[float], sensor_to_body_matrix: np.ndarray) -> np.ndarray:
+    """将机体系向量映射到传感器坐标系。"""
     return sensor_to_body_matrix.T @ as_vector(vector_body)
 
 
 def norm(vector: Iterable[float]) -> float:
+    """返回向量的欧几里得范数。"""
     return float(np.linalg.norm(as_vector(vector)))
 
 
 def unit(vector: Iterable[float]) -> np.ndarray:
+    """返回单位化后的向量；若长度过小则返回零向量。"""
     vector_array = as_vector(vector)
     magnitude = np.linalg.norm(vector_array)
     if magnitude < EPSILON:
@@ -109,11 +123,13 @@ def unit(vector: Iterable[float]) -> np.ndarray:
 
 
 def heading_from_direction_xy(direction_xy: Iterable[float]) -> float:
+    """根据平面方向向量计算航向角。"""
     direction = as_vector(direction_xy)
     return float(np.rad2deg(np.arctan2(direction[1], direction[0])))
 
 
 def body_xy_to_ned(relative_xy_m: Iterable[float], heading_deg: float) -> np.ndarray:
+    """将机体系平面位移旋转到 NED 平面。"""
     relative_xy = as_vector(relative_xy_m)
     heading_rad = np.deg2rad(heading_deg)
     rotation = np.array(
@@ -127,6 +143,7 @@ def body_xy_to_ned(relative_xy_m: Iterable[float], heading_deg: float) -> np.nda
 
 
 def ned_xy_to_body(relative_xy_m: Iterable[float], heading_deg: float) -> np.ndarray:
+    """将 NED 平面位移旋转到机体系。"""
     relative_xy = as_vector(relative_xy_m)
     heading_rad = np.deg2rad(heading_deg)
     rotation = np.array(
@@ -145,6 +162,7 @@ def finite_wire_field_nT(
     segment_end_ned_m: Iterable[float],
     current_a: float,
 ) -> np.ndarray:
+    """计算有限长度直导线在观测点处产生的磁场强度。"""
     """Compute the magnetic field of a finite straight wire segment in nT.
 
     The formulation is the compact Biot-Savart vector expression for a finite
@@ -179,6 +197,7 @@ def batch_finite_wire_field_nT(
     segment_ends_ned_m: np.ndarray,
     current_a: float,
 ) -> np.ndarray:
+    """批量计算多个观测点对应的有限导线磁场。"""
     point = as_vector(point_ned_m)
     starts = np.asarray(segment_starts_ned_m, dtype=float)
     ends = np.asarray(segment_ends_ned_m, dtype=float)
@@ -206,6 +225,7 @@ def batch_finite_wire_field_nT(
 
 
 def project_point_to_line(point_xy: Iterable[float], origin_xy: Iterable[float], direction_xy: Iterable[float]) -> np.ndarray:
+    """将点投影到给定直线上。"""
     point = as_vector(point_xy)
     origin = as_vector(origin_xy)
     direction = unit(direction_xy)
@@ -216,6 +236,7 @@ def project_point_to_line(point_xy: Iterable[float], origin_xy: Iterable[float],
 
 
 def polyline_length(points_xy: np.ndarray) -> float:
+    """计算折线总长度。"""
     if len(points_xy) < 2:
         return 0.0
     deltas = np.diff(points_xy, axis=0)
@@ -223,6 +244,7 @@ def polyline_length(points_xy: np.ndarray) -> float:
 
 
 def closest_point_on_segment(point_xy: np.ndarray, start_xy: np.ndarray, end_xy: np.ndarray) -> Tuple[np.ndarray, float]:
+    """求点到线段的最近点及参数位置。"""
     segment = end_xy - start_xy
     length_sq = float(np.dot(segment, segment))
     if length_sq < EPSILON:
@@ -233,6 +255,7 @@ def closest_point_on_segment(point_xy: np.ndarray, start_xy: np.ndarray, end_xy:
 
 
 def cumulative_arc_length(points_xy: np.ndarray) -> np.ndarray:
+    """计算折线上各顶点的累计弧长。"""
     if len(points_xy) == 0:
         return np.zeros(0, dtype=float)
     arc_length = np.zeros(len(points_xy), dtype=float)
@@ -242,6 +265,7 @@ def cumulative_arc_length(points_xy: np.ndarray) -> np.ndarray:
 
 
 def build_polyline_projection_cache(polyline_xy: np.ndarray) -> PolylineProjectionCache:
+    """为折线路径构造投影缓存。"""
     polyline_xy = np.asarray(polyline_xy, dtype=float)
     if len(polyline_xy) < 2:
         raise ValueError("Polyline requires at least two points")
@@ -274,6 +298,7 @@ def build_polyline_projection_cache(polyline_xy: np.ndarray) -> PolylineProjecti
 
 
 def sample_spline_path(waypoints_xy: np.ndarray, step_m: float) -> np.ndarray:
+    """基于样条插值对航点序列进行平滑采样。"""
     arc_length = cumulative_arc_length(waypoints_xy)
     if arc_length[-1] < EPSILON:
         return waypoints_xy.copy()
@@ -290,6 +315,7 @@ def sample_sine_overlay_path(
     amplitudes_m: Tuple[float, ...],
     wavelengths_m: Tuple[float, ...],
 ) -> np.ndarray:
+    """在平滑路径上叠加正弦横向扰动。"""
     base_path = sample_spline_path(waypoints_xy, step_m)
     arc_length = cumulative_arc_length(base_path)
     if len(base_path) < 2:
@@ -310,6 +336,7 @@ def nearest_point_on_polyline(
     point_xy: np.ndarray,
     polyline_xy: Union[np.ndarray, PolylineProjectionCache],
 ) -> Tuple[np.ndarray, np.ndarray, float, float, int]:
+    """返回点到折线的最近点、切向、距离和进度信息。"""
     cache = polyline_xy if isinstance(polyline_xy, PolylineProjectionCache) else build_polyline_projection_cache(polyline_xy)
     point_xy = np.asarray(point_xy, dtype=float)
 
@@ -334,6 +361,7 @@ def nearest_point_on_polyline(
 
 
 def estimate_polyline_curvature(polyline_xy: np.ndarray, index: int) -> float:
+    """估计折线在指定顶点处的离散曲率。"""
     if len(polyline_xy) < 3:
         return 0.0
     center_index = int(np.clip(index + 1, 1, len(polyline_xy) - 2))

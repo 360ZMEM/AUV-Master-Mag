@@ -14,6 +14,7 @@ from auv_mag_tracking.tools.phyphox_adapter import run_demo
 
 
 def parse_args() -> argparse.Namespace:
+    """解析 Phyphox 演示所需的命令行参数。"""
     parser = argparse.ArgumentParser(description="Live Phyphox magnetometer adapter demo")
     parser.add_argument("--phone-ip", required=True, help="Phyphox phone IP address")
     parser.add_argument("--port", type=int, default=8080, help="Phyphox HTTP port")
@@ -28,6 +29,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """程序入口，组装参数并启动演示循环。"""
     args = parse_args()
     return run_demo(
         phone_ip=args.phone_ip,

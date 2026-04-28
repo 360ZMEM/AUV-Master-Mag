@@ -12,6 +12,8 @@ from .math_utils import Pose, body_to_sensor, ned_to_body, ned_xy_to_body, rotat
 
 @dataclass
 class MagnetometerReading:
+    """表示一次磁力计采样及其派生特征。"""
+
     time_s: float
     sensor_field_nt: np.ndarray
     sample_times_s: np.ndarray
@@ -28,6 +30,8 @@ class MagnetometerReading:
 
 @dataclass
 class PoseMeasurement:
+    """表示 IMU/姿态估计输出的姿态测量值。"""
+
     time_s: float
     heading_deg: float
     pitch_deg: float
@@ -37,6 +41,8 @@ class PoseMeasurement:
 
 @dataclass
 class BurialDepthMeasurement:
+    """表示埋深观测结果及其有效性。"""
+
     time_s: float
     depth_m: Optional[float]
     valid: bool
@@ -44,6 +50,8 @@ class BurialDepthMeasurement:
 
 @dataclass
 class SonarReading:
+    """表示声呐对电缆位置或航向的观测结果。"""
+
     time_s: float
     valid: bool
     status: str
@@ -57,6 +65,7 @@ class SonarReading:
 
 class MagnetometerModel:
     def __init__(self, config: SensorConfig, random_seed: int = 7) -> None:
+        """初始化基础磁力计模型及其噪声状态。"""
         self.config = config
         self.rng = np.random.default_rng(random_seed)
         self.sample_period_s = 1.0 / max(config.magnetometer_sample_rate_hz, 1e-9)
@@ -81,6 +90,7 @@ class MagnetometerModel:
 
     @staticmethod
     def _build_nonorthogonality_matrix(nonorthogonality_deg: float) -> np.ndarray:
+        """根据非正交角构造传感器轴耦合矩阵。"""
         skew = np.deg2rad(nonorthogonality_deg)
         return np.array(
             [
@@ -98,6 +108,7 @@ class MagnetometerModel:
         time_s: float,
         cable_field_ned_nt: Optional[np.ndarray] = None,
     ) -> MagnetometerReading:
+        """对单个时刻的真实磁场进行采样并叠加噪声与偏置。"""
         if time_s - self.last_sample_time_s < self.sample_period_s:
             return self.last_reading
 
@@ -136,6 +147,7 @@ class MagnetometerModel:
         sample_times_s: np.ndarray,
         cable_fields_ned_nt: Optional[np.ndarray] = None,
     ) -> MagnetometerReading:
+        """对一个连续采样块进行磁力计仿真采样。"""
         sample_times_s = np.asarray(sample_times_s, dtype=float)
         true_fields_ned_nt = np.asarray(true_fields_ned_nt, dtype=float)
         if sample_times_s.ndim != 1 or true_fields_ned_nt.shape != (sample_times_s.size, 3):
@@ -175,12 +187,14 @@ class MagnetometerModel:
 
 class HighFidelityMagnetometer(MagnetometerModel):
     def __init__(self, config: SensorConfig, random_seed: int = 31) -> None:
+        """初始化高保真磁力计模型，并启用更复杂的噪声源。"""
         super().__init__(config, random_seed=random_seed)
         self.hf_config = config.high_fidelity
         self.sample_period_s = 1.0 / max(self.hf_config.sampling_rate_hz, 1e-9)
         self.impulse_state_sensor_nt = np.zeros(3, dtype=float)
 
     def _generate_colored_noise_block(self, sample_count: int) -> np.ndarray:
+        """生成近似 1/f 颜色噪声块。"""
         if sample_count <= 1 or self.hf_config.pink_noise_std_nt <= 0.0:
             return np.zeros((sample_count, 3), dtype=float)
 
@@ -204,6 +218,7 @@ class HighFidelityMagnetometer(MagnetometerModel):
         return colored_block
 
     def _generate_impulse_block(self, sample_count: int) -> np.ndarray:
+        """生成带指数衰减的脉冲干扰块。"""
         impulse_block = np.zeros((sample_count, 3), dtype=float)
         decay = float(np.exp(-1.0 / max(self.hf_config.impulse_decay_samples, 1)))
         for sample_index in range(sample_count):
@@ -219,6 +234,7 @@ class HighFidelityMagnetometer(MagnetometerModel):
         return impulse_block
 
     def _quantize_block(self, raw_block_nt: np.ndarray) -> tuple:
+        """对原始磁场块执行量化和饱和裁剪。"""
         full_scale_nt = max(self.hf_config.full_scale_nt, 1.0)
         quantization_levels = max((1 << max(self.hf_config.bit_depth, 1)) - 1, 1)
         step_nt = 2.0 * full_scale_nt / quantization_levels
@@ -234,6 +250,7 @@ class HighFidelityMagnetometer(MagnetometerModel):
         time_s: float,
         cable_field_ned_nt: Optional[np.ndarray] = None,
     ) -> MagnetometerReading:
+        """对高保真磁力计执行单点采样。"""
         reading = self.sample_block(
             true_fields_ned_nt=np.asarray(true_field_ned_nt, dtype=float).reshape(1, 3),
             pose=pose,
@@ -249,6 +266,7 @@ class HighFidelityMagnetometer(MagnetometerModel):
         sample_times_s: np.ndarray,
         cable_fields_ned_nt: Optional[np.ndarray] = None,
     ) -> MagnetometerReading:
+        """对高保真磁力计执行连续块采样并叠加平台干扰。"""
         sample_times_s = np.asarray(sample_times_s, dtype=float)
         true_fields_ned_nt = np.asarray(true_fields_ned_nt, dtype=float)
         if sample_times_s.ndim != 1 or true_fields_ned_nt.shape != (sample_times_s.size, 3):
@@ -309,10 +327,12 @@ class HighFidelityMagnetometer(MagnetometerModel):
 
 class IMUSimulator:
     def __init__(self, config: SensorConfig, random_seed: int = 13) -> None:
+        """初始化 IMU 姿态噪声仿真器。"""
         self.config = config
         self.rng = np.random.default_rng(random_seed)
 
     def observe(self, pose: Pose, time_s: float) -> PoseMeasurement:
+        """生成带噪声的姿态测量值。"""
         heading_deg = pose.heading_deg + self.rng.normal(0.0, self.config.imu_heading_noise_deg)
         pitch_deg = pose.pitch_deg + self.rng.normal(0.0, self.config.imu_tilt_noise_deg)
         roll_deg = pose.roll_deg + self.rng.normal(0.0, self.config.imu_tilt_noise_deg)
@@ -324,6 +344,7 @@ class IMUSimulator:
 
 class BurialDepthObserver:
     def __init__(self, config: SurveyConfig, random_seed: int = 19) -> None:
+        """初始化埋深观测器及其采样节流状态。"""
         self.config = config
         self.rng = np.random.default_rng(random_seed)
         self.sample_period_s = 1.0 / max(config.burial_depth_update_rate_hz, 1e-9)
@@ -331,6 +352,7 @@ class BurialDepthObserver:
         self.last_measurement = BurialDepthMeasurement(time_s=0.0, depth_m=None, valid=False)
 
     def observe(self, true_burial_depth_m: float, time_s: float) -> BurialDepthMeasurement:
+        """根据真实埋深生成带噪声和掉包的观测。"""
         if time_s - self.last_sample_time_s < self.sample_period_s:
             return self.last_measurement
 
@@ -346,6 +368,7 @@ class BurialDepthObserver:
 
 class SonarModel:
     def __init__(self, config: SonarConfig, random_seed: int = 23) -> None:
+        """初始化声呐模型及其更新节流状态。"""
         self.config = config
         self.rng = np.random.default_rng(random_seed)
         self.sample_period_s = 1.0 / max(config.update_rate_hz, 1e-9)
@@ -363,6 +386,7 @@ class SonarModel:
         )
 
     def sample(self, pose: Pose, cable_truth: CableFitTruth, time_s: float) -> SonarReading:
+        """基于当前姿态与电缆真值生成一条声呐读数。"""
         if time_s - self.last_sample_time_s < self.sample_period_s:
             return self.last_reading
 

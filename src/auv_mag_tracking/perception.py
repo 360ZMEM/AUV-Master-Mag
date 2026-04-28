@@ -27,6 +27,13 @@ from .sensor_model import BurialDepthMeasurement, MagnetometerReading, PoseMeasu
 
 @dataclass
 class FitResult:
+    """表示磁性峰值历史拟合得到的线路模型结果。
+
+    该结果用于描述当前观测到的峰值点集是否能够稳定拟合为一条
+    近似直线，并给出拟合中心、方向向量、残差以及协方差矩阵，
+    供后续的航迹融合、置信度评估和失锁恢复逻辑使用。
+    """
+
     origin_xy_m: Optional[np.ndarray]
     direction_xy: Optional[np.ndarray]
     residual_m: float
@@ -35,6 +42,13 @@ class FitResult:
 
 @dataclass
 class PeakEvent:
+    """表示一次可用于线路更新的磁场峰值事件。
+
+    峰值事件是峰值检测器的最终输出，携带峰值是否成立、峰值强度、
+    峰值发生时间、估计位置以及估计电缆航向等信息，供感知层与控制层
+    共同消费。
+    """
+
     detected: bool
     peak_strength_nt: float = 0.0
     peak_time_s: float = 0.0
@@ -44,6 +58,8 @@ class PeakEvent:
 
 @dataclass
 class PeakObservation:
+    """表示用于滑动拟合的单个峰值观测样本。"""
+
     position_xy_m: np.ndarray
     snr_linear: float
     confidence: float
@@ -52,6 +68,8 @@ class PeakObservation:
 
 @dataclass
 class PeakZoneSample:
+    """表示峰区内部的原始采样点及其空间位置。"""
+
     time_s: float
     strength_nt: float
     position_xy_m: Optional[np.ndarray]
@@ -59,6 +77,13 @@ class PeakZoneSample:
 
 @dataclass
 class PerceptionState:
+    """表示感知层对当前时刻的完整融合状态。
+
+    该结构汇总了坐标系变换后的磁场分量、滤波强度、信噪比、峰值检出、
+    拟合结果、声呐辅助信息、部署模式估计量以及安全锁诊断信息，作为
+    控制层唯一的感知输入。
+    """
+
     time_s: float
     sensor_field_nt: np.ndarray
     body_field_nt: np.ndarray
@@ -101,6 +126,7 @@ class PerceptionState:
     deployment_estimated_cable_heading_deg: Optional[float] = None
     deployment_heading_confidence: float = 0.0
     deployment_reacquire_required: bool = False
+    tracking_maturity: float = 0.0
     gradient_heading_offset_deg: float = 0.0
     # --- Signal enhancement layer outputs ---
     envelope_gradient_nT_per_m: float = 0.0
@@ -116,12 +142,16 @@ class PerceptionState:
 
 
 class LowPassFilter:
+    """实现一阶离散低通滤波器，用于平滑瞬时测量值。"""
+
     def __init__(self, time_constant_s: float) -> None:
+        """初始化低通滤波器并设置时间常数。"""
         self.time_constant_s = max(time_constant_s, 1e-3)
         self.value = 0.0
         self.initialized = False
 
     def update(self, measurement: float, dt_s: float) -> float:
+        """根据新测量值更新滤波输出。"""
         alpha = dt_s / (self.time_constant_s + dt_s)
         if not self.initialized:
             self.value = measurement
@@ -132,16 +162,23 @@ class LowPassFilter:
 
 
 class MedianWindowFilter:
+    """实现固定窗口中值滤波器，用于抑制瞬态离群点。"""
+
     def __init__(self, window_size: int) -> None:
+        """初始化中值滤波窗口大小。"""
         self.buffer: Deque[float] = deque(maxlen=max(1, window_size))
 
     def update(self, measurement: float) -> float:
+        """写入新样本并返回窗口中值。"""
         self.buffer.append(measurement)
         return float(np.median(np.asarray(self.buffer, dtype=float)))
 
 
 class StreamingBandpassFilter:
+    """实现流式带通滤波器，用于提取目标工频磁信号分量。"""
+
     def __init__(self, sample_rate_hz: float, center_frequency_hz: float, half_width_hz: float, order: int = 2) -> None:
+        """根据采样率和目标频率构建带通 SOS 滤波器。"""
         nyquist_hz = 0.5 * max(sample_rate_hz, 1e-6)
         low_hz = max(0.5, center_frequency_hz - half_width_hz)
         high_hz = min(nyquist_hz * 0.95, center_frequency_hz + half_width_hz)
@@ -153,6 +190,7 @@ class StreamingBandpassFilter:
         self.zi = np.zeros((self.sos.shape[0], 2, 3), dtype=float)
 
     def update(self, vector_nt: np.ndarray) -> np.ndarray:
+        """对三轴磁场向量执行逐轴流式滤波。"""
         filtered = np.zeros(3, dtype=float)
         for axis_index in range(3):
             result, self.zi[:, :, axis_index] = sosfilt(
@@ -165,12 +203,16 @@ class StreamingBandpassFilter:
 
 
 class RMSExtractor:
+    """在滑动窗口内提取均方根幅值，用于形成跟踪强度。"""
+
     def __init__(self, sample_rate_hz: float, minimum_frequency_hz: float) -> None:
+        """初始化 RMS 窗口大小，保证至少覆盖一个完整周期。"""
         min_window_s = 2.0 / max(minimum_frequency_hz, 1e-6)
         self.window_size_samples = max(3, int(np.ceil(sample_rate_hz * min_window_s)))
         self.buffer: Deque[float] = deque(maxlen=self.window_size_samples)
 
     def update(self, sample_value: float) -> float:
+        """写入新样本并返回当前窗口 RMS 值。"""
         self.buffer.append(sample_value)
         if not self.buffer:
             return 0.0
@@ -179,6 +221,8 @@ class RMSExtractor:
 
 
 class PeakDetector:
+    """基于上升-峰区-下降状态机检测磁场峰值事件。"""
+
     def __init__(
         self,
         min_peak_strength_nt: float,
@@ -189,6 +233,7 @@ class PeakDetector:
         descending_min_samples: int = 2,
         peak_zone_window_size: int = 20,
     ) -> None:
+        """初始化峰值检测器的阈值、滞回和冷却参数。"""
         self.min_peak_strength_nt = min_peak_strength_nt
         self.turn_trigger_ratio = turn_trigger_ratio
         self.hysteresis_fraction = hysteresis_fraction
@@ -209,6 +254,7 @@ class PeakDetector:
         self.peak_zone_samples: Deque[PeakZoneSample] = deque(maxlen=self.peak_zone_window_size)
 
     def _reset_tracking_state(self) -> None:
+        """重置峰区追踪状态，回到空闲等待下一次峰值。"""
         self.state = "IDLE"
         self.ascending_count = 0
         self.descending_count = 0
@@ -218,6 +264,7 @@ class PeakDetector:
         self.peak_zone_samples.clear()
 
     def _update_current_peak(self, sample: PeakZoneSample) -> None:
+        """使用当前样本刷新峰区中的最大峰值记录。"""
         if sample.strength_nt >= self.current_peak_strength_nt:
             self.current_peak_strength_nt = sample.strength_nt
             self.current_peak_time_s = sample.time_s
@@ -229,6 +276,7 @@ class PeakDetector:
         vehicle_heading_deg: Optional[float] = None,
         use_nominal_route_prior: bool = True,
     ) -> PeakEvent:
+        """从峰区样本中构造最终峰值事件并清空内部状态。"""
         if not self.peak_zone_samples:
             self._reset_tracking_state()
             self.cooldown_until_s = time_s + self.cooldown_s
@@ -345,6 +393,7 @@ class PeakDetector:
         vehicle_heading_deg: Optional[float] = None,
         use_nominal_route_prior: bool = True,
     ) -> PeakEvent:
+        """输入新的强度样本，推动峰值状态机并在必要时输出事件。"""
         sample = PeakZoneSample(
             time_s=float(time_s),
             strength_nt=float(strength_nt),
@@ -429,6 +478,7 @@ class EnvelopeGradientTracker:
         buffer_capacity: int = 40,
         min_speed_mps: float = 0.3,
     ) -> None:
+        """初始化包络梯度跟踪器的窗口、缓存与速度约束。"""
         self.window_size = max(3, window_size if window_size % 2 == 1 else window_size + 1)
         self.polyorder = min(polyorder, self.window_size - 1)
         self.buffer_capacity = max(4, buffer_capacity)
@@ -447,6 +497,7 @@ class EnvelopeGradientTracker:
         position_xy_m: np.ndarray,
         speed_mps: float,
     ) -> None:
+        """更新梯度估计并同步计算信号上升/下降方向。"""
         self.time_buffer.append(time_s)
         self.strength_buffer.append(strength_nt)
         self.position_buffer.append(np.asarray(position_xy_m, dtype=float).copy())
@@ -512,6 +563,7 @@ class MagneticVectorAnalyzer:
     """
 
     def __init__(self, buffer_capacity: int = 8) -> None:
+        """初始化横向磁向量的历史缓存与置信度状态。"""
         self.buffer_capacity = max(1, buffer_capacity)
         self.vector_headings: Deque[float] = deque(maxlen=self.buffer_capacity)
         self.vector_magnitudes: Deque[float] = deque(maxlen=self.buffer_capacity)
@@ -524,6 +576,7 @@ class MagneticVectorAnalyzer:
         anomaly_ned_nt: np.ndarray,
         tracking_strength_nt: float,
     ) -> None:
+        """根据 NED 磁异常向量估计电缆航向和方向一致性。"""
         bx, by = float(anomaly_ned_nt[0]), float(anomaly_ned_nt[1])
         magnitude_xy = float(np.sqrt(bx * bx + by * by))
 
@@ -554,17 +607,22 @@ class MagneticVectorAnalyzer:
 
 
 class CableRouteFitter:
+    """基于峰值位置历史对电缆中心线进行加权线性拟合。"""
+
     def __init__(self, history_size: int, forgetting_factor: float) -> None:
+        """初始化历史长度和遗忘因子。"""
         self.history_size = history_size
         self.forgetting_factor = np.clip(forgetting_factor, 0.1, 0.99)
         self.peak_positions_xy: Deque[np.ndarray] = deque(maxlen=history_size)
         self.last_detection_time_s = -1e9
 
     def add_peak(self, position_xy_m: np.ndarray, time_s: float) -> None:
+        """记录新的峰值位置并更新时间戳。"""
         self.peak_positions_xy.append(np.asarray(position_xy_m, dtype=float))
         self.last_detection_time_s = time_s
 
     def fit(self) -> FitResult:
+        """根据当前历史峰值执行主方向拟合。"""
         if len(self.peak_positions_xy) < 2:
             return FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None)
 
@@ -587,29 +645,32 @@ class CableRouteFitter:
 
 
 class WeightedSlidingWindowFitter:
-    def __init__(self, capacity: int, snr_floor: float) -> None:
+    """结合 SNR 权重的滑动窗口拟合器，用于部署模式下的稳健中心线估计。"""
+
+    def __init__(
+        self,
+        capacity: int,
+        snr_floor: float,
+        washout_residual_m: float = 5.0,
+        washout_snr_linear_threshold: float = 10.0,
+        washout_retention_count: int = 2,
+    ) -> None:
+        """初始化滑动窗口容量、权重下限与洗出阈值。"""
         self.capacity = max(2, capacity)
         self.snr_floor = max(snr_floor, 1.0001)
+        self.washout_residual_m = max(washout_residual_m, 0.5)
+        self.washout_snr_linear_threshold = max(washout_snr_linear_threshold, self.snr_floor)
+        self.washout_retention_count = max(1, washout_retention_count)
         self.peak_observations: Deque[PeakObservation] = deque(maxlen=self.capacity)
         self.last_detection_time_s = -1e9
 
-    def add_peak(self, position_xy_m: np.ndarray, snr_linear: float, confidence: float, time_s: float) -> None:
-        self.peak_observations.append(
-            PeakObservation(
-                position_xy_m=np.asarray(position_xy_m, dtype=float),
-                snr_linear=float(max(snr_linear, self.snr_floor)),
-                confidence=float(confidence),
-                time_s=float(time_s),
-            )
-        )
-        self.last_detection_time_s = time_s
-
-    def fit(self) -> FitResult:
-        if len(self.peak_observations) < 2:
+    def _fit_observations(self, observations: Deque[PeakObservation]) -> FitResult:
+        """对给定观测序列执行加权直线拟合。"""
+        if len(observations) < 2:
             return FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None)
 
-        points = np.vstack([observation.position_xy_m for observation in self.peak_observations])
-        weights = np.array([np.log10(max(observation.snr_linear, self.snr_floor)) for observation in self.peak_observations], dtype=float)
+        points = np.vstack([observation.position_xy_m for observation in observations])
+        weights = np.array([np.log10(max(observation.snr_linear, self.snr_floor)) for observation in observations], dtype=float)
         weights = np.maximum(weights, 1e-3)
         weights = weights / np.sum(weights)
         centroid = np.sum(points * weights[:, None], axis=0)
@@ -625,12 +686,44 @@ class WeightedSlidingWindowFitter:
         residual = float(np.sqrt(np.sum(weights * (centered @ orthogonal) ** 2)))
         return FitResult(origin_xy_m=centroid, direction_xy=direction, residual_m=residual, covariance_xy_m2=covariance)
 
+    def add_peak(self, position_xy_m: np.ndarray, snr_linear: float, confidence: float, time_s: float) -> bool:
+        """添加峰值观测，并在异常偏离时触发洗出处理。"""
+        washout_triggered = False
+        position_xy_m = np.asarray(position_xy_m, dtype=float)
+        if len(self.peak_observations) >= 2 and snr_linear >= self.washout_snr_linear_threshold:
+            current_fit = self._fit_observations(self.peak_observations)
+            if current_fit.direction_xy is not None and np.isfinite(current_fit.residual_m) and current_fit.origin_xy_m is not None:
+                orthogonal_xy = np.array([-current_fit.direction_xy[1], current_fit.direction_xy[0]], dtype=float)
+                residual_m = abs(float(np.dot(position_xy_m - current_fit.origin_xy_m, orthogonal_xy)))
+                if residual_m > self.washout_residual_m:
+                    retained = list(self.peak_observations)[-self.washout_retention_count :]
+                    self.peak_observations = deque(retained, maxlen=self.capacity)
+                    washout_triggered = True
+        self.peak_observations.append(
+            PeakObservation(
+                position_xy_m=position_xy_m,
+                snr_linear=float(max(snr_linear, self.snr_floor)),
+                confidence=float(confidence),
+                time_s=float(time_s),
+            )
+        )
+        self.last_detection_time_s = time_s
+        return washout_triggered
+
+    def fit(self) -> FitResult:
+        """返回当前滑动窗口中的稳健拟合结果。"""
+        return self._fit_observations(self.peak_observations)
+
 
 class ConfidenceEstimator:
+    """将磁信号、拟合质量与声呐信息融合为统一置信度。"""
+
     def __init__(self, lost_timeout_s: float) -> None:
+        """初始化丢失超时参数。"""
         self.lost_timeout_s = max(lost_timeout_s, 0.1)
 
     def magnetic_confidence(self, snr: float, fit_residual_m: float, detection_age_s: float, weak_signal_flag: bool) -> float:
+        """根据信噪比、拟合残差和检测时效评估磁感知置信度。"""
         snr_score = np.clip((snr - 1.0) / 8.0, 0.0, 1.0)
         fit_score = float(np.exp(-fit_residual_m / 10.0)) if np.isfinite(fit_residual_m) else 0.0
         age_score = float(np.exp(-detection_age_s / self.lost_timeout_s))
@@ -645,6 +738,7 @@ class ConfidenceEstimator:
         fit_residual_m: float = float("inf"),
         fit_covariance_xy_m2: Optional[np.ndarray] = None,
     ) -> float:
+        """根据当前引导来源融合磁与声呐置信度。"""
         fit_quality = 0.0
         if np.isfinite(fit_residual_m):
             fit_quality = float(np.exp(-fit_residual_m / 8.0))
@@ -671,7 +765,10 @@ class ConfidenceEstimator:
 
 
 class MagneticCablePerception:
+    """磁感知主流程：完成预处理、峰值检测、拟合与状态汇总。"""
+
     def __init__(self, scenario: ScenarioConfig) -> None:
+        """根据场景配置初始化全部感知链路组件。"""
         self.scenario = scenario
         self.background_field_ned_nt = np.asarray(scenario.environment.background_field_ned_nt, dtype=float)
         self.sensor_to_body_matrix = rotation_matrix_sensor_to_body(*scenario.sensor.static_rotation_euler_deg)
@@ -700,6 +797,9 @@ class MagneticCablePerception:
         self.fitter = WeightedSlidingWindowFitter(
             capacity=scenario.tracking.weighted_fitter_capacity,
             snr_floor=scenario.tracking.weighted_fitter_snr_floor,
+            washout_residual_m=scenario.tracking.deployment_washout_residual_m,
+            washout_snr_linear_threshold=scenario.tracking.deployment_washout_snr_linear_threshold,
+            washout_retention_count=scenario.tracking.deployment_washout_retention_count,
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
@@ -715,6 +815,8 @@ class MagneticCablePerception:
         self.deployment_estimated_cable_heading_deg: Optional[float] = None
         self.deployment_heading_confidence: float = 0.0
         self.deployment_reacquire_required: bool = False
+        self.tracking_maturity: float = 0.0
+        self.deployment_recent_washout_until_s: float = -1e9
         # Field vector gradient tracking for deployment mode: stores recent
         # anomaly vectors and their horizontal directions to estimate which
         # side of the cable the vehicle is on.
@@ -738,6 +840,7 @@ class MagneticCablePerception:
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
 
     def _build_nominal_route_xy(self) -> np.ndarray:
+        """根据场景中的路线模式生成用于先验参考的名义电缆路径。"""
         waypoints_xy = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
         step_m = max(self.scenario.environment.field_segment_length_m * 0.5, 1.0)
         if self.scenario.environment.cable_route_mode == "spline":
@@ -752,6 +855,7 @@ class MagneticCablePerception:
         return waypoints_xy.copy()
 
     def _blind_heading(self) -> Optional[float]:
+        """在没有可用航向先验时，根据历史有效点估计盲航向。"""
         minimum_points = 2 if self.scenario.tracking.use_nominal_route_prior else max(2, self.scenario.tracking.blind_follow_memory_size)
         if len(self.valid_points_xy) < minimum_points:
             return None
@@ -767,6 +871,12 @@ class MagneticCablePerception:
         fit_result: FitResult,
         bootstrap_fit_ready: bool,
     ) -> Tuple[Optional[float], bool]:
+        """在部署模式下为当前航向提供回退估计并标记是否来自记忆。"""
+        if not bootstrap_fit_ready:
+            if self.deployment_estimated_cable_heading_deg is not None:
+                return self.deployment_estimated_cable_heading_deg, False
+            return blind_heading_deg, False
+
         if line_heading_deg is None:
             return blind_heading_deg, False
 
@@ -776,17 +886,13 @@ class MagneticCablePerception:
             if fit_result.residual_m <= fit_acceptance_residual_m and blind_line_agreement_deg <= 20.0:
                 return line_heading_deg, True
 
-        if (
-            blind_heading_deg is None
-            and (bootstrap_fit_ready or not self.scenario.tracking.use_nominal_route_prior)
-            and np.isfinite(fit_result.residual_m)
-            and fit_result.residual_m <= fit_acceptance_residual_m
-        ):
+        if blind_heading_deg is None and np.isfinite(fit_result.residual_m) and fit_result.residual_m <= fit_acceptance_residual_m:
             return line_heading_deg, True
 
         return blind_heading_deg, False
 
     def _deployment_fit_is_consistent(self, candidate_heading_deg: Optional[float]) -> bool:
+        """判断当前部署模式拟合航向是否与历史共识一致。"""
         if candidate_heading_deg is None:
             return False
         if self.deployment_estimated_cable_heading_deg is None:
@@ -797,6 +903,7 @@ class MagneticCablePerception:
         return heading_delta_deg <= self.scenario.tracking.fit_reject_heading_delta_deg
 
     def _deployment_gradient_heading(self) -> Optional[float]:
+        """从包络梯度跟踪器中提取可用的部署模式航向候选。"""
         gradient_heading_deg = self.envelope_tracker.gradient_heading_deg
         if gradient_heading_deg is None:
             return None
@@ -805,6 +912,7 @@ class MagneticCablePerception:
         return gradient_heading_deg
 
     def _reference_heading_deg(self) -> Optional[float]:
+        """返回用于局部投影和异常判断的参考航向。"""
         if not self.scenario.tracking.use_nominal_route_prior:
             if len(self.valid_points_xy) >= 2:
                 delta_xy = self.valid_points_xy[-1] - self.valid_points_xy[0]
@@ -822,6 +930,7 @@ class MagneticCablePerception:
         return None
 
     def _local_line_point(self, vehicle_position_xy_m: np.ndarray, fit_result: FitResult) -> Optional[np.ndarray]:
+        """将车体位置投影到拟合直线上，得到局部线路参考点。"""
         if fit_result.origin_xy_m is None or fit_result.direction_xy is None:
             return None
         return project_point_to_line(vehicle_position_xy_m, fit_result.origin_xy_m, fit_result.direction_xy)
@@ -831,6 +940,7 @@ class MagneticCablePerception:
         peak_position_xy_m: np.ndarray,
         sonar_reading: Optional[SonarReading],
     ) -> Optional[np.ndarray]:
+        """将峰值位置与声呐/名义路线先验融合，输出用于拟合的观测点。"""
         if sonar_reading is not None and sonar_reading.valid and sonar_reading.estimated_position_ned_m is not None:
             return sonar_reading.estimated_position_ned_m.copy()
 
@@ -872,6 +982,7 @@ class MagneticCablePerception:
         return projected_peak_xy_m
 
     def _is_peak_outlier(self, peak_position_xy_m: np.ndarray) -> bool:
+        """判断当前峰值是否相对既有中心线偏离过大。"""
         if not self.scenario.tracking.use_nominal_route_prior:
             return False
         if self.last_accepted_fit_result.origin_xy_m is None or self.last_accepted_fit_result.direction_xy is None:
@@ -886,6 +997,7 @@ class MagneticCablePerception:
         return residual_m > self.scenario.tracking.peak_outlier_rejection_distance_m
 
     def _bootstrap_fit_ready(self, fit_result_candidate: FitResult) -> bool:
+        """判断部署模式下的拟合结果是否已满足启动共识所需条件。"""
         if self.scenario.tracking.use_nominal_route_prior:
             return True
         observation_count = len(self.fitter.peak_observations)
@@ -897,25 +1009,21 @@ class MagneticCablePerception:
             return False
         return fit_result_candidate.direction_xy is not None and np.isfinite(fit_result_candidate.residual_m)
 
+    def _update_tracking_maturity(self, peak_detected: bool, fit_residual_m: float, detection_age_s: float, dt_s: float) -> None:
+        """根据峰值持续性、拟合残差和时效更新部署跟踪成熟度。"""
+        if peak_detected and np.isfinite(fit_residual_m) and fit_residual_m < self.scenario.tracking.deployment_tracking_maturity_residual_threshold_m:
+            self.tracking_maturity = min(1.0, self.tracking_maturity + self.scenario.tracking.deployment_tracking_maturity_gain)
+        if detection_age_s > self.scenario.tracking.deployment_tracking_maturity_stale_age_s:
+            self.tracking_maturity = max(0.0, self.tracking_maturity - self.scenario.tracking.deployment_tracking_maturity_decay_per_s * dt_s)
+        self.tracking_maturity = float(np.clip(self.tracking_maturity, 0.0, 1.0))
+
     def _update_deployment_cable_heading(self, heading_deg: float, position_xy_m: np.ndarray) -> None:
-        """Record a single crossing observation and update the consensus cable
-        heading estimate for deployment (no-prior) mode.
+        """更新部署模式下的电缆航向共识，并对跨越样本做多假设消歧。
 
-        Strategy (Multi-Hypothesis Disambiguation)
-        -----------------------------------------
-        Each crossing yields *two* candidate cable headings: heading+90° and
-        heading−90°.  In zigzag mode, odd-indexed crossings (right-to-left)
-        and even-indexed crossings (left-to-right) have opposite vehicle
-        headings, so the optimal ±90° choice also differs.
-
-        The method stores both the raw heading deg and the crossing position.
-        It then:
-        1. Splits crossings into odd/even groups by sequence index.
-        2. Each group independently selects +90° or -90° via spread minimization.
-        3. If both groups agree on cable direction (error < 20°), merge them.
-           Otherwise, trust only the newer group.
-        4. Computes Bayesian confidence from count and angular consistency.
-        5. Enforces a heading change rate constraint (max 10°/s).
+        该逻辑把每次峰值跨越的车头航向与位置保存到历史中，再按照奇偶
+        跨越分组分别选择 +90° 或 -90° 的电缆方向候选；当两组结论一致时
+        进行融合，否则优先采用更近的样本组。最终结果还会考虑变化率约束，
+        避免电缆航向在短时间内跳变过大。
         """
         self.crossing_headings.append((self.last_time_s, heading_deg))
         self.crossing_positions_xy.append(np.asarray(position_xy_m, dtype=float).copy())
@@ -943,9 +1051,8 @@ class MagneticCablePerception:
                 self.deployment_heading_confidence = 0.0
                 return
 
-        # --- Helper: circular mean and spread ---
         def _circular_stats(headings_deg: list) -> tuple:
-            """Return (mean_deg, spread_deg) for a list of headings."""
+            """返回航向集合的圆周均值与离散度。"""
             if not headings_deg:
                 return 0.0, 180.0
             rads = np.array([np.deg2rad(h % 360.0) for h in headings_deg])
@@ -963,9 +1070,8 @@ class MagneticCablePerception:
                 spread_deg = 0.0
             return mean_deg, spread_deg
 
-        # --- Helper: choose best offset (+90 or -90) for a group ---
         def _choose_offset_for_group(raw_headings: list) -> tuple:
-            """Return (chosen_headings, mean_deg, spread_deg, offset_used)."""
+            """为当前组选择更稳定的 ±90° 偏置并返回统计结果。"""
             cand_sets: list = []
             for offset in [90.0, -90.0]:
                 cands = [(rh + offset) % 360.0 for rh in raw_headings]
@@ -1062,6 +1168,7 @@ class MagneticCablePerception:
         sonar_reading: Optional[SonarReading] = None,
         signal_features: Optional[ProcessedSignalFeatures] = None,
     ) -> PerceptionState:
+        """处理一帧磁测量、姿态和声呐输入，并输出完整感知状态。"""
         dt_s = max(reading.time_s - self.last_time_s, self.scenario.dt_s)
         self.last_time_s = reading.time_s
         sample_times_s = np.asarray(reading.sample_times_s, dtype=float)
@@ -1166,12 +1273,17 @@ class MagneticCablePerception:
 
             peak_position_xy_m = self._peak_cable_observation_xy_m(peak_position_xy_m, sonar_reading)
             if peak_position_xy_m is not None and not self._is_peak_outlier(peak_position_xy_m):
-                self.fitter.add_peak(
+                washout_triggered = self.fitter.add_peak(
                     peak_position_xy_m,
                     snr_linear=max(snr, self.scenario.tracking.weighted_fitter_snr_floor),
                     confidence=max(self.last_output_confidence, 0.05),
                     time_s=reading.time_s,
                 )
+                if washout_triggered:
+                    self.deployment_recent_washout_until_s = max(
+                        self.deployment_recent_washout_until_s,
+                        reading.time_s + self.scenario.tracking.deployment_washout_reacquire_holdoff_s,
+                    )
                 detection_age_s = reading.time_s - self.fitter.last_detection_time_s
                 detected_peak_xy_m = peak_position_xy_m.copy()
                 if not self.scenario.tracking.use_nominal_route_prior:
@@ -1200,6 +1312,8 @@ class MagneticCablePerception:
         fit_result_candidate = self.fitter.fit()
         fit_update_rejected = False
         bootstrap_fit_ready = self._bootstrap_fit_ready(fit_result_candidate)
+        recent_washout_active = reading.time_s <= self.deployment_recent_washout_until_s
+        self._update_tracking_maturity(peak_event.detected, fit_result_candidate.residual_m, detection_age_s, dt_s)
         deployment_reacquire_required = self.deployment_reacquire_required
         deployment_reacquire_required = False
         if fit_result_candidate.direction_xy is not None:
@@ -1215,8 +1329,15 @@ class MagneticCablePerception:
             ):
                 fit_result = self.last_accepted_fit_result if self.last_accepted_fit_result.direction_xy is not None else FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None)
                 fit_update_rejected = True
-                deployment_reacquire_required = True
-                self.deployment_reacquire_required = True
+                effective_reacquire_timeout_s = self.scenario.tracking.lost_timeout_s
+                if self.tracking_maturity >= self.scenario.tracking.deployment_hold_maturity_threshold:
+                    effective_reacquire_timeout_s *= self.scenario.tracking.deployment_lost_timeout_high_maturity_multiplier
+                if detection_age_s > effective_reacquire_timeout_s and not recent_washout_active:
+                    deployment_reacquire_required = True
+                    self.deployment_reacquire_required = True
+                else:
+                    deployment_reacquire_required = False
+                    self.deployment_reacquire_required = False
             elif (
                 self.scenario.tracking.use_nominal_route_prior
                 and candidate_heading_deg is not None
@@ -1273,12 +1394,12 @@ class MagneticCablePerception:
             if sonar_reading.estimated_position_ned_m is not None:
                 estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
             guidance_source = "SONAR"
-        elif line_heading_deg is not None and not weak_signal_flag and (bootstrap_fit_ready or not self.scenario.tracking.use_nominal_route_prior):
+        elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready:
             fused_heading_deg = line_heading_deg
             guidance_source = "MAGNETIC"
         elif (
             line_heading_deg is not None
-            and (bootstrap_fit_ready or not self.scenario.tracking.use_nominal_route_prior)
+            and bootstrap_fit_ready
             and detection_age_s <= self.scenario.tracking.guidance_memory_timeout_s
             and np.isfinite(fit_result.residual_m)
             and fit_result.residual_m <= max(self.scenario.tracking.fit_acceptance_residual_m, 15.0)
@@ -1324,14 +1445,15 @@ class MagneticCablePerception:
 
         if not self.scenario.tracking.use_nominal_route_prior:
             if (
-                line_heading_deg is not None
+                bootstrap_fit_ready
+                and line_heading_deg is not None
                 and np.isfinite(fit_result.residual_m)
                 and fit_result.residual_m <= self.scenario.tracking.fit_acceptance_residual_m
             ):
                 self.deployment_estimated_cable_heading_deg = line_heading_deg
                 fit_confidence = float(np.clip(np.exp(-fit_result.residual_m / 6.0), 0.0, 1.0))
                 self.deployment_heading_confidence = max(self.deployment_heading_confidence, fit_confidence)
-            elif vector_cable_heading_deg is not None and signal_reliable and line_heading_deg is None:
+            elif self.deployment_estimated_cable_heading_deg is None and vector_cable_heading_deg is not None and signal_reliable:
                 self.deployment_estimated_cable_heading_deg = vector_cable_heading_deg
                 vector_confidence = self.vector_analyzer.vector_confidence if self.vector_analyzer is not None else 0.0
                 self.deployment_heading_confidence = max(
@@ -1470,6 +1592,7 @@ class MagneticCablePerception:
             deployment_estimated_cable_heading_deg=self.deployment_estimated_cable_heading_deg,
             deployment_heading_confidence=self.deployment_heading_confidence,
             gradient_heading_offset_deg=self.gradient_heading_offset_deg,
+            tracking_maturity=self.tracking_maturity,
             # Signal enhancement outputs
             envelope_gradient_nT_per_m=self.envelope_tracker.gradient_nT_per_m,
             envelope_gradient_heading_deg=self.envelope_tracker.gradient_heading_deg,

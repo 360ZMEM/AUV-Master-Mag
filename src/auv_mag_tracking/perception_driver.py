@@ -13,6 +13,8 @@ from .sensor_model import MagnetometerReading
 
 @dataclass
 class ProcessedSignalFeatures:
+    """表示从原始磁波形提取出的语义级特征。"""
+
     time_s: float
     processed_intensity_nt: float
     filtered_intensity_nt: float
@@ -37,6 +39,8 @@ class ProcessedSignalFeatures:
 
 @dataclass
 class SignalDiagnostics:
+    """表示频域与时域诊断信息，用于调试和展示。"""
+
     time_s: float
     relative_time_s: np.ndarray
     raw_time_window_nt: np.ndarray
@@ -51,12 +55,15 @@ class SignalDiagnostics:
 
 @dataclass
 class PerceptionDriverFrame:
+    """表示感知驱动器对单帧输入的完整输出。"""
+
     features: ProcessedSignalFeatures
     diagnostics: SignalDiagnostics
 
 
 class ScalarStreamingBandpassFilter:
     def __init__(self, sample_rate_hz: float, center_frequency_hz: float, half_width_hz: float, order: int = 2) -> None:
+        """初始化标量流式带通滤波器。"""
         nyquist_hz = 0.5 * max(sample_rate_hz, 1e-6)
         low_hz = max(0.5, center_frequency_hz - half_width_hz)
         high_hz = min(nyquist_hz * 0.95, center_frequency_hz + half_width_hz)
@@ -68,6 +75,7 @@ class ScalarStreamingBandpassFilter:
         self.zi = np.zeros((self.sos.shape[0], 2), dtype=float)
 
     def process_block(self, samples_nt: np.ndarray) -> np.ndarray:
+        """对一段标量序列执行流式带通滤波。"""
         if samples_nt.size == 0:
             return np.zeros(0, dtype=float)
         filtered_nt, self.zi = sosfilt(self.sos, np.asarray(samples_nt, dtype=float), zi=self.zi)
@@ -76,11 +84,13 @@ class ScalarStreamingBandpassFilter:
 
 class SlidingWindowRMS:
     def __init__(self, window_size_samples: int) -> None:
+        """初始化滑动窗口 RMS 计算器。"""
         self.window_size_samples = max(1, window_size_samples)
         self.buffer: Deque[float] = deque(maxlen=self.window_size_samples)
         self.sum_squares = 0.0
 
     def update(self, sample_value: float) -> float:
+        """写入新样本并返回当前 RMS 值。"""
         if len(self.buffer) == self.buffer.maxlen:
             oldest_value = self.buffer[0]
             self.sum_squares -= oldest_value * oldest_value
@@ -92,6 +102,7 @@ class SlidingWindowRMS:
 
 class SlidingLockInDemodulator:
     def __init__(self, frequency_hz: float, window_size_samples: int) -> None:
+        """初始化滑动锁相解调器。"""
         self.frequency_hz = float(max(frequency_hz, 1e-6))
         self.window_size_samples = max(1, window_size_samples)
         self.i_buffer: Deque[float] = deque(maxlen=self.window_size_samples)
@@ -100,6 +111,7 @@ class SlidingLockInDemodulator:
         self.q_sum = 0.0
 
     def update(self, sample_value: float, time_s: float) -> float:
+        """对单个样本执行 I/Q 解调并返回幅值估计。"""
         phase_rad = 2.0 * np.pi * self.frequency_hz * float(time_s)
         i_sample = float(sample_value) * np.sin(phase_rad)
         q_sample = float(sample_value) * np.cos(phase_rad)
@@ -118,6 +130,7 @@ class SlidingLockInDemodulator:
 
 class PerceptionDriver:
     def __init__(self, scenario: ScenarioConfig) -> None:
+        """根据场景配置初始化信号处理链路。"""
         self.scenario = scenario
         self.config = scenario.signal_processing
         sensor_rate_hz = scenario.sensor.high_fidelity.sampling_rate_hz if scenario.sensor.high_fidelity.enabled else scenario.sensor.magnetometer_sample_rate_hz
@@ -159,10 +172,12 @@ class PerceptionDriver:
             )
 
     def _cycle_window_size(self, cycle_count: int) -> int:
+        """按目标周期数换算窗口长度。"""
         period_s = 1.0 / max(self.scenario.signal.frequency_hz, 1e-6)
         return max(1, int(round(max(cycle_count, 1) * period_s * self.processing_sample_rate_hz)))
 
     def _window_values(self, sample_count: int) -> np.ndarray:
+        """返回与样本数匹配的窗函数权重。"""
         if sample_count in self.window_cache:
             return self.window_cache[sample_count]
         if sample_count <= 1:
@@ -177,11 +192,13 @@ class PerceptionDriver:
         return window
 
     def _frequency_axis_hz(self, sample_count: int) -> np.ndarray:
+        """返回对应样本数的频率轴。"""
         if sample_count not in self.frequency_axis_cache:
             self.frequency_axis_cache[sample_count] = np.fft.rfftfreq(sample_count, d=1.0 / max(self.processing_sample_rate_hz, 1e-6))
         return self.frequency_axis_cache[sample_count]
 
     def _spectral_constants(self, sample_count: int) -> Tuple[float, float]:
+        """返回频谱归一化所需的窗函数常数。"""
         if sample_count not in self.spectral_constant_cache:
             window_values = self._window_values(sample_count)
             self.spectral_constant_cache[sample_count] = (
@@ -191,6 +208,7 @@ class PerceptionDriver:
         return self.spectral_constant_cache[sample_count]
 
     def _extract_scalar_waveform(self, reading: MagnetometerReading) -> Tuple[np.ndarray, float]:
+        """从三轴磁力计块中提取用于一维处理的标量波形。"""
         raw_block_nt = reading.quantized_sensor_block_nt if reading.quantized_sensor_block_nt is not None else reading.sample_block_sensor_nt
         raw_block_nt = np.asarray(raw_block_nt, dtype=float)
         dc_reference_sensor_nt = reading.dc_reference_sensor_nt
@@ -209,6 +227,7 @@ class PerceptionDriver:
         return scalar_signal_nt.astype(float), dc_scalar_nt
 
     def _maybe_resample_block(self, sample_times_s: np.ndarray, scalar_signal_nt: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """在需要时把输入块插值到更高的处理采样率。"""
         sample_times_s = np.asarray(sample_times_s, dtype=float)
         scalar_signal_nt = np.asarray(scalar_signal_nt, dtype=float)
         if sample_times_s.size == 0:
@@ -237,6 +256,7 @@ class PerceptionDriver:
         return resampled_times_s, resampled_values_nt
 
     def _append_processing_buffers(self, time_block_s: np.ndarray, raw_block_nt: np.ndarray, filtered_block_nt: np.ndarray, amplitude_block_nt: np.ndarray) -> None:
+        """将处理后的时间序列写入内部历史缓冲。"""
         for time_s, raw_nt, filtered_nt, amplitude_nt in zip(time_block_s, raw_block_nt, filtered_block_nt, amplitude_block_nt):
             self.time_buffer.append(float(time_s))
             self.raw_signal_buffer.append(float(raw_nt))
@@ -244,6 +264,7 @@ class PerceptionDriver:
             self.processed_amplitude_buffer.append(float(amplitude_nt))
 
     def _window_arrays(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """获取当前历史窗口中的时域和幅值数组。"""
         window_size = min(self.window_size, len(self.time_buffer))
         time_window_s = np.asarray(list(self.time_buffer)[-window_size:], dtype=float)
         raw_window_nt = np.asarray(list(self.raw_signal_buffer)[-window_size:], dtype=float)
@@ -256,6 +277,7 @@ class PerceptionDriver:
         raw_window_nt: np.ndarray,
         target_frequency_hz: float,
     ) -> Tuple[np.ndarray, np.ndarray, Optional[float], float, float, float, float, float]:
+        """对当前窗口执行 FFT 诊断并估计主频、SNR 与峰度。"""
         if raw_window_nt.size == 0 or not self.config.diagnostics_use_fft:
             return (
                 np.zeros(1, dtype=float),
@@ -316,6 +338,7 @@ class PerceptionDriver:
         )
 
     def _update_dc(self, reading: MagnetometerReading, scalar_signal_nt: np.ndarray, dc_scalar_nt: float) -> PerceptionDriverFrame:
+        """处理直流模式下的简化包络提取流程。"""
         sample_times_s = np.asarray(reading.sample_times_s, dtype=float)
         for time_s, sample_nt in zip(sample_times_s, scalar_signal_nt):
             self.time_buffer.append(float(time_s))
@@ -365,6 +388,7 @@ class PerceptionDriver:
         return frame
 
     def update(self, reading: MagnetometerReading) -> PerceptionDriverFrame:
+        """处理一帧磁力计读数并输出语义特征。"""
         scalar_signal_nt, dc_scalar_nt = self._extract_scalar_waveform(reading)
         if self.scenario.signal.mode == "dc":
             return self._update_dc(reading, scalar_signal_nt, dc_scalar_nt)

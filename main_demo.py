@@ -125,7 +125,13 @@ def main() -> int:
     print(f"Final controller mode: {report.final_mode}")
     print(f"Tracked distance: {report.tracked_distance_m:.1f} m")
     if report.cable_heading_error_deg is not None:
-        print(f"[Deployment] Cable heading error: {report.cable_heading_error_deg:.1f} deg")
+        print(f"[Deployment] Final heading error: {report.cable_heading_error_deg:.1f} deg")
+    if report.displayed_centerline_heading_error_deg is not None:
+        print(f"[Deployment] Displayed centerline error: {report.displayed_centerline_heading_error_deg:.1f} deg")
+    if report.mean_cable_heading_error_deg is not None:
+        print(f"[Deployment] Mean heading error: {report.mean_cable_heading_error_deg:.1f} deg")
+    if report.hold_entry_cable_heading_error_deg is not None:
+        print(f"[Deployment] Hold-entry heading error: {report.hold_entry_cable_heading_error_deg:.1f} deg")
     if report.mean_lateral_deviation_m is not None:
         print(f"[Deployment] Mean lateral deviation: {report.mean_lateral_deviation_m:.2f} m")
     if report.along_track_coverage_ratio is not None:

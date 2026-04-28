@@ -22,6 +22,8 @@ from .perception import PerceptionState
 
 
 class TrackingMode(str, Enum):
+    """定义控制层当前采用的跟踪工作模式。"""
+
     SEARCH = "SEARCH"
     APPROACH = "APPROACH"
     TURN = "TURN"
@@ -32,6 +34,8 @@ class TrackingMode(str, Enum):
 
 @dataclass
 class GuidanceCommand:
+    """表示控制器输出给车辆运动学的单步航向与速度指令。"""
+
     desired_heading_deg: float
     speed_mps: float
     mode: TrackingMode
@@ -44,6 +48,7 @@ class GuidanceCommand:
 
 class ZigZagController:
     def __init__(self, scenario: ScenarioConfig) -> None:
+        """根据场景配置初始化之字形控制器与名义路线缓存。"""
         self.scenario = scenario
         self.leg_sign = 1.0
         self.last_leg_flip_time_s = 0.0
@@ -54,6 +59,7 @@ class ZigZagController:
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
 
     def _build_nominal_route_xy(self) -> np.ndarray:
+        """根据场景中的路线模式生成控制器使用的名义电缆路径。"""
         waypoints_xy = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
         step_m = max(self.scenario.environment.field_segment_length_m * 0.5, 1.0)
         if self.scenario.environment.cable_route_mode == "spline":
@@ -68,10 +74,12 @@ class ZigZagController:
         return waypoints_xy.copy()
 
     def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
+        """返回当前位置在名义路线上的最近点、切向与距离。"""
         best_point, best_tangent, best_distance, _, _ = nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
         return best_point, best_tangent, best_distance
 
     def _crossing_angle_deg(self, zigzag_width_m: float) -> float:
+        """根据当前之字形宽度估计交叉入射角。"""
         lookahead_distance_m = max(2.0 * self.scenario.vehicle.min_turning_radius_m, 10.0)
         nominal_angle_deg = float(np.rad2deg(np.arctan2(max(zigzag_width_m, 1e-6), lookahead_distance_m)))
         return float(np.clip(
@@ -81,6 +89,7 @@ class ZigZagController:
         ))
 
     def _limited_yaw_rate_deg_s(self, speed_mps: float, desired_heading_deg: float, current_heading_deg: float) -> float:
+        """在转弯半径和最大角速度约束下计算可执行的偏航角速度。"""
         heading_error_deg = smallest_angle_error_deg(desired_heading_deg, current_heading_deg)
         max_radius_rate_deg_s = float(np.rad2deg(max(speed_mps, 1e-6) / max(self.scenario.vehicle.min_turning_radius_m, 1e-6)))
         max_yaw_rate_deg_s = min(self.scenario.vehicle.max_yaw_rate_deg_s, max_radius_rate_deg_s)
@@ -88,6 +97,7 @@ class ZigZagController:
         return float(np.clip(requested_yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
 
     def _spiral_guidance(self, pose: Pose, behavior, time_s: float) -> tuple:
+        """在失锁恢复时生成逐步扩大的螺旋搜索航向。"""
         if self.last_mode != TrackingMode.SPIRAL_SEARCH or self.spiral_start_time_s is None:
             self.spiral_start_time_s = time_s
         elapsed_s = max(time_s - self.spiral_start_time_s, 0.0)
@@ -101,6 +111,7 @@ class ZigZagController:
         return desired_heading_deg, yaw_rate_deg_s, commanded_turn_radius_m
 
     def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
+        """结合感知状态与行为树输出当前控制指令。"""
         if self.scenario.tracking.use_nominal_route_prior:
             nominal_point_xy, nominal_tangent_xy, nominal_distance_m = self._nominal_route_reference(pose.position_ned_m[:2])
             nominal_route_heading_deg = heading_from_direction_xy(nominal_tangent_xy)
@@ -147,6 +158,10 @@ class ZigZagController:
                 guidance_source=perception.guidance_source,
                 fit_residual_m=perception.fit_result.residual_m,
                 deployment_heading_confidence=perception.deployment_heading_confidence,
+                tracking_maturity=perception.tracking_maturity,
+                safe_lock_criterion_b_active=perception.safe_lock_criterion_b_active,
+                deployment_hold_maturity_threshold=self.scenario.tracking.deployment_hold_maturity_threshold,
+                deployment_lost_timeout_high_maturity_multiplier=self.scenario.tracking.deployment_lost_timeout_high_maturity_multiplier,
                 deployment_mode=not self.scenario.tracking.use_nominal_route_prior,
                 deployment_reacquire_required=perception.deployment_reacquire_required,
             )
@@ -193,12 +208,14 @@ class ZigZagController:
 
 
 def apply_attitude_profile(pose: Pose, scenario: ScenarioConfig, time_s: float) -> None:
+    """根据场景配置为当前姿态叠加周期性俯仰和横滚扰动。"""
     vehicle = scenario.vehicle
     pose.pitch_deg = vehicle.pitch_amplitude_deg * np.sin(2.0 * np.pi * vehicle.pitch_frequency_hz * time_s)
     pose.roll_deg = vehicle.roll_amplitude_deg * np.sin(2.0 * np.pi * vehicle.roll_frequency_hz * time_s)
 
 
 def propagate_vehicle(pose: Pose, command: GuidanceCommand, scenario: ScenarioConfig, seabed_depth_m: float, dt_s: float) -> Pose:
+    """根据控制指令和简化运动学模型推进车辆状态。"""
     updated_pose = pose.copy()
     speed_mps = max(command.speed_mps, 1e-6)
     radius_limited_yaw_rate_deg_s = float(np.rad2deg(speed_mps / max(scenario.vehicle.min_turning_radius_m, 1e-6)))

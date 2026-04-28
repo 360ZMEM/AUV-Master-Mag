@@ -20,6 +20,8 @@ from .sensor_model import BurialDepthObserver, HighFidelityMagnetometer, IMUSimu
 
 @dataclass
 class SimulationReport:
+    """表示一次仿真运行结束后的汇总报告。"""
+
     case_name: str
     duration_s: float
     peak_count: int
@@ -28,13 +30,19 @@ class SimulationReport:
     tracked_distance_m: float
     # Deployment-mode performance metrics
     cable_heading_error_deg: Optional[float] = None
+    displayed_centerline_heading_error_deg: Optional[float] = None
+    mean_cable_heading_error_deg: Optional[float] = None
+    hold_entry_cable_heading_error_deg: Optional[float] = None
     mean_lateral_deviation_m: Optional[float] = None
     along_track_coverage_ratio: Optional[float] = None
     heading_estimate_history_deg: Optional[List[float]] = None
+    hold_duration_s: Optional[float] = None
 
 
 @dataclass
 class SignalTrendHistory:
+    """保存用于趋势图展示的时序历史数据。"""
+
     time_s: List[float]
     confidence: List[float]
     snr_db: List[float]
@@ -45,20 +53,10 @@ class SignalTrendHistory:
 
 
 class DeploymentPerformanceEvaluator:
-    """Collects real-time cable-tracking performance metrics for deployment
-    (no-prior) mode.
-
-    Metrics
-    -------
-    * **Cable heading error**: angle between the estimated cable heading and
-      the true cable tangent at the vehicle position.
-    * **Mean lateral deviation**: average perpendicular distance from the
-      vehicle track to the true cable path.
-    * **Along-track coverage ratio**: fraction of total distance travelled
-      that is projected onto the cable direction (1.0 = perfect following).
-    """
+    """统计部署模式下的跟踪误差、偏航误差与沿轨覆盖率。"""
 
     def __init__(self, environment: CableEnvironment) -> None:
+        """初始化部署性能评估器。"""
         self.environment = environment
         self.vehicle_positions_xy: List[np.ndarray] = []
         self.heading_estimates_deg: List[Optional[float]] = []
@@ -67,6 +65,7 @@ class DeploymentPerformanceEvaluator:
 
     def record(self, vehicle_xy_m: np.ndarray, estimated_heading_deg: Optional[float],
                heading_confidence: float) -> None:
+        """记录一次车辆位置与航向估计样本。"""
         self.vehicle_positions_xy.append(np.asarray(vehicle_xy_m[:2], dtype=float))
         self.heading_estimates_deg.append(estimated_heading_deg)
         self.heading_confidences.append(heading_confidence)
@@ -75,6 +74,7 @@ class DeploymentPerformanceEvaluator:
         self.true_headings_deg.append(true_h)
 
     def compute(self) -> dict:
+        """计算当前记录历史对应的性能指标。"""
         result: dict = {
             "cable_heading_error_deg": None,
             "mean_lateral_deviation_m": None,
@@ -125,6 +125,7 @@ class DeploymentPerformanceEvaluator:
 
 
 def _initial_vehicle_position_ned_m(scenario: ScenarioConfig, environment: CableEnvironment) -> np.ndarray:
+    """在失去名义路线先验时调整车辆初始位置，避免直接压线启动。"""
     initial_position_ned_m = np.asarray(scenario.vehicle.initial_position_ned_m, dtype=float)
     if (not scenario.tracking.use_nominal_route_prior) or scenario.sonar.mode.lower() != "off":
         return initial_position_ned_m.copy()
@@ -153,6 +154,7 @@ def _initial_vehicle_position_ned_m(scenario: ScenarioConfig, environment: Cable
 
 class SimulationVisualizer:
     def __init__(self, scenario: ScenarioConfig, cable_route_ned_m: np.ndarray) -> None:
+        """初始化用于实时展示的多面板可视化界面。"""
         self.scenario = scenario
         self.cable_route_ned_m = cable_route_ned_m
         plt.ion()
@@ -530,13 +532,21 @@ class AuvCableTrackingSimulation:
     def _estimated_line_points(self) -> Optional[np.ndarray]:
         if self.latest_perception is None:
             return None
-        fit_result = self.latest_perception.fit_result
-        if fit_result.origin_xy_m is None or fit_result.direction_xy is None:
-            return None
-        direction = fit_result.direction_xy
         origin = self.latest_perception.estimated_cable_point_xy_m
+        if origin is None and self.latest_perception.fit_result.origin_xy_m is not None:
+            origin = self.latest_perception.fit_result.origin_xy_m
         if origin is None:
-            origin = fit_result.origin_xy_m
+            return None
+
+        direction = None
+        if self.latest_perception.deployment_estimated_cable_heading_deg is not None:
+            heading_rad = np.deg2rad(self.latest_perception.deployment_estimated_cable_heading_deg)
+            direction = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+        elif self.latest_perception.fit_result.direction_xy is not None:
+            direction = self.latest_perception.fit_result.direction_xy
+        if direction is None:
+            return None
+
         line_length_m = 140.0
         start = origin - direction * line_length_m
         end = origin + direction * line_length_m
@@ -549,6 +559,9 @@ class AuvCableTrackingSimulation:
 
         peak_count = 0
         tracked_distance_m = 0.0
+        hold_steps = 0
+        hold_entry_estimated_heading_deg: Optional[float] = None
+        hold_entry_true_heading_deg: Optional[float] = None
         previous_position = self.pose.position_ned_m.copy()
         total_steps = int(np.ceil(self.scenario.duration_s / self.scenario.dt_s))
         progress = tqdm(
@@ -597,6 +610,14 @@ class AuvCableTrackingSimulation:
 
             tracked_distance_m += float(np.linalg.norm(self.pose.position_ned_m[:2] - previous_position[:2]))
             previous_position = self.pose.position_ned_m.copy()
+
+            if command.mode == TrackingMode.HOLD:
+                if hold_steps == 0:
+                    hold_entry_estimated_heading_deg = perception_state.deployment_estimated_cable_heading_deg
+                    if hold_entry_estimated_heading_deg is None:
+                        hold_entry_estimated_heading_deg = perception_state.line_heading_deg
+                    hold_entry_true_heading_deg = cable_truth.heading_deg
+                hold_steps += 1
 
             self.time_history_s.append(magnetometer_reading.time_s)
             self.vehicle_history_ned_m.append(self.pose.position_ned_m.copy())
@@ -657,11 +678,15 @@ class AuvCableTrackingSimulation:
 
         # Compute deployment performance metrics
         cable_heading_error = None
+        displayed_centerline_heading_error = None
+        mean_cable_heading_error = None
+        hold_entry_cable_heading_error = None
         mean_lateral_dev = None
         along_track_ratio = None
         heading_history = None
         if self.performance_evaluator is not None:
             metrics = self.performance_evaluator.compute()
+            mean_cable_heading_error = metrics.get("cable_heading_error_deg")
             mean_lateral_dev = metrics["mean_lateral_deviation_m"]
             along_track_ratio = metrics["along_track_coverage_ratio"]
             heading_history = [
@@ -681,7 +706,22 @@ class AuvCableTrackingSimulation:
                     directed_error_deg = abs(smallest_angle_error_deg(estimated_heading_deg, true_heading_deg))
                     cable_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
                 else:
-                    cable_heading_error = metrics["cable_heading_error_deg"]
+                    cable_heading_error = metrics.get("final_heading_error_deg")
+
+                displayed_heading_deg = self.latest_perception.deployment_estimated_cable_heading_deg
+                if displayed_heading_deg is None and self.latest_perception.fit_result.direction_xy is not None:
+                    displayed_heading_deg = float(np.rad2deg(np.arctan2(
+                        self.latest_perception.fit_result.direction_xy[1],
+                        self.latest_perception.fit_result.direction_xy[0],
+                    ))) % 360.0
+                if displayed_heading_deg is not None:
+                    true_heading_deg = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2]).heading_deg
+                    directed_error_deg = abs(smallest_angle_error_deg(displayed_heading_deg, true_heading_deg))
+                    displayed_centerline_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
+
+            if final_mode == TrackingMode.HOLD.value and hold_entry_estimated_heading_deg is not None and hold_entry_true_heading_deg is not None:
+                directed_error_deg = abs(smallest_angle_error_deg(hold_entry_estimated_heading_deg, hold_entry_true_heading_deg))
+                hold_entry_cable_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
 
         return SimulationReport(
             case_name=self.scenario.name,
@@ -691,7 +731,11 @@ class AuvCableTrackingSimulation:
             final_mode=final_mode,
             tracked_distance_m=tracked_distance_m,
             cable_heading_error_deg=cable_heading_error,
+            displayed_centerline_heading_error_deg=displayed_centerline_heading_error,
+            mean_cable_heading_error_deg=mean_cable_heading_error,
+            hold_entry_cable_heading_error_deg=hold_entry_cable_heading_error,
             mean_lateral_deviation_m=mean_lateral_dev,
             along_track_coverage_ratio=along_track_ratio,
             heading_estimate_history_deg=heading_history,
+            hold_duration_s=hold_steps * self.scenario.dt_s,
         )
