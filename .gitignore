@@ -10,3 +10,7 @@ htmlcov/
 原理*
 CLAUDE.md
 digest.txt
+trae/
+# 根目录和所有.DS_Store文件
+.DS_Store
+**/.DS_Store
