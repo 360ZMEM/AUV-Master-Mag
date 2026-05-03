@@ -4,6 +4,12 @@ import argparse
 import copy
 import sys
 from pathlib import Path
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent
@@ -136,6 +142,8 @@ def main() -> int:
         print(f"[Deployment] Mean lateral deviation: {report.mean_lateral_deviation_m:.2f} m")
     if report.along_track_coverage_ratio is not None:
         print(f"[Deployment] Along-track coverage: {report.along_track_coverage_ratio:.3f}")
+    if report.avg_vector_consistency is not None:
+        print(f"[Diagnostics] Average Vector Consistency: {report.avg_vector_consistency:.3f}")
     return 0
 
 

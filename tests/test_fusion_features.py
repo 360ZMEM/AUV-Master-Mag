@@ -17,8 +17,8 @@ from auv_mag_tracking.controller import GuidanceCommand, TrackingMode, ZigZagCon
 from auv_mag_tracking.environment import CableEnvironment, CableFitTruth, CableRoute
 from auv_mag_tracking.math_utils import Pose, project_point_to_line, smallest_angle_error_deg
 from auv_mag_tracking.main_viz import _initial_vehicle_position_ned_m
-from auv_mag_tracking.perception import ConfidenceEstimator, MagneticCablePerception, PeakDetector, PeakEvent, PerceptionState, WeightedSlidingWindowFitter, FitResult
-from auv_mag_tracking.sensor_model import MagnetometerModel, SonarModel
+from auv_mag_tracking.perception import ConfidenceEstimator, MagneticCablePerception, PeakDetector, PeakEvent, PerceptionState, WeightedSlidingWindowFitter, FitResult, MagneticVectorAnalyzer, StreamingVectorPCAFitter
+from auv_mag_tracking.sensor_model import MagnetometerModel, PoseMeasurement, SonarModel
 
 
 class FusionFeatureTest(unittest.TestCase):
@@ -235,12 +235,13 @@ class FusionFeatureTest(unittest.TestCase):
     def test_deployment_gradient_heading_requires_signal_strength(self) -> None:
         scenario = copy.deepcopy(build_default_scenarios()["case1"])
         scenario.tracking.use_nominal_route_prior = False
+        scenario.tracking.vector_heading_enabled = True
         perception = MagneticCablePerception(scenario)
         perception.envelope_tracker.gradient_heading_deg = 356.0
         perception.envelope_tracker.gradient_nT_per_m = 0.3
         self.assertIsNone(perception._deployment_gradient_heading())
 
-        perception.envelope_tracker.gradient_nT_per_m = 1.2
+        perception.envelope_tracker.gradient_nT_per_m = 2.5
         self.assertEqual(perception._deployment_gradient_heading(), 356.0)
 
     def test_behavior_tree_prioritizes_safe_lock(self) -> None:
@@ -615,6 +616,224 @@ class FusionFeatureTest(unittest.TestCase):
             np.rad2deg(command.speed_mps / scenario.vehicle.min_turning_radius_m),
         )
         self.assertLessEqual(updated.heading_deg, max_expected_heading_step + 1e-6)
+
+    def test_magnetic_vector_analyzer_pca_extraction(self) -> None:
+        """PCA extracts principal axis from consistent AC vector samples."""
+        analyzer = MagneticVectorAnalyzer(buffer_capacity=8, pca_buffer_capacity=20)
+        # Simulate vectors oscillating along ~45° axis
+        expected_angle_deg = 45.0
+        expected_rad = np.deg2rad(expected_angle_deg)
+        base_vec = np.array([np.cos(expected_rad), np.sin(expected_rad)], dtype=float)
+        orthogonal = np.array([-base_vec[1], base_vec[0]], dtype=float)
+
+        for i in range(15):
+            # Strong signal along principal axis + small orthogonal noise
+            magnitude = 50.0 + 30.0 * np.sin(2.0 * np.pi * i / 10.0)
+            noise = 5.0 * np.sin(2.0 * np.pi * i / 7.0)
+            sample = magnitude * base_vec + noise * orthogonal
+            analyzer.update(
+                np.array([sample[0], sample[1], 0.0], dtype=float),
+                tracking_strength_nt=80.0,
+                snr_db=20.0,
+                signal_mode="ac_50hz",
+            )
+
+        self.assertIsNotNone(analyzer.magnetic_vector_heading_deg)
+        heading_error = abs(smallest_angle_error_deg(analyzer.magnetic_vector_heading_deg, expected_angle_deg))
+        self.assertLess(min(heading_error, 180.0 - heading_error), 15.0)
+        self.assertGreater(analyzer.vector_consistency_score, 0.5)
+
+    def test_magnetic_vector_analyzer_snr_gating(self) -> None:
+        """Low SNR should prevent vector heading updates."""
+        analyzer = MagneticVectorAnalyzer(buffer_capacity=8, pca_buffer_capacity=20)
+
+        # Fill with varying high-SNR samples along a consistent direction
+        expected_angle_deg = 45.0
+        expected_rad = np.deg2rad(expected_angle_deg)
+        base_vec = np.array([np.cos(expected_rad), np.sin(expected_rad)], dtype=float)
+        for i in range(15):
+            magnitude = 50.0 + 30.0 * np.sin(2.0 * np.pi * i / 8.0)
+            sample = magnitude * base_vec + 3.0 * np.array([np.sin(i * 0.7), np.cos(i * 0.7)])
+            analyzer.update(
+                np.array([sample[0], sample[1], 0.0], dtype=float),
+                tracking_strength_nt=80.0,
+                snr_db=20.0,
+                signal_mode="ac_50hz",
+            )
+        heading_after_snr_ok = analyzer.magnetic_vector_heading_deg
+        self.assertIsNotNone(heading_after_snr_ok)
+
+        # Now try low-SNR updates
+        prev_heading = analyzer.magnetic_vector_heading_deg
+        prev_consistency = analyzer.vector_consistency_score
+        analyzer.update(
+            np.array([0.0, 200.0, 0.0], dtype=float),
+            tracking_strength_nt=80.0,
+            snr_db=5.0,
+            signal_mode="ac_50hz",
+        )
+        # Heading should not have changed (low-SNR sample rejected)
+        self.assertEqual(analyzer.magnetic_vector_heading_deg, prev_heading)
+        self.assertEqual(analyzer.vector_consistency_score, prev_consistency)
+
+    def test_magnetic_vector_analyzer_attitude_gating(self) -> None:
+        """Large roll/pitch should trigger leakage risk and reject updates."""
+        analyzer = MagneticVectorAnalyzer(buffer_capacity=8, pca_buffer_capacity=20)
+
+        # Baseline with good attitude
+        good_pose = PoseMeasurement(time_s=1.0, heading_deg=0.0, pitch_deg=0.5, roll_deg=0.5, speed_mps=1.0)
+        for i in range(10):
+            analyzer.update(
+                np.array([100.0, 50.0, 0.0], dtype=float),
+                tracking_strength_nt=80.0,
+                pose_measurement=good_pose,
+                snr_db=20.0,
+                signal_mode="ac_50hz",
+            )
+        self.assertFalse(analyzer.attitude_leakage_risk)
+
+        # Now with large roll
+        bad_pose = PoseMeasurement(time_s=2.0, heading_deg=0.0, pitch_deg=0.5, roll_deg=5.0, speed_mps=1.0)
+        prev_heading = analyzer.magnetic_vector_heading_deg
+        analyzer.update(
+            np.array([0.0, 200.0, 0.0], dtype=float),
+            tracking_strength_nt=80.0,
+            pose_measurement=bad_pose,
+            snr_db=20.0,
+            signal_mode="ac_50hz",
+        )
+        self.assertTrue(analyzer.attitude_leakage_risk)
+        self.assertEqual(analyzer.magnetic_vector_heading_deg, prev_heading)
+
+        # Large pitch should also gate
+        bad_pitch_pose = PoseMeasurement(time_s=3.0, heading_deg=0.0, pitch_deg=4.0, roll_deg=0.5, speed_mps=1.0)
+        analyzer.attitude_leakage_risk = False
+        analyzer.update(
+            np.array([0.0, 200.0, 0.0], dtype=float),
+            tracking_strength_nt=80.0,
+            pose_measurement=bad_pitch_pose,
+            snr_db=20.0,
+            signal_mode="ac_50hz",
+        )
+        self.assertTrue(analyzer.attitude_leakage_risk)
+
+    def test_magnetic_vector_analyzer_sign_alignment(self) -> None:
+        """Consecutive frames should not flip 180° in vector heading."""
+        analyzer = MagneticVectorAnalyzer(buffer_capacity=8, pca_buffer_capacity=20)
+
+        # Feed consistent samples along ~30° direction
+        expected_angle_deg = 30.0
+        expected_rad = np.deg2rad(expected_angle_deg)
+        base_vec = np.array([np.cos(expected_rad), np.sin(expected_rad)], dtype=float)
+
+        # First batch: build up the PCA buffer
+        for i in range(15):
+            magnitude = 50.0 + 20.0 * np.sin(2.0 * np.pi * i / 8.0)
+            sample = magnitude * base_vec + 3.0 * np.random.randn(2)
+            analyzer.update(
+                np.array([sample[0], sample[1], 0.0], dtype=float),
+                tracking_strength_nt=70.0,
+                snr_db=18.0,
+                signal_mode="ac_50hz",
+            )
+
+        first_heading = analyzer.magnetic_vector_heading_deg
+        self.assertIsNotNone(first_heading)
+
+        # Continue feeding samples: heading should stay near the same direction
+        for i in range(10):
+            magnitude = 50.0 + 20.0 * np.sin(2.0 * np.pi * i / 8.0)
+            sample = magnitude * base_vec + 3.0 * np.random.randn(2)
+            analyzer.update(
+                np.array([sample[0], sample[1], 0.0], dtype=float),
+                tracking_strength_nt=70.0,
+                snr_db=18.0,
+                signal_mode="ac_50hz",
+            )
+
+        final_heading = analyzer.magnetic_vector_heading_deg
+        self.assertIsNotNone(final_heading)
+        heading_error = abs(smallest_angle_error_deg(final_heading, first_heading))
+        self.assertLess(heading_error, 30.0)
+
+    def test_streaming_vector_pca_fitter_basic(self) -> None:
+        """PCA fitter extracts dominant direction from synthetic data."""
+        rng = np.random.default_rng(seed=42)
+        fitter = StreamingVectorPCAFitter(buffer_capacity=20)
+        angle_rad = np.deg2rad(60.0)
+        direction = np.array([np.cos(angle_rad), np.sin(angle_rad)], dtype=float)
+        orthogonal = np.array([-direction[1], direction[0]], dtype=float)
+
+        for i in range(15):
+            amplitude = 40.0 + 15.0 * np.sin(2.0 * np.pi * i / 13.0)
+            noise_along = rng.normal(0, 2.0)
+            noise_ortho = rng.normal(0, 1.5)
+            sample = amplitude * direction + noise_along * direction + noise_ortho * orthogonal
+            fitter.add_sample(sample)
+
+        principal_vec, consistency = fitter.compute_principal_vector()
+        self.assertGreater(consistency, 0.5)
+        angle_error = abs(smallest_angle_error_deg(
+            float(np.rad2deg(np.arctan2(principal_vec[1], principal_vec[0]))),
+            60.0,
+        ))
+        self.assertLess(min(angle_error, 180.0 - angle_error), 15.0)
+
+    def test_streaming_vector_pca_fitter_insufficient_samples(self) -> None:
+        """PCA fitter returns default when buffer has < 3 samples."""
+        fitter = StreamingVectorPCAFitter(buffer_capacity=20)
+        fitter.add_sample(np.array([10.0, 5.0], dtype=float))
+        fitter.add_sample(np.array([12.0, 6.0], dtype=float))
+        vec, consistency = fitter.compute_principal_vector()
+        self.assertAlmostEqual(consistency, 0.0)
+        np.testing.assert_array_equal(vec, np.array([1.0, 0.0], dtype=float))
+
+    def test_perception_state_has_vector_diagnostics(self) -> None:
+        """PerceptionState includes vector_consistency_score and attitude_leakage_risk."""
+        state = PerceptionState(
+            time_s=1.0,
+            sensor_field_nt=np.zeros(3, dtype=float),
+            body_field_nt=np.zeros(3, dtype=float),
+            ned_field_nt=np.zeros(3, dtype=float),
+            anomaly_ned_nt=np.zeros(3, dtype=float),
+            ac_component_ned_nt=np.zeros(3, dtype=float),
+            filtered_strength_nt=0.0,
+            rms_strength_nt=0.0,
+            tracking_strength_nt=0.0,
+            noise_floor_nt=1.0,
+            snr=0.0,
+            snr_db=-120.0,
+            magnetic_confidence=0.0,
+            sonar_confidence=0.0,
+            confidence=0.0,
+            weak_signal_flag=True,
+            signal_reliable=False,
+            is_ac_detected=False,
+            dominant_frequency_hz=0.0,
+            peak_detected=False,
+            fit_result=FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None),
+            line_heading_deg=None,
+            fused_heading_deg=None,
+            blind_heading_deg=None,
+            guidance_source="SEARCH",
+            safe_lock_active=False,
+            zigzag_width_m=3.0,
+            sonar_status="OFFLINE",
+            sonar_relative_position_body_m=None,
+            sonar_heading_deg=None,
+            estimated_cable_point_xy_m=None,
+            estimated_path_points_xy_m=np.empty((0, 2), dtype=float),
+            estimated_path_covariance_xy_m2=None,
+            fit_update_rejected=False,
+            estimated_burial_depth_m=None,
+            true_burial_depth_m=1.5,
+            burial_measurement_valid=False,
+            last_detection_age_s=1e9,
+            vector_consistency_score=0.75,
+            attitude_leakage_risk=False,
+        )
+        self.assertAlmostEqual(state.vector_consistency_score, 0.75)
+        self.assertFalse(state.attitude_leakage_risk)
 
 
 if __name__ == "__main__":

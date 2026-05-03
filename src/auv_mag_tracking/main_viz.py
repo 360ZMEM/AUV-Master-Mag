@@ -37,6 +37,7 @@ class SimulationReport:
     along_track_coverage_ratio: Optional[float] = None
     heading_estimate_history_deg: Optional[List[float]] = None
     hold_duration_s: Optional[float] = None
+    avg_vector_consistency: Optional[float] = None
 
 
 @dataclass
@@ -449,6 +450,7 @@ class SimulationVisualizer:
                 f"Noise floor: {perception.noise_floor_nt:.1f} nT | Line heading: {perception.line_heading_deg if perception.line_heading_deg is not None else 'N/A'}",
                 f"Sonar_Status: {perception.sonar_status} | Safe_Lock: {command.safe_lock_active} | CritA: {perception.safe_lock_criterion_a_active} | CritB: {perception.safe_lock_criterion_b_active} | FitInv: {perception.safe_lock_fit_invalidated}",
                 f"EnvGrad: {fmt_optional(perception.envelope_gradient_nT_per_m, '.2f', ' nT/m')} | GradHdg: {fmt_optional(perception.envelope_gradient_heading_deg, '.1f', '°')} | VecHdg: {fmt_optional(perception.magnetic_vector_heading_deg, '.1f', '°')} | VecCableHdg: {fmt_optional(perception.vector_cable_heading_deg, '.1f', '°')}",
+                f"VecConsist: {perception.vector_consistency_score:.2f} | LeakRisk: {perception.attitude_leakage_risk} | VecHdg: {fmt_optional(perception.magnetic_vector_heading_deg, '.1f', '°')}",
                 f"Turn radius limit: {self.scenario.vehicle.min_turning_radius_m:.2f} m | Commanded radius: {command.commanded_turn_radius_m if np.isfinite(command.commanded_turn_radius_m) else 'N/A'}",
                 f"Burial true: {perception.true_burial_depth_m:.2f} m | Burial est: {burial_estimate}",
                 f"Peak detected: {perception.peak_detected} | Detection age: {perception.last_detection_age_s:.2f} s",
@@ -564,6 +566,7 @@ class AuvCableTrackingSimulation:
         hold_entry_true_heading_deg: Optional[float] = None
         previous_position = self.pose.position_ned_m.copy()
         total_steps = int(np.ceil(self.scenario.duration_s / self.scenario.dt_s))
+        vector_consistency_history: List[float] = []
         progress = tqdm(
             range(total_steps),
             desc=f"{self.scenario.name} simulation",
@@ -630,6 +633,7 @@ class AuvCableTrackingSimulation:
             self.trend_signal_reliable.append(1.0 if perception_state.signal_reliable else 0.0)
             self.trend_is_ac_detected.append(1.0 if perception_state.is_ac_detected else 0.0)
             self.trend_safe_lock_active.append(1.0 if perception_state.safe_lock_active else 0.0)
+            vector_consistency_history.append(perception_state.vector_consistency_score)
             if perception_state.peak_detected and perception_state.detected_peak_xy_m is not None:
                 peak_count += 1
                 self.peak_positions_xy_m.append(perception_state.detected_peak_xy_m.copy())
@@ -723,6 +727,8 @@ class AuvCableTrackingSimulation:
                 directed_error_deg = abs(smallest_angle_error_deg(hold_entry_estimated_heading_deg, hold_entry_true_heading_deg))
                 hold_entry_cable_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
 
+        avg_vec_consistency = float(np.mean(vector_consistency_history)) if vector_consistency_history else None
+
         return SimulationReport(
             case_name=self.scenario.name,
             duration_s=self.scenario.duration_s,
@@ -738,4 +744,5 @@ class AuvCableTrackingSimulation:
             along_track_coverage_ratio=along_track_ratio,
             heading_estimate_history_deg=heading_history,
             hold_duration_s=hold_steps * self.scenario.dt_s,
+            avg_vector_consistency=avg_vec_consistency,
         )

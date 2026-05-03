@@ -557,7 +557,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         description="Straight cable tracking baseline using the default 50 Hz AC mode.",
         duration_s=200.0,
         dt_s=0.05,
-        signal=SignalConfig(mode="ac_50hz", frequency_hz=50.0, ac_current_amplitude_a=620.0),
+        signal=SignalConfig(mode="ac_50hz", frequency_hz=50.0, ac_current_amplitude_a=800.0),
         sensor=SensorConfig(
             magnetometer_sample_rate_hz=200.0,
             noise_std_nt=0.05,
@@ -575,7 +575,8 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             min_peak_strength_nt=120.0,
             weighted_fitter_capacity=8,
         ),
-        vehicle=VehicleConfig(initial_position_ned_m=(-90.0, -45.0, 0.0), initial_heading_deg=35.0),
+        sonar=SonarConfig(prob_detection=0.75, position_noise_std_m=0.30, heading_noise_deg=4.0, update_rate_hz=10.0),
+        vehicle=VehicleConfig(initial_position_ned_m=(-90.0, -10.0, 0.0), initial_heading_deg=35.0),
         environment=EnvironmentConfig(
             cable_waypoints_xy_m=((-320.0, 0.0), (360.0, 0.0)),
             cable_route_mode="spline",

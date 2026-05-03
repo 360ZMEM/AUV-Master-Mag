@@ -133,6 +133,9 @@ class PerceptionState:
     envelope_gradient_heading_deg: Optional[float] = None
     magnetic_vector_heading_deg: Optional[float] = None
     vector_cable_heading_deg: Optional[float] = None
+    # --- Vector extraction diagnostics ---
+    vector_consistency_score: float = 0.0
+    attitude_leakage_risk: bool = False
     # --- Safe-lock diagnostics ---
     safe_lock_criterion_a_active: bool = False
     safe_lock_criterion_b_active: bool = False
@@ -554,16 +557,100 @@ class EnvelopeGradientTracker:
             self.gradient_heading_deg = None
 
 
+class StreamingVectorPCAFitter:
+    """Extract the principal component direction from a block of AC magnetic
+    vector samples using covariance eigen-analysis.
+
+    For 50 Hz AC cables, the magnetic field oscillates rapidly. Instead of
+    using a single instantaneous snapshot (which may land on any phase of the
+    sine wave), we accumulate XY vector samples in a sliding window and
+    compute the dominant oscillation axis via PCA on the 2x2 covariance matrix.
+    """
+
+    def __init__(self, buffer_capacity: int = 20) -> None:
+        """Initialize the PCA fitter with a fixed-capacity vector buffer."""
+        self.buffer_capacity = max(3, buffer_capacity)
+        self._buffer_x: Deque[float] = deque(maxlen=self.buffer_capacity)
+        self._buffer_y: Deque[float] = deque(maxlen=self.buffer_capacity)
+
+    def add_sample(self, vector_xy: np.ndarray) -> None:
+        """Append a single [Bx, By] sample to the sliding window."""
+        self._buffer_x.append(float(vector_xy[0]))
+        self._buffer_y.append(float(vector_xy[1]))
+
+    def compute_principal_vector(self) -> Tuple[np.ndarray, float]:
+        """Return the principal eigenvector and a consistency score.
+
+        Returns
+        -------
+        principal_vector : np.ndarray of shape (2,)
+            The dominant oscillation axis in the XY plane.
+        consistency : float
+            A value in [0, 1] reflecting how concentrated the samples are
+            along the principal axis (based on eigenvalue ratio and circular
+            mean resultant length).
+        """
+        n = len(self._buffer_x)
+        if n < 3:
+            return np.array([1.0, 0.0], dtype=float), 0.0
+
+        xs = np.asarray(list(self._buffer_x), dtype=float)
+        ys = np.asarray(list(self._buffer_y), dtype=float)
+
+        # Build the 2x2 covariance matrix
+        data = np.stack([xs, ys], axis=1)  # (n, 2)
+        cov_matrix = np.cov(data, rowvar=False)  # (2, 2)
+
+        eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+        # eigenvalues are sorted ascending; take the largest
+        principal_idx = int(np.argmax(eigenvalues))
+        principal_vec = eigenvectors[:, principal_idx]
+        principal_vec = principal_vec / max(np.linalg.norm(principal_vec), 1e-12)
+
+        # Consistency: ratio of largest eigenvalue to total variance
+        total_var = float(np.sum(eigenvalues))
+        if total_var < 1e-12:
+            return principal_vec, 0.0
+        eigen_ratio = float(eigenvalues[principal_idx] / total_var)
+
+        # Also compute circular mean resultant length of the vector angles
+        angles = np.arctan2(ys, xs)
+        mean_r = float(np.sqrt(np.mean(np.cos(angles)) ** 2 + np.mean(np.sin(angles)) ** 2))
+        # Combine eigen_ratio and circular consistency
+        consistency = float(np.clip(0.6 * eigen_ratio + 0.4 * mean_r, 0.0, 1.0))
+
+        return principal_vec, consistency
+
+    def clear(self) -> None:
+        """Reset the internal buffer."""
+        self._buffer_x.clear()
+        self._buffer_y.clear()
+
+
 class MagneticVectorAnalyzer:
     """Extract horizontal magnetic vector direction and infer cable heading.
 
     Physics constraint: at the cable crossing (peak), the horizontal
     magnetic vector B_xy = [Bx, By] is perpendicular to the cable
     direction.  Therefore cable_heading ≈ vector_heading ± 90°.
+
+    For AC mode (e.g. 50 Hz), instead of using an instantaneous snapshot,
+    we accumulate vector samples in a sliding window and extract the
+    principal oscillation axis via PCA/SVD on the 2×2 covariance matrix.
+    This eliminates aliasing caused by sampling at arbitrary phases of the
+    AC waveform.
+
+    A dynamic gating mechanism rejects updates when SNR is too low or when
+    AUV attitude (roll/pitch) is unstable, which would cause earth-field
+    leakage to dominate the anomaly vector.
     """
 
-    def __init__(self, buffer_capacity: int = 8) -> None:
-        """初始化横向磁向量的历史缓存与置信度状态。"""
+    def __init__(
+        self,
+        buffer_capacity: int = 8,
+        pca_buffer_capacity: int = 40,
+    ) -> None:
+        """Initialize the magnetic vector analyzer with PCA support."""
         self.buffer_capacity = max(1, buffer_capacity)
         self.vector_headings: Deque[float] = deque(maxlen=self.buffer_capacity)
         self.vector_magnitudes: Deque[float] = deque(maxlen=self.buffer_capacity)
@@ -571,21 +658,82 @@ class MagneticVectorAnalyzer:
         self.vector_cable_heading_deg: Optional[float] = None
         self.vector_confidence: float = 0.0
 
+        # PCA fitter for AC mode vector extraction
+        self.pca_fitter = StreamingVectorPCAFitter(buffer_capacity=pca_buffer_capacity)
+        self._previous_vector_xy: Optional[np.ndarray] = None
+
+        # Diagnostic state
+        self.vector_consistency_score: float = 0.0
+        self.attitude_leakage_risk: bool = False
+
     def update(
         self,
         anomaly_ned_nt: np.ndarray,
         tracking_strength_nt: float,
+        pose_measurement: Optional["PoseMeasurement"] = None,
+        snr_db: float = -120.0,
+        signal_mode: str = "dc",
     ) -> None:
-        """根据 NED 磁异常向量估计电缆航向和方向一致性。"""
+        """Estimate cable heading from the NED magnetic anomaly vector.
+
+        Parameters
+        ----------
+        anomaly_ned_nt : np.ndarray
+            3-element magnetic anomaly vector in NED coordinates.
+        tracking_strength_nt : float
+            Current tracking field strength (RMS or filtered).
+        pose_measurement : PoseMeasurement, optional
+            IMU-derived pose for attitude-based gating.
+        snr_db : float
+            Current signal-to-noise ratio in dB.
+        signal_mode : str
+            Signal mode identifier ("dc", "ac_50hz", etc.).
+        """
         bx, by = float(anomaly_ned_nt[0]), float(anomaly_ned_nt[1])
         magnitude_xy = float(np.sqrt(bx * bx + by * by))
 
-        if magnitude_xy < 1e-3 or tracking_strength_nt < 10.0:
+        # --- Dynamic gating: reject low-SNR updates ---
+        if snr_db < 10.0:
+            self.attitude_leakage_risk = False
             return
 
-        vector_heading = float(np.rad2deg(np.arctan2(by, bx))) % 360.0
+        # --- Dynamic gating: reject high-attitude-risk updates ---
+        if pose_measurement is not None:
+            roll_ok = abs(float(pose_measurement.roll_deg)) <= 3.0
+            pitch_ok = abs(float(pose_measurement.pitch_deg)) <= 3.0
+            if not (roll_ok and pitch_ok):
+                self.attitude_leakage_risk = True
+                return
+        self.attitude_leakage_risk = False
+
+        # --- AC mode: use PCA to extract principal oscillation axis ---
+        if signal_mode != "dc":
+            self.pca_fitter.add_sample(anomaly_ned_nt[:2])
+            principal_vec, pca_consistency = self.pca_fitter.compute_principal_vector()
+
+            if pca_consistency < 0.1:
+                return
+
+            # Sign alignment: prevent 180° flip between consecutive frames
+            if self._previous_vector_xy is not None:
+                if float(np.dot(principal_vec, self._previous_vector_xy)) < 0:
+                    principal_vec = -principal_vec
+            self._previous_vector_xy = principal_vec.copy()
+
+            vector_heading = float(np.rad2deg(np.arctan2(principal_vec[1], principal_vec[0]))) % 360.0
+            vector_magnitude = magnitude_xy
+            self.vector_consistency_score = pca_consistency
+        else:
+            # --- DC mode: use instantaneous vector directly ---
+            if magnitude_xy < 1e-3 or tracking_strength_nt < 10.0:
+                return
+            vector_heading = float(np.rad2deg(np.arctan2(by, bx))) % 360.0
+            vector_magnitude = magnitude_xy
+            # For DC mode, consistency is not PCA-based
+            self.vector_consistency_score = 0.0
+
         self.vector_headings.append(vector_heading)
-        self.vector_magnitudes.append(magnitude_xy)
+        self.vector_magnitudes.append(vector_magnitude)
 
         n = len(self.vector_headings)
         if n < 1:
@@ -812,9 +960,13 @@ class MagneticCablePerception:
         # for each detected peak where a vehicle heading was available.
         self.crossing_headings: Deque[tuple] = deque(maxlen=16)
         self.crossing_positions_xy: Deque[np.ndarray] = deque(maxlen=16)
+        self.crossing_velocities_xy: Deque[np.ndarray] = deque(maxlen=16)
         self.deployment_estimated_cable_heading_deg: Optional[float] = None
         self.deployment_heading_confidence: float = 0.0
         self.deployment_reacquire_required: bool = False
+        self.deployment_last_offset: Optional[float] = None
+        self._deployment_heading_self_corrected: bool = False
+        self._velocity_confirmed_offset: Optional[float] = None
         self.tracking_maturity: float = 0.0
         self.deployment_recent_washout_until_s: float = -1e9
         # Field vector gradient tracking for deployment mode: stores recent
@@ -903,11 +1055,16 @@ class MagneticCablePerception:
         return heading_delta_deg <= self.scenario.tracking.fit_reject_heading_delta_deg
 
     def _deployment_gradient_heading(self) -> Optional[float]:
-        """从包络梯度跟踪器中提取可用的部署模式航向候选。"""
+        """从包络梯度跟踪器中提取可用的部署模式航向候选。
+
+        在部署模式下，梯度在接近电缆时有明确物理含义（指向电缆），
+        但信号很弱时梯度方向不可靠。通过梯度幅度门控可以过滤掉大部分
+        虚假梯度（而不是依赖PCA一致性，因为它在bootstrap阶段尚未建立）。
+        """
         gradient_heading_deg = self.envelope_tracker.gradient_heading_deg
         if gradient_heading_deg is None:
             return None
-        if abs(self.envelope_tracker.gradient_nT_per_m) < 0.5:
+        if abs(self.envelope_tracker.gradient_nT_per_m) < 2.0:
             return None
         return gradient_heading_deg
 
@@ -1017,7 +1174,7 @@ class MagneticCablePerception:
             self.tracking_maturity = max(0.0, self.tracking_maturity - self.scenario.tracking.deployment_tracking_maturity_decay_per_s * dt_s)
         self.tracking_maturity = float(np.clip(self.tracking_maturity, 0.0, 1.0))
 
-    def _update_deployment_cable_heading(self, heading_deg: float, position_xy_m: np.ndarray) -> None:
+    def _update_deployment_cable_heading(self, heading_deg: float, position_xy_m: np.ndarray, velocity_xy: np.ndarray) -> None:
         """更新部署模式下的电缆航向共识，并对跨越样本做多假设消歧。
 
         该逻辑把每次峰值跨越的车头航向与位置保存到历史中，再按照奇偶
@@ -1025,8 +1182,10 @@ class MagneticCablePerception:
         进行融合，否则优先采用更近的样本组。最终结果还会考虑变化率约束，
         避免电缆航向在短时间内跳变过大。
         """
+        self._deployment_heading_self_corrected = False
         self.crossing_headings.append((self.last_time_s, heading_deg))
         self.crossing_positions_xy.append(np.asarray(position_xy_m, dtype=float).copy())
+        self.crossing_velocities_xy.append(np.asarray(velocity_xy, dtype=float).copy())
 
         n = len(self.crossing_headings)
         min_peaks = self.scenario.tracking.deployment_bootstrap_min_peak_count
@@ -1070,29 +1229,104 @@ class MagneticCablePerception:
                 spread_deg = 0.0
             return mean_deg, spread_deg
 
-        def _choose_offset_for_group(raw_headings: list) -> tuple:
-            """为当前组选择更稳定的 ±90° 偏置并返回统计结果。"""
+        HYSTERESIS_MARGIN_DEG = 15.0
+
+        def _choose_offset_for_group(raw_headings: list, prev_offset: Optional[float]) -> tuple:
+            """为当前组选择更稳定的 ±90° 偏置并返回统计结果。
+
+            使用滞后效应防止在 offsets 之间振荡：当上一个有效 offset
+            与当前最小化 spread 的 offset 不同时，只有在新的 offset
+            产生明显更好的 spread（差距 > HYSTERESIS_MARGIN_DEG）时才切换。
+            当两个 offset 的 spread 相同时，优先选择 90°（保留"正交侧"
+            的方向类别），避免在只有1-2个样本时随机选择错误的偏移方向。
+            """
             cand_sets: list = []
             for offset in [90.0, -90.0]:
                 cands = [(rh + offset) % 360.0 for rh in raw_headings]
                 cand_sets.append(cands)
             spread_a = _circular_stats(cand_sets[0])[1]
             spread_b = _circular_stats(cand_sets[1])[1]
-            if spread_a <= spread_b:
-                return cand_sets[0], _circular_stats(cand_sets[0]), 90.0
+
+            # When spreads are nearly equal (e.g., only 1 sample in group),
+            # prefer offset=90 (0° class) over offset=-90 (180° class).
+            # This avoids wrong lock-in when spread minimization is ambiguous.
+            if abs(spread_a - spread_b) < 0.5:
+                chosen_idx = 0  # prefer offset=90° (0° class)
             else:
-                return cand_sets[1], _circular_stats(cand_sets[1]), -90.0
+                chosen_idx = 0 if spread_a <= spread_b else 1
+            chosen_offset = 90.0 if chosen_idx == 0 else -90.0
+
+            if prev_offset is not None and chosen_offset != prev_offset:
+                spread_chosen = spread_a if chosen_idx == 0 else spread_b
+                spread_prev = spread_b if chosen_idx == 0 else spread_a
+                if spread_chosen >= spread_prev - HYSTERESIS_MARGIN_DEG:
+                    chosen_idx = 0 if prev_offset == 90.0 else 1
+                    chosen_offset = prev_offset
+
+            return cand_sets[chosen_idx], _circular_stats(cand_sets[chosen_idx]), chosen_offset
 
         # --- Step 1: Split into odd/even groups (zigzag-aware) ---
         raw_headings = [h for _t, h in self.crossing_headings]
-        odd_headings = [raw_headings[i] for i in range(0, len(raw_headings), 2)]  # 0, 2, 4, ...
-        even_headings = [raw_headings[i] for i in range(1, len(raw_headings), 2)]  # 1, 3, 5, ...
+        odd_headings = [raw_headings[i] for i in range(0, len(raw_headings), 2)]
+        even_headings = [raw_headings[i] for i in range(1, len(raw_headings), 2)]
 
-        # --- Step 2: Each group independently chooses ±90° ---
-        odd_chosen, odd_stats, odd_offset = _choose_offset_for_group(odd_headings)
-        even_chosen, even_stats, even_offset = _choose_offset_for_group(even_headings)
+        # --- Step 2: Each group independently chooses ±90° with hysteresis ---
+        odd_chosen, odd_stats, odd_offset = _choose_offset_for_group(odd_headings, self.deployment_last_offset)
+        even_chosen, even_stats, even_offset = _choose_offset_for_group(even_headings, self.deployment_last_offset)
         odd_mean, odd_spread = odd_stats
         even_mean, even_spread = even_stats
+
+        # Store the most-used offset for next time
+        if len(odd_headings) > 0 and len(even_headings) > 0:
+            self.deployment_last_offset = odd_offset if len(odd_headings) >= len(even_headings) else even_offset
+        elif len(odd_headings) > 0:
+            self.deployment_last_offset = odd_offset
+        elif len(even_headings) > 0:
+            self.deployment_last_offset = even_offset
+
+        # --- Step 2.5: Early Velocity Arbitration for 2-crossing bootstrap ---
+        # When we have exactly 2 crossings (odd=1, even=1) with equal spread=0,
+        # use velocity direction to determine which offset class (0° vs 180°) is correct.
+        # Cable direction should be perpendicular to vehicle travel direction.
+        early_velocity_triggered = (
+            (len(odd_headings) == 1 and len(even_headings) == 1) or
+            (len(odd_headings) == 2 and len(even_headings) == 1) or
+            (len(odd_headings) == 1 and len(even_headings) == 2) or
+            (len(odd_headings) == 2 and len(even_headings) == 2)
+        ) and len(self.crossing_positions_xy) >= 2
+        if early_velocity_triggered:
+            positions = np.asarray(self.crossing_positions_xy)
+            dx = positions[-1][0] - positions[-2][0]
+            dy = positions[-1][1] - positions[-2][1]
+            seg_len = np.sqrt(dx*dx + dy*dy)
+            if seg_len >= 0.5:
+                travel_dir = np.arctan2(dy, dx)
+                perp_to_travel = (travel_dir + np.pi/2.0) % (2*np.pi)
+                odd_raw = raw_headings[0]
+                even_raw = raw_headings[1]
+                odd_cand_0 = (odd_raw + 90.0) % 360.0
+                odd_cand_180 = (odd_raw - 90.0) % 360.0
+                even_cand_0 = (even_raw + 90.0) % 360.0
+                even_cand_180 = (even_raw - 90.0) % 360.0
+                err_odd_0 = abs(smallest_angle_error_deg(odd_cand_0, np.rad2deg(perp_to_travel)))
+                err_odd_180 = abs(smallest_angle_error_deg(odd_cand_180, np.rad2deg(perp_to_travel)))
+                err_even_0 = abs(smallest_angle_error_deg(even_cand_0, np.rad2deg(perp_to_travel)))
+                err_even_180 = abs(smallest_angle_error_deg(even_cand_180, np.rad2deg(perp_to_travel)))
+                total_err_0 = err_odd_0 + err_even_0
+                total_err_180 = err_odd_180 + err_even_180
+                if total_err_0 < total_err_180:
+                    odd_offset = 90.0
+                    even_offset = 90.0
+                else:
+                    odd_offset = -90.0
+                    even_offset = -90.0
+                odd_chosen = [(odd_raw + odd_offset) % 360.0]
+                even_chosen = [(even_raw + even_offset) % 360.0]
+                odd_mean = odd_chosen[0]
+                even_mean = even_chosen[0]
+                odd_spread = 0.0
+                even_spread = 0.0
+                self._velocity_confirmed_offset = odd_offset
 
         # --- Step 3: Merge or select based on consistency ---
         MERGE_THRESHOLD_DEG = 20.0
@@ -1127,10 +1361,75 @@ class MagneticCablePerception:
                 final_mean = odd_mean
                 final_spread = odd_spread
 
-        # --- Step 4: Heading change rate constraint ---
-        # Cable heading should not change faster than 10°/s (configurable)
-        max_heading_change_rate_deg_s = 10.0
-        if self.deployment_estimated_cable_heading_deg is not None:
+        # --- Step 3PAIRI: Velocity-Based Offset Arbitration (replaces 0° reference assumption) ---
+        # When odd/even groups diverge by ~180° (heading_error_deg > 90°),
+        # use the vehicle's travel direction and crossing positions to determine
+        # which offset is correct. The cable must lie in the direction that is
+        # perpendicular to velocity AND passes through the crossing positions.
+        if (len(odd_headings) >= 1 and len(even_headings) >= 1
+            and heading_error_deg > 90.0
+            and len(self.crossing_positions_xy) >= 3):
+            positions = np.asarray(self.crossing_positions_xy)
+            valid_segments = 0
+            correct_offset = None
+            for k in range(len(positions) - 1):
+                dx = positions[k+1][0] - positions[k][0]
+                dy = positions[k+1][1] - positions[k][1]
+                seg_len = np.sqrt(dx*dx + dy*dy)
+                if seg_len < 0.5:
+                    continue
+                valid_segments += 1
+                travel_dir = np.arctan2(dy, dx)
+                perp = (travel_dir + np.pi/2.0) % (2*np.pi)
+                cable_dir_from_pos = perp
+                idx_a = k
+                idx_b = k+1
+                if idx_a % 2 == 0:
+                    cand_a = (raw_headings[idx_a] + odd_offset) % 360.0
+                    cand_b = (raw_headings[idx_b] + even_offset) % 360.0
+                else:
+                    cand_a = (raw_headings[idx_a] + even_offset) % 360.0
+                    cand_b = (raw_headings[idx_b] + odd_offset) % 360.0
+                err_a = abs(smallest_angle_error_deg(cand_a, np.rad2deg(cable_dir_from_pos)))
+                err_b = abs(smallest_angle_error_deg(cand_b, np.rad2deg(cable_dir_from_pos)))
+                if err_a < err_b:
+                    chosen_offset = odd_offset if idx_a % 2 == 0 else even_offset
+                else:
+                    chosen_offset = even_offset if idx_a % 2 == 0 else odd_offset
+                if correct_offset is None:
+                    correct_offset = chosen_offset
+                elif abs(smallest_angle_error_deg(chosen_offset, correct_offset)) > 90.0:
+                    correct_offset = -correct_offset
+            if correct_offset is not None and valid_segments >= 1:
+                odd_corrected = -odd_offset if abs(smallest_angle_error_deg(odd_offset, correct_offset)) > 90.0 else odd_offset
+                even_corrected = -even_offset if abs(smallest_angle_error_deg(even_offset, correct_offset)) > 90.0 else even_offset
+                corrected_merged = []
+                for i, rh in enumerate(raw_headings):
+                    offset = odd_corrected if i % 2 == 0 else even_corrected
+                    corrected_merged.append((rh + offset) % 360.0)
+                final_headings = corrected_merged
+                final_mean, final_spread = _circular_stats(corrected_merged)
+
+        # --- Step 4: 180° Self-Correction for Straight Cables (Orthogonal Disaster Recovery) ---
+        # If the old deque (before this new crossing) has >= 4 entries and ALL of them
+        # cluster in [135°, 225°], the system has locked into the wrong direction.
+        # We detect this by checking if the old deque is consistently 180°-flipped.
+        # When this is detected, we flip final_mean by 180° so the new estimate is corrected.
+        old_deque_headings = list(self.crossing_headings)
+        if len(old_deque_headings) >= 4:
+            old_mean_rad = float(np.arctan2(
+                np.mean(np.sin(np.deg2rad([h for (t, h) in old_deque_headings]))),
+                np.mean(np.cos(np.deg2rad([h for (t, h) in old_deque_headings]))),
+            ))
+            old_mean_deg = float(np.rad2deg(old_mean_rad)) % 360.0
+            if 135.0 <= old_mean_deg <= 225.0:
+                final_mean = (final_mean + 180.0) % 360.0
+                self._deployment_heading_self_corrected = True
+
+        # --- Step 5: Heading change rate constraint ---
+        # Allow fast correction: 180° error should correct within 2s of new peaks
+        max_heading_change_rate_deg_s = 90.0
+        if self.deployment_estimated_cable_heading_deg is not None and not self._deployment_heading_self_corrected:
             current_time_s = self.crossing_headings[-1][0]
             previous_time_s = self.crossing_headings[-2][0] if len(self.crossing_headings) >= 2 else current_time_s
             time_since_last = current_time_s - previous_time_s
@@ -1242,7 +1541,13 @@ class MagneticCablePerception:
 
         # 2. Magnetic vector analysis
         if self.vector_analyzer is not None and is_ac_detected:
-            self.vector_analyzer.update(anomaly_ned_nt, tracking_strength_nt)
+            self.vector_analyzer.update(
+                anomaly_ned_nt,
+                tracking_strength_nt,
+                pose_measurement=pose_measurement,
+                snr_db=snr_db,
+                signal_mode=self.scenario.signal.mode,
+            )
 
         # 3. Displacement tracking for safe-lock criterion A
         if self.last_peak_position_xy_m is not None:
@@ -1270,6 +1575,10 @@ class MagneticCablePerception:
                 velocity_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float) * speed_mps
                 compensation_xy = velocity_xy * self.scenario.tracking.peak_position_delay_s
                 peak_position_xy_m = peak_position_xy_m - compensation_xy
+            else:
+                speed_mps = pose_measurement.speed_mps if hasattr(pose_measurement, 'speed_mps') else self.scenario.vehicle.cruise_speed_mps
+                heading_rad = np.deg2rad(pose_measurement.heading_deg)
+                velocity_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float) * speed_mps
 
             peak_position_xy_m = self._peak_cable_observation_xy_m(peak_position_xy_m, sonar_reading)
             if peak_position_xy_m is not None and not self._is_peak_outlier(peak_position_xy_m):
@@ -1287,7 +1596,7 @@ class MagneticCablePerception:
                 detection_age_s = reading.time_s - self.fitter.last_detection_time_s
                 detected_peak_xy_m = peak_position_xy_m.copy()
                 if not self.scenario.tracking.use_nominal_route_prior:
-                    self._update_deployment_cable_heading(pose_measurement.heading_deg, detected_peak_xy_m)
+                    self._update_deployment_cable_heading(pose_measurement.heading_deg, detected_peak_xy_m, velocity_xy)
             else:
                 detected_peak_xy_m = None
             if self.last_confirmed_peak_strength_nt > 0.0 and peak_event.peak_strength_nt < self.last_confirmed_peak_strength_nt - self.scenario.tracking.safe_lock_peak_drop_nt:
@@ -1389,12 +1698,26 @@ class MagneticCablePerception:
             self.vector_analyzer.vector_cable_heading_deg
             if self.vector_analyzer is not None else None
         )
+        if (
+            line_heading_deg is not None
+            and vector_cable_heading_deg is not None
+            and self.vector_analyzer is not None
+            and self.vector_analyzer.vector_consistency_score >= 0.5
+        ):
+            cand_a = float(vector_cable_heading_deg)
+            cand_b = float((vector_cable_heading_deg + 180.0) % 360.0)
+            err_a = abs(smallest_angle_error_deg(line_heading_deg, cand_a))
+            err_b = abs(smallest_angle_error_deg(line_heading_deg, cand_b))
+            if err_b < err_a:
+                line_heading_deg = cand_b
+            else:
+                line_heading_deg = cand_a
         if sonar_reading is not None and sonar_reading.valid and ((sonar_reading.distance_m is not None and sonar_reading.distance_m >= self.scenario.tracking.sonar_preferred_distance_m) or weak_signal_flag):
             fused_heading_deg = sonar_reading.estimated_heading_ned_deg
             if sonar_reading.estimated_position_ned_m is not None:
                 estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
             guidance_source = "SONAR"
-        elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready:
+        elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready and not self._deployment_heading_self_corrected:
             fused_heading_deg = line_heading_deg
             guidance_source = "MAGNETIC"
         elif (
@@ -1429,7 +1752,7 @@ class MagneticCablePerception:
                     fit_result=fit_result,
                     bootstrap_fit_ready=bootstrap_fit_ready,
                 )
-                if fallback_heading_deg is not None:
+                if fallback_heading_deg is not None and not self._deployment_heading_self_corrected:
                     fused_heading_deg = fallback_heading_deg
                     blind_heading_deg = fallback_heading_deg if used_memory_heading else blind_heading_deg
                     guidance_source = "MEMORY" if used_memory_heading else "BLIND"
@@ -1444,11 +1767,90 @@ class MagneticCablePerception:
                 guidance_source = "BLIND"
 
         if not self.scenario.tracking.use_nominal_route_prior:
+            # =====================================================================
+            # DEPLOYMENT MODE: Sonar-Seeded Bootstrap + Dominant Source Selector
+            # =====================================================================
+            #
+            # Rule 1 — Sonar-Seeded Bootstrap:
+            #   When magnetic has < 4 valid crossing points (still bootstrapping),
+            #   and sonar provides a valid heading, use it to seed the deployment
+            #   heading estimate. This prevents wrong orthogonal lock-in.
+            #
+            bootstrap_point_count = len(self.crossing_headings)
+            SONAR_BOOTSTRAP_THRESHOLD = 4
+            if (
+                bootstrap_point_count < SONAR_BOOTSTRAP_THRESHOLD
+                and self.deployment_estimated_cable_heading_deg is None
+                and sonar_reading is not None
+                and sonar_reading.valid
+                and sonar_reading.estimated_heading_ned_deg is not None
+            ):
+                self.deployment_estimated_cable_heading_deg = sonar_reading.estimated_heading_ned_deg
+                self.deployment_heading_confidence = max(
+                    float(np.clip(sonar_confidence * 0.6, 0.0, 0.55)),
+                    self.deployment_heading_confidence,
+                )
+
+            # Rule 2 — Anti-Orthogonal Guard:
+            #   If magnetic line fit is nearly perpendicular to sonar heading,
+            #   this is the "orthogonal disaster" (B_xy captured AUV cross-track
+            #   instead of cable direction). Reject magnetic in favour of sonar.
+            #   Exception: if magnetic has tracked stably for > 15m (long-track
+            #   confidence), the magnetic reading is trustworthy.
+            #
+            long_track_confidence = False
+            if len(self.crossing_headings) >= 5 and bootstrap_point_count >= 5:
+                positions_arr = np.asarray(self.crossing_positions_xy)
+                if len(positions_arr) >= 2:
+                    total_travel_m = float(np.sum(np.linalg.norm(np.diff(positions_arr, axis=0), axis=1)))
+                    long_track_confidence = total_travel_m > 15.0
+
+            line_fit_orthogonal_to_sonar = False
+            if (
+                line_heading_deg is not None
+                and sonar_reading is not None
+                and sonar_reading.valid
+                and sonar_reading.estimated_heading_ned_deg is not None
+                and not long_track_confidence
+            ):
+                angle_between = abs(smallest_angle_error_deg(line_heading_deg, sonar_reading.estimated_heading_ned_deg))
+                if 75.0 <= angle_between <= 105.0:
+                    line_fit_orthogonal_to_sonar = True
+
+            # Rule 3 — Dominant Source Selection:
+            #   SONAR when: valid sonar AND (far from cable OR low magnetic SNR)
+            #   MAGNETIC when: strong magnetic signal (tracking_strength_nt > 20 nT)
+            #                  AND near cable (distance < 5m)
+            #   Otherwise prefer sonar if valid, else magnetic
+            #
+            sonar_preferred = (
+                sonar_reading is not None
+                and sonar_reading.valid
+                and sonar_reading.estimated_heading_ned_deg is not None
+            )
+            magnetic_strong = tracking_strength_nt > 20.0
+            cable_distance_m = None
+            if detected_peak_xy_m is not None:
+                cable_distance_m = float(np.linalg.norm(vehicle_position_xy_m - detected_peak_xy_m))
+            near_cable = cable_distance_m is not None and cable_distance_m < 5.0
+            magnetic_preferred = magnetic_strong and near_cable
+
+            velocity_offset_guard = True
+            if self._velocity_confirmed_offset is not None and line_heading_deg is not None:
+                current_offset = self.deployment_last_offset
+                if current_offset is not None:
+                    offset_diff = abs(smallest_angle_error_deg(current_offset, self._velocity_confirmed_offset))
+                    if offset_diff > 45.0:
+                        velocity_offset_guard = False
+
             if (
                 bootstrap_fit_ready
                 and line_heading_deg is not None
                 and np.isfinite(fit_result.residual_m)
                 and fit_result.residual_m <= self.scenario.tracking.fit_acceptance_residual_m
+                and not line_fit_orthogonal_to_sonar
+                and not self._deployment_heading_self_corrected
+                and velocity_offset_guard
             ):
                 self.deployment_estimated_cable_heading_deg = line_heading_deg
                 fit_confidence = float(np.clip(np.exp(-fit_result.residual_m / 6.0), 0.0, 1.0))
@@ -1461,8 +1863,24 @@ class MagneticCablePerception:
                     float(np.clip(0.35 + 0.40 * vector_confidence, 0.0, 0.85)),
                 )
 
+            # Rule 4 — Dominant source governs fused_heading_deg:
+            # Override sonar/magnetic selection only when line_fit is not orthogonal
+            # to sonar (anti-orthogonal guard takes priority).
+            if sonar_preferred and (not magnetic_preferred or (snr_db < 6.0)):
+                if not line_fit_orthogonal_to_sonar or not bootstrap_fit_ready:
+                    fused_heading_deg = sonar_reading.estimated_heading_ned_deg
+                    if sonar_reading.estimated_position_ned_m is not None:
+                        estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
+                    guidance_source = "SONAR"
+            elif magnetic_preferred and bootstrap_fit_ready and not line_fit_orthogonal_to_sonar and not self._deployment_heading_self_corrected:
+                fused_heading_deg = line_heading_deg
+                guidance_source = "MAGNETIC"
+
+            # Rule 5 — Gradient heading as fallback (with stricter gating):
+            # Only use gradient when both sonar and magnetic are unavailable,
+            # and only if vector consistency confirms a reliable direction.
             gradient_heading_deg = self._deployment_gradient_heading()
-            if gradient_heading_deg is not None:
+            if gradient_heading_deg is not None and fused_heading_deg is None:
                 gradient_vs_line_deg = abs(smallest_angle_error_deg(gradient_heading_deg, line_heading_deg)) if line_heading_deg is not None else 0.0
                 if line_heading_deg is None or gradient_vs_line_deg > 30.0:
                     self.deployment_estimated_cable_heading_deg = gradient_heading_deg
@@ -1603,6 +2021,14 @@ class MagneticCablePerception:
             vector_cable_heading_deg=(
                 self.vector_analyzer.vector_cable_heading_deg
                 if self.vector_analyzer is not None else None
+            ),
+            vector_consistency_score=(
+                self.vector_analyzer.vector_consistency_score
+                if self.vector_analyzer is not None else 0.0
+            ),
+            attitude_leakage_risk=(
+                self.vector_analyzer.attitude_leakage_risk
+                if self.vector_analyzer is not None else False
             ),
             # Safe-lock diagnostics
             safe_lock_criterion_a_active=self.safe_lock_criterion_a_active,
