@@ -172,7 +172,7 @@ class ApproachNode(BehaviorNode):
             speed_mps=0.95 * context.cruise_speed_mps,
             zigzag_width_m=context.zigzag_width_m,
             guidance_source=source,
-            force_centerline=source == "SONAR",
+            force_centerline=False,
         )
 
 
@@ -194,7 +194,16 @@ class LostNode(BehaviorNode):
 
     def run(self, context: BehaviorContext) -> BehaviorDecision:
         """构造失锁或螺旋搜索恢复决策。"""
+        # Sonar protection: when sonar is online, avoid SPIRAL_SEARCH
         if context.deployment_mode and context.deployment_reacquire_required:
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.SEARCH,
+                    base_heading_deg=context.nominal_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -204,6 +213,14 @@ class LostNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.fused_heading_deg is None and context.blind_heading_deg is None:
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.SEARCH,
+                    base_heading_deg=context.nominal_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -230,6 +247,19 @@ class SearchNode(BehaviorNode):
 
     def run(self, context: BehaviorContext) -> BehaviorDecision:
         """根据当前先验和历史状态生成搜索或螺旋恢复决策。"""
+        # --- Task 1: Sonar Seed Response - Release Zig-zag Constraint ---
+        # When sonar seed is available, switch to APPROACH with force_centerline=False
+        # so that AUV performs zig-zag crossings to generate magnetic peaks.
+        # Use large zigzag width to ensure active cable crossing during initialization.
+        if context.guidance_source == "SONAR_SEED" and context.fused_heading_deg is not None:
+            return BehaviorDecision(
+                mode=BehaviorMode.APPROACH,
+                base_heading_deg=context.fused_heading_deg,
+                speed_mps=0.95 * context.cruise_speed_mps,
+                zigzag_width_m=context.zigzag_width_m,
+                guidance_source="SONAR_SEED",
+                force_centerline=False,
+            )
         if context.deployment_mode and context.tracking_maturity >= context.deployment_hold_maturity_threshold and context.blind_heading_deg is not None:
             return BehaviorDecision(
                 mode=BehaviorMode.APPROACH,
@@ -237,9 +267,19 @@ class SearchNode(BehaviorNode):
                 speed_mps=0.95 * context.cruise_speed_mps,
                 zigzag_width_m=0.35 * context.zigzag_width_m,
                 guidance_source="BLIND_INERTIA",
-                force_centerline=True,
+                force_centerline=False,
             )
         if context.deployment_mode and not context.has_detection_history:
+            # Sonar protection: when sonar is online, avoid SPIRAL_SEARCH
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=context.fused_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                    force_centerline=False,
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -249,6 +289,15 @@ class SearchNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.deployment_reacquire_required and context.tracking_maturity < context.deployment_hold_maturity_threshold:
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=context.fused_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                    force_centerline=False,
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -260,6 +309,15 @@ class SearchNode(BehaviorNode):
         if context.deployment_mode and context.deployment_heading_confidence < context.high_confidence_threshold and not (
             context.tracking_maturity >= context.deployment_hold_maturity_threshold and context.blind_heading_deg is not None
         ):
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=context.fused_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                    force_centerline=False,
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -269,6 +327,15 @@ class SearchNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.fused_heading_deg is None and context.blind_heading_deg is None:
+            if context.sonar_status == "ONLINE":
+                return BehaviorDecision(
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=context.fused_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                    force_centerline=False,
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -357,6 +424,14 @@ class BehaviorTree:
         """按节点优先级评估上下文并返回首个命中的行为决策。"""
         self._update_turn_recovery(context)
         if context.deployment_mode and context.deployment_reacquire_required:
+            if context.sonar_status == "ONLINE":
+                return self._finalize_decision(BehaviorDecision(
+                    mode=BehaviorMode.SEARCH,
+                    base_heading_deg=context.nominal_heading_deg,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="SONAR_AVOID_SPIRAL",
+                ), context)
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,

@@ -3,13 +3,16 @@
 Generates:
 1. Terminal health metrics summary
 2. Multi-panel matplotlib figure saved to PNG
-3. Markdown report (optional)
+3. Markdown report saved to tools/health_report_<case>.md
+4. Auto-analysis of root causes and recommended actions
 
 Run with: python tools/diagnose_heading_error.py
 """
 
 import copy
 import sys
+import json
+from datetime import datetime
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
@@ -395,9 +398,244 @@ def print_health_report(metrics: dict) -> None:
     score = max(0.0, min(100.0, score))
     print(f"  Overall: {score:.1f}/100")
     print("=" * 70)
+    # Also return score for use in markdown report
+    return score
 
 
-def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, metrics: dict, output_path: Path):
+def auto_analyze_issues(metrics: dict) -> str:
+    """Automatically analyze health metrics and produce diagnostic summary."""
+    issues = []
+    recommendations = []
+
+    # Issue 1: Mean heading error too high
+    mean_err = metrics["mean_heading_error_deg"]
+    if mean_err > 120:
+        issues.append(f"🔴 **CRITICAL**: Mean heading error is {mean_err:.1f}° (>120°). The system is fundamentally misaligned.")
+        # Check for 180° flip pattern
+        if metrics["bad_est_180_count"] > 0:
+            ratio = metrics["bad_est_180_count"] / max(metrics["total_valid_est"], 1)
+            issues.append(f"  ↳ {metrics['bad_est_180_count']} frames (~{ratio*100:.0f}%) have ~180° errors. The ±90° offset selection is choosing the wrong branch.")
+            recommendations.append("✅ Fix Step 2.5 Early Velocity Arbitration to trigger on first 2-4 crossings")
+            recommendations.append("✅ Add spread=0 tiebreaker using vehicle travel direction")
+        else:
+            issues.append("  ↳ No 180° flips detected, but heading is still wrong. Likely a systematic offset error in line fit or vector analyzer.")
+            recommendations.append("✅ Verify CableRouteFitter direction_xy calculation (eigenvalue order, arctan2 usage)")
+            recommendations.append("✅ Check if vector_cable_heading_deg has ±180° sign ambiguity")
+
+    elif mean_err > 60:
+        issues.append(f"🟡 **WARNING**: Mean heading error is {mean_err:.1f}° (>60°). Significant but not catastrophic.")
+        recommendations.append("✅ Improve initial crossing offset selection with velocity arbitration")
+        recommendations.append("✅ Add hysteresis to prevent late-stage offset switching")
+
+    elif mean_err > 30:
+        issues.append(f"🟢 **MODERATE**: Mean heading error is {mean_err:.1f}°. Within acceptable range for early deployment.")
+    else:
+        issues.append(f"✅ **GOOD**: Mean heading error is {mean_err:.1f}°.")
+
+    # Issue 2: Oscillation
+    osc = metrics["heading_oscillations"]
+    if osc > 100:
+        issues.append(f"🔴 **CRITICAL**: {osc} heading oscillations (>30° jumps). System is unstable.")
+        recommendations.append("✅ Increase heading rate constraint (max_heading_change_rate_deg_s)")
+        recommendations.append("✅ Add low-pass filter on fused_heading_deg")
+        recommendations.append("✅ Check if safe-lock washout is triggering repeatedly")
+    elif osc > 20:
+        issues.append(f"🟡 **WARNING**: {osc} heading oscillations. System has moderate instability.")
+        recommendations.append("✅ Review fusion rule transitions for sudden heading changes")
+    else:
+        issues.append(f"✅ **GOOD**: Only {osc} oscillations. System is stable.")
+
+    # Issue 3: Mode switching
+    mode_rate = metrics["mode_switch_rate_hz"]
+    if mode_rate > 0.5:
+        issues.append(f"🔴 **CRITICAL**: Mode switching rate is {mode_rate:.2f}/s. System cannot settle into any mode.")
+        recommendations.append("✅ Increase mode hysteresis thresholds")
+        recommendations.append("✅ Extend SPIRAL_RECOVERY duration before transitioning to HOLD")
+    elif mode_rate > 0.2:
+        issues.append(f"🟡 **WARNING**: Mode switching rate is {mode_rate:.2f}/s. Frequent transitions reduce tracking stability.")
+    else:
+        issues.append(f"✅ **GOOD**: Mode switching rate is {mode_rate:.2f}/s.")
+
+    # Issue 4: Peak capture rate
+    peak_rate = metrics["peak_rate_hz"]
+    if peak_rate < 0.05:
+        issues.append(f"🟡 **WARNING**: Peak capture rate is only {peak_rate:.2f}/s ({metrics['total_peaks']} total). Insufficient data for robust fitting.")
+        recommendations.append("✅ Lower peak detection threshold (SNR floor)")
+        recommendations.append("✅ Check if safe-lock washout is discarding valid peaks")
+    elif peak_rate > 0.2:
+        issues.append(f"🟡 **WARNING**: Peak capture rate is {peak_rate:.2f}/s. May include false positives.")
+    else:
+        issues.append(f"✅ **GOOD**: Peak capture rate is {peak_rate:.2f}/s ({metrics['total_peaks']} total).")
+
+    # Issue 5: Vector consistency
+    vc = metrics["mean_vector_consistency"]
+    if vc < 0.5:
+        issues.append(f"🔴 **CRITICAL**: Mean vector consistency is {vc:.3f} (<0.5). PCA extraction is failing.")
+        recommendations.append("✅ Increase PCA buffer capacity for more samples")
+        recommendations.append("✅ Check if attitude jitter is causing earth-field leakage into AC signal")
+    elif vc < 0.7:
+        issues.append(f"🟡 **WARNING**: Mean vector consistency is {vc:.3f}. PCA extraction has moderate quality.")
+    else:
+        issues.append(f"✅ **GOOD**: Mean vector consistency is {vc:.3f}.")
+
+    # Issue 6: Vector vs Line divergence
+    div = metrics["vec_vs_line_divergence_deg"]
+    div_above = metrics["vv_div_above_45_count"]
+    if div_above > metrics["total_steps"] * 0.3:
+        ratio = div_above / max(metrics["total_steps"], 1)
+        issues.append(f"🔴 **CRITICAL**: Vector vs Line divergence >45° in {div_above} frames ({ratio*100:.0f}%). Orthogonal conflict detected.")
+        recommendations.append("✅ Disable vector_cable_heading_deg fusion until sign ambiguity is resolved")
+        recommendations.append("✅ Use line_heading_deg as primary source when divergence > 45°")
+    else:
+        issues.append(f"✅ **GOOD**: Vector vs Line divergence is acceptable ({div:.1f}° mean, {div_above} frames >45°).")
+
+    # Issue 7: SNR
+    snr = metrics["mean_snr_db"]
+    if snr < 10:
+        issues.append(f"🟡 **WARNING**: Mean SNR is {snr:.1f} dB (<10dB). Signal is weak.")
+    else:
+        issues.append(f"✅ **GOOD**: Mean SNR is {snr:.1f} dB.")
+
+    # Issue 8: Lateral deviation
+    lat_dev = metrics["max_lateral_dev_m"]
+    if lat_dev > 50:
+        issues.append(f"🟡 **WARNING**: Max lateral deviation is {lat_dev:.1f} m. AUV is far from cable.")
+        recommendations.append("✅ Increase zigzag width during spiral recovery")
+        recommendations.append("✅ Add lateral deviation-based confidence penalty")
+
+    # Issue 9: Safe-lock
+    sl_ratio = metrics["safe_lock_ratio"]
+    if sl_ratio > 0.1:
+        issues.append(f"🟡 **WARNING**: Safe-lock active for {sl_ratio*100:.0f}% of frames. May be too aggressive.")
+        recommendations.append("✅ Review safe-lock criterion A & B thresholds")
+        recommendations.append("✅ Consider temporary disable for ablation testing")
+
+    # Issue 10: Source breakdown analysis
+    src_stats = metrics["src_stats"]
+    for src, stat in src_stats.items():
+        if stat["errors"]:
+            mean_src_err = np.mean(stat["errors"])
+            if mean_src_err > 100 and len(stat["errors"]) > 50:
+                issues.append(f"🔴 **SOURCE ISSUE**: {src} has {len(stat['errors'])} frames with mean error {mean_src_err:.1f}°.")
+                if src == "MAGNETIC":
+                    recommendations.append(f"✅ {src} source is dominant but wrong. Check line fit direction_xy sign")
+                elif src == "SONAR":
+                    recommendations.append(f"✅ {src} source may have orthogonal ambiguity")
+
+    # Build output
+    output = []
+    output.append("## AUTO-ANALYSIS: Root Causes & Recommendations")
+    output.append("")
+    output.append("### Issues Detected")
+    output.append("")
+    for issue in issues:
+        output.append(f"- {issue}")
+    output.append("")
+    output.append("### Recommended Actions")
+    output.append("")
+    for i, rec in enumerate(recommendations, 1):
+        output.append(f"{i}. {rec}")
+    output.append("")
+
+    # Summary verdict
+    if metrics["mean_heading_error_deg"] < 15 and metrics["bad_est_180_count"] == 0:
+        output.append("### ✅ VERDICT: System is performing within specification.")
+        output.append(f"   - Mean error {metrics['mean_heading_error_deg']:.1f}° < 15° target")
+        output.append(f"   - No 180° flips detected")
+    elif metrics["bad_est_180_count"] > metrics["total_valid_est"] * 0.5:
+        output.append("### 🔴 VERDICT: System is fundamentally broken. >50% of estimates are ~180° wrong.")
+        output.append("   Priority: Fix ±90° offset selection immediately.")
+    elif metrics["mean_heading_error_deg"] > 60:
+        output.append("### 🟡 VERDICT: System is partially working but has systematic heading errors.")
+        output.append(f"   - Mean error {metrics['mean_heading_error_deg']:.1f}° is {metrics['mean_heading_error_deg'] - 15:.0f}° above target")
+        output.append("   - Priority: Improve initial offset selection and fusion rule protection.")
+    else:
+        output.append("### 🟢 VERDICT: System is approaching target. Minor tuning needed.")
+        output.append(f"   - Mean error {metrics['mean_heading_error_deg']:.1f}° is {max(0, metrics['mean_heading_error_deg'] - 15):.0f}° above target")
+
+    return "\n".join(output)
+
+
+def save_markdown_report(metrics: dict, score: float, auto_analysis: str, output_path: Path, png_path: Path = None) -> None:
+    """Save a comprehensive markdown report to file."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = []
+    lines.append(f"# AUV Cable Tracking Health Report — {metrics.get('scenario_name', 'case1')}")
+    lines.append(f"")
+    lines.append(f"**Generated**: {timestamp}")
+    lines.append(f"**Health Score**: {score:.1f}/100")
+    lines.append(f"")
+    lines.append("---")
+    lines.append("")
+
+    # Embed PNG image if available
+    if png_path is not None and png_path.exists():
+        lines.append("## Health Dashboard Visualization")
+        lines.append("")
+        lines.append(f"![Health Dashboard]({png_path.name})")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    lines.append("## Summary Metrics")
+    lines.append("")
+    lines.append(f"| Metric | Value |")
+    lines.append(f"|--------|-------|")
+    lines.append(f"| Mean heading error | {metrics['mean_heading_error_deg']:.1f}° |")
+    lines.append(f"| Median heading error | {metrics['median_heading_error_deg']:.1f}° |")
+    lines.append(f"| Final heading error | {metrics['final_heading_error_deg']:.1f}° |")
+    lines.append(f"| Good estimates (<15°) | {metrics['good_est_count']}/{metrics['total_valid_est']} ({100*metrics['good_ratio']:.0f}%) |")
+    lines.append(f"| Bad ~180° estimates | {metrics['bad_est_180_count']} |")
+    lines.append(f"| Heading oscillations | {metrics['heading_oscillations']} |")
+    lines.append(f"| Mode switch rate | {metrics['mode_switch_rate_hz']:.2f}/s |")
+    lines.append(f"| Peak capture rate | {metrics['peak_rate_hz']:.2f}/s |")
+    lines.append(f"| Mean SNR | {metrics['mean_snr_db']:.1f} dB |")
+    lines.append(f"| Mean vector consistency | {metrics['mean_vector_consistency']:.3f} |")
+    lines.append(f"| Max lateral deviation | {metrics['max_lateral_dev_m']:.1f} m |")
+    lines.append(f"| Safe-lock frames | {metrics['safe_lock_frames']} ({100*metrics['safe_lock_ratio']:.0f}%) |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## Heading Source Breakdown")
+    lines.append("")
+    lines.append(f"| Source | Mean Error | Count |")
+    lines.append(f"|--------|-----------|-------|")
+    for src, stat in sorted(metrics["src_stats"].items(), key=lambda x: np.mean(x[1]["errors"]) if x[1]["errors"] else 999):
+        mean_err = np.mean(stat["errors"]) if stat["errors"] else float("nan")
+        cnt = len(stat["errors"])
+        lines.append(f"| {src} | {mean_err:.1f}° | {cnt} |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append(auto_analysis)
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## Raw Metrics (JSON)")
+    lines.append("")
+    # Serialize metrics (exclude numpy arrays)
+    serializable = {}
+    for k, v in metrics.items():
+        if k == "heading_errors":
+            continue  # Too large
+        if isinstance(v, (int, float, str, bool, list, dict)):
+            serializable[k] = v
+        elif isinstance(v, np.floating):
+            serializable[k] = float(v)
+        elif isinstance(v, np.integer):
+            serializable[k] = int(v)
+        elif isinstance(v, np.ndarray):
+            serializable[k] = v.tolist()
+    lines.append("```json")
+    lines.append(json.dumps(serializable, indent=2))
+    lines.append("```")
+    lines.append("")
+
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"\n📄 Markdown report saved to: {output_path}")
+
+
+def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, metrics: dict, output_path: Path, score: float = 0.0):
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -429,7 +667,7 @@ def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, met
     fig.suptitle(f"AUV Cable Tracking Health Report — {scenario.name}\n"
                  f"Final Error: {metrics['final_heading_error_deg']:.1f}° | "
                  f"Mean Error: {metrics['mean_heading_error_deg']:.1f}° | "
-                 f"Health Score: {0:.1f}/100",
+                 f"Health Score: {score:.1f}/100",
                  fontsize=14, fontweight="bold")
 
     # Color map for sources
@@ -438,6 +676,8 @@ def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, met
         "MAGNETIC": "blue",
         "MAGNETIC_PEAK": "cyan",
         "SONAR": "orange",
+        "SONAR_SEED": "lime",
+        "SONAR_AVOID_SPIRAL": "yellowgreen",
         "GRADIENT": "purple",
         "MEMORY": "gray",
         "BLIND": "brown",
@@ -447,6 +687,9 @@ def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, met
         "DEPLOYMENT_SPIRAL": "salmon",
         "SAFE_LOCK": "darkred",
         "FUSION_HOLD": "gold",
+        "BOOTSTRAP_SPIRAL": "lightpink",
+        "BLIND_RECOVERY": "tan",
+        "BLIND_INERTIA": "khaki",
     }
     src_color_arr = [src_colors.get(s, "lightgray") for s in src]
 
@@ -457,7 +700,8 @@ def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, met
     ax1.plot(t, true_hdg, "k-", linewidth=2, label="True Cable", alpha=0.8)
     valid_idx = ~np.isnan(deploy_hdg)
     if np.any(valid_idx):
-        ax1.scatter(t[valid_idx], deploy_hdg[valid_idx], c=src_color_arr, s=3, alpha=0.6, label="Deployment Heading")
+        src_color_arr_valid = np.array(src_color_arr)[valid_idx]
+        ax1.scatter(t[valid_idx], deploy_hdg[valid_idx], c=src_color_arr_valid, s=3, alpha=0.6, label="Deployment Heading")
     ax1.set_ylabel("Heading (deg)")
     ax1.set_title("Cable Heading Estimation vs True (colored by source)")
     ax1.legend(loc="upper right", fontsize=8)
@@ -576,13 +820,27 @@ def generate_plots(scenario, history, positions, true_cable_x, true_cable_y, met
 def main():
     case_name = "case1"
     output_png = Path(f"/Users/bytedance/coding/AUV-Master-Mag/tools/health_report_{case_name}.png")
+    output_md = Path(f"/Users/bytedance/coding/AUV-Master-Mag/tools/health_report_{case_name}.md")
 
     print(f"Running diagnostic for {case_name}...")
     scenario, history, positions, true_cable_x, true_cable_y, offset_distance = run_diagnostic(case_name)
 
     metrics = compute_health_metrics(scenario, history, positions, true_cable_x, true_cable_y, offset_distance)
-    print_health_report(metrics)
+    # Add scenario name for report
+    metrics["scenario_name"] = case_name
+
+    # Generate plot first (PNG)
     generate_plots(scenario, history, positions, true_cable_x, true_cable_y, metrics, output_png)
+
+    # Print terminal report
+    score = print_health_report(metrics)
+
+    # Auto-analyze issues
+    auto_analysis = auto_analyze_issues(metrics)
+    print(f"\n{auto_analysis}")
+
+    # Save markdown report (with PNG embedded)
+    save_markdown_report(metrics, score, auto_analysis, output_md, png_path=output_png)
 
     return metrics
 

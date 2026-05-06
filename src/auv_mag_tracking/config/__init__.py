@@ -96,7 +96,7 @@ class SignalProcessingConfig:
     interpolation_target_rate_hz: float = 1000.0
     interpolation_input_rate_threshold_hz: float = 250.0
     bandpass_order: int = 2
-    rms_cycle_count: int = 1
+    rms_cycle_count: int = 3
     lockin_enabled: bool = True
     lockin_cycle_count: int = 1
     diagnostics_use_fft: bool = True
@@ -559,7 +559,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         dt_s=0.05,
         signal=SignalConfig(mode="ac_50hz", frequency_hz=50.0, ac_current_amplitude_a=800.0),
         sensor=SensorConfig(
-            magnetometer_sample_rate_hz=200.0,
+            magnetometer_sample_rate_hz=500.0,
             noise_std_nt=0.05,
             bias_drift_std_nt_per_s=0.01,
             nonorthogonality_deg=0.18,
@@ -568,7 +568,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         ),
         tracking=TrackingConfig(
             approach_angle_deg=45.0,
-            turn_trigger_ratio=0.85,
+            turn_trigger_ratio=0.70,
             smoothing_time_constant_s=0.18,
             envelope_time_constant_s=0.22,
             peak_cooldown_s=0.75,

@@ -255,6 +255,10 @@ class PeakDetector:
         self.descending_count = 0
         self.recent_samples: Deque[PeakZoneSample] = deque(maxlen=self.peak_zone_window_size)
         self.peak_zone_samples: Deque[PeakZoneSample] = deque(maxlen=self.peak_zone_window_size)
+        # Deep reset mechanism
+        self.armed = True
+        # Morphology-driven detection window (size 7 for trend analysis)
+        self.morphology_window: Deque[PeakZoneSample] = deque(maxlen=7)
 
     def _reset_tracking_state(self) -> None:
         """重置峰区追踪状态，回到空闲等待下一次峰值。"""
@@ -403,6 +407,7 @@ class PeakDetector:
             position_xy_m=None if position_xy_m is None else np.asarray(position_xy_m, dtype=float).copy(),
         )
         self.recent_samples.append(sample)
+        self.morphology_window.append(sample)
 
         if self.previous_strength_nt is None or self.previous_time_s is None:
             self.previous_strength_nt = sample.strength_nt
@@ -412,22 +417,28 @@ class PeakDetector:
             self.current_peak_position_xy_m = None if sample.position_xy_m is None else sample.position_xy_m.copy()
             return PeakEvent(detected=False)
 
-        delta_time_s = max(sample.time_s - self.previous_time_s, 1e-6)
-        previous_db = 20.0 * np.log10(max(self.previous_strength_nt, 1e-6))
-        current_db = 20.0 * np.log10(max(sample.strength_nt, 1e-6))
-        slope_db_per_s = (current_db - previous_db) / delta_time_s
-        is_ascending = slope_db_per_s > 0.1
-        is_descending = slope_db_per_s < -0.1
+        # --- Deep Reset / Armed Check ---
+        if not self.armed:
+            recovery_threshold = max(0.35 * self.current_peak_strength_nt, self.min_peak_strength_nt)
+            if sample.strength_nt < recovery_threshold:
+                self.armed = True
+            else:
+                self.previous_strength_nt = sample.strength_nt
+                self.previous_time_s = sample.time_s
+                return PeakEvent(detected=False)
 
         if time_s < self.cooldown_until_s:
             self.previous_strength_nt = sample.strength_nt
             self.previous_time_s = sample.time_s
             return PeakEvent(detected=False)
 
-        if is_ascending:
+        # --- Morphology-driven detection (replaces slope-based logic) ---
+        morphology_trend = self._get_morphology_trend()
+
+        if morphology_trend == "rising":
             self.ascending_count += 1
             self.descending_count = 0
-        elif is_descending:
+        elif morphology_trend == "falling":
             self.descending_count += 1
             self.ascending_count = 0
         else:
@@ -441,27 +452,59 @@ class PeakDetector:
         elif self.state == "ASCENDING":
             self.peak_zone_samples.append(sample)
             self._update_current_peak(sample)
-            if not is_ascending:
+            if morphology_trend != "rising":
                 self.state = "PEAK_ZONE"
-                self.descending_count = 1 if is_descending else 0
+                self.descending_count = 1 if morphology_trend == "falling" else 0
         elif self.state == "PEAK_ZONE":
             self.peak_zone_samples.append(sample)
             self._update_current_peak(sample)
-            if is_descending and self.descending_count >= self.descending_min_samples:
+            if morphology_trend == "falling" and self.descending_count >= self.descending_min_samples:
                 event = self._emit_peak_event(
                     sample.time_s,
                     vehicle_heading_deg=vehicle_heading_deg,
                     use_nominal_route_prior=use_nominal_route_prior,
                 )
+                if event.detected:
+                    self.armed = False
                 self.previous_strength_nt = sample.strength_nt
                 self.previous_time_s = sample.time_s
                 return event
-            if is_ascending:
+            if morphology_trend == "rising":
                 self.descending_count = 0
 
         self.previous_strength_nt = sample.strength_nt
         self.previous_time_s = sample.time_s
         return PeakEvent(detected=False)
+
+    def _get_morphology_trend(self) -> str:
+        """Analyze morphology of recent samples to determine trend.
+
+        Uses a hybrid approach: majority vote for rising trend +
+        relative drop for falling trend. Relaxed to allow small noise.
+        """
+        if len(self.morphology_window) < 3:
+            return "flat"
+
+        values = [s.strength_nt for s in self.morphology_window]
+        n = len(values)
+
+        # Rising detection: count how many recent steps are increasing
+        # Allow up to 1 noisy point in the window
+        steps_increasing = sum(1 for i in range(1, n) if values[i] > values[i-1])
+        total_steps = n - 1
+        rising_ratio = steps_increasing / total_steps if total_steps > 0 else 0.0
+
+        # Falling detection: current value dropped below max * turn_trigger_ratio
+        max_val = max(values)
+        current_val = values[-1]
+        drop_ratio = current_val / max_val if max_val > 1e-6 else 1.0
+
+        if rising_ratio >= 0.6:
+            return "rising"
+        elif drop_ratio < self.turn_trigger_ratio:
+            return "falling"
+        else:
+            return "flat"
 
 
 class EnvelopeGradientTracker:
@@ -787,6 +830,14 @@ class CableRouteFitter:
         eigenvalues, eigenvectors = np.linalg.eigh(covariance)
         direction = eigenvectors[:, int(np.argmax(eigenvalues))]
         direction = direction / max(np.linalg.norm(direction), 1e-9)
+
+        # Chronological Sign Correction: 确保特征向量与宏观时间流向一致
+        oldest_point = self.peak_positions_xy[0]
+        latest_point = self.peak_positions_xy[-1]
+        macro_vec = latest_point - oldest_point
+        if np.dot(direction, macro_vec) < 0:
+            direction = -direction
+
         orthogonal = np.array([-direction[1], direction[0]], dtype=float)
         residual = float(np.sqrt(np.sum(weights * (centered @ orthogonal) ** 2)))
         return FitResult(origin_xy_m=centroid, direction_xy=direction, residual_m=residual, covariance_xy_m2=covariance)
@@ -830,6 +881,14 @@ class WeightedSlidingWindowFitter:
         eigenvalues, eigenvectors = np.linalg.eigh(covariance)
         direction = eigenvectors[:, int(np.argmax(eigenvalues))]
         direction = direction / max(np.linalg.norm(direction), 1e-9)
+
+        # Chronological Sign Correction: 确保特征向量与宏观时间流向一致
+        oldest_point = observations[0].position_xy_m
+        latest_point = observations[-1].position_xy_m
+        macro_vec = latest_point - oldest_point
+        if np.dot(direction, macro_vec) < 0:
+            direction = -direction
+
         orthogonal = np.array([-direction[1], direction[0]], dtype=float)
         residual = float(np.sqrt(np.sum(weights * (centered @ orthogonal) ** 2)))
         return FitResult(origin_xy_m=centroid, direction_xy=direction, residual_m=residual, covariance_xy_m2=covariance)
@@ -838,6 +897,28 @@ class WeightedSlidingWindowFitter:
         """添加峰值观测，并在异常偏离时触发洗出处理。"""
         washout_triggered = False
         position_xy_m = np.asarray(position_xy_m, dtype=float)
+
+        # Spatial mutual exclusion filter: prevent dense clusters from dominating PCA fit
+        SPATIAL_EXCLUSION_M = 8.0
+        for i, obs in enumerate(self.peak_observations):
+            dist = float(np.linalg.norm(position_xy_m - obs.position_xy_m))
+            if dist < SPATIAL_EXCLUSION_M:
+                # New point is too close to an existing point
+                if snr_linear > obs.snr_linear:
+                    # Replace old point with better SNR new point
+                    self.peak_observations[i] = PeakObservation(
+                        position_xy_m=position_xy_m,
+                        snr_linear=float(max(snr_linear, self.snr_floor)),
+                        confidence=float(confidence),
+                        time_s=float(time_s),
+                    )
+                    self.last_detection_time_s = time_s
+                    return washout_triggered
+                else:
+                    # Old point is better, discard new point
+                    self.last_detection_time_s = time_s
+                    return washout_triggered
+
         if len(self.peak_observations) >= 2 and snr_linear >= self.washout_snr_linear_threshold:
             current_fit = self._fit_observations(self.peak_observations)
             if current_fit.direction_xy is not None and np.isfinite(current_fit.residual_m) and current_fit.origin_xy_m is not None:
@@ -967,6 +1048,8 @@ class MagneticCablePerception:
         self.deployment_last_offset: Optional[float] = None
         self._deployment_heading_self_corrected: bool = False
         self._velocity_confirmed_offset: Optional[float] = None
+        self._deployment_hysteresis_locked: bool = False
+        self._deployment_locked_heading_deg: Optional[float] = None
         self.tracking_maturity: float = 0.0
         self.deployment_recent_washout_until_s: float = -1e9
         # Field vector gradient tracking for deployment mode: stores recent
@@ -1426,6 +1509,32 @@ class MagneticCablePerception:
                 final_mean = (final_mean + 180.0) % 360.0
                 self._deployment_heading_self_corrected = True
 
+        # --- Step 4.5: Velocity Arbitration & Hysteresis Lock ---
+        # Ensure the final_mean direction aligns with AUV's macroscopic travel direction.
+        # Also lock the heading once confidence is high enough to prevent late-stage flips.
+        if len(self.crossing_positions_xy) >= 2:
+            positions = np.asarray(self.crossing_positions_xy)
+            macro_vec = positions[-1] - positions[0]
+            macro_len = np.linalg.norm(macro_vec)
+            if macro_len >= 1.0:
+                final_vec = np.array([np.cos(np.deg2rad(final_mean)), np.sin(np.deg2rad(final_mean))])
+                if np.dot(final_vec, macro_vec) < 0:
+                    final_mean = (final_mean + 180.0) % 360.0
+
+        # Hysteresis lock: once confidence >= 0.8 and >= 4 points, lock the heading.
+        # New estimates must stay within 90° of the locked heading, otherwise flip.
+        n_crossings = len(self.crossing_headings)
+        if (self.deployment_heading_confidence >= 0.8 and n_crossings >= 4):
+            if not self._deployment_hysteresis_locked:
+                self._deployment_hysteresis_locked = True
+                self._deployment_locked_heading_deg = final_mean
+            elif self._deployment_locked_heading_deg is not None:
+                diff = abs(smallest_angle_error_deg(final_mean, self._deployment_locked_heading_deg))
+                if diff > 90.0:
+                    final_mean = (final_mean + 180.0) % 360.0
+                    # Update locked heading to the corrected value
+                    self._deployment_locked_heading_deg = final_mean
+
         # --- Step 5: Heading change rate constraint ---
         # Allow fast correction: 180° error should correct within 2s of new peaks
         max_heading_change_rate_deg_s = 90.0
@@ -1694,10 +1803,18 @@ class MagneticCablePerception:
 
         guidance_source = "SEARCH"
         fused_heading_deg = None
-        vector_cable_heading_deg = (
-            self.vector_analyzer.vector_cable_heading_deg
-            if self.vector_analyzer is not None else None
-        )
+
+        # --- TEMPORARY ISOLATION: Disable vector_cable_heading_deg ---
+        vector_cable_heading_deg = None
+
+        # --- Divergence Protection: Reject vector heading when it disagrees with line fit ---
+        if vector_cable_heading_deg is not None and line_heading_deg is not None:
+            vector_vs_line_divergence = abs(smallest_angle_error_deg(vector_cable_heading_deg, line_heading_deg))
+            if vector_vs_line_divergence > 45.0:
+                vector_cable_heading_deg = None
+            elif not (tracking_strength_nt > 40.0 and vector_vs_line_divergence < 30.0):
+                vector_cable_heading_deg = None
+
         if (
             line_heading_deg is not None
             and vector_cable_heading_deg is not None
@@ -1712,7 +1829,24 @@ class MagneticCablePerception:
                 line_heading_deg = cand_b
             else:
                 line_heading_deg = cand_a
-        if sonar_reading is not None and sonar_reading.valid and ((sonar_reading.distance_m is not None and sonar_reading.distance_m >= self.scenario.tracking.sonar_preferred_distance_m) or weak_signal_flag):
+
+        # --- Task 1: Sonar Seed Injection (Highest Priority) ---
+        # When sonar is online and valid, and magnetic fit is not yet mature,
+        # force use sonar heading as the primary navigation command.
+        # This breaks the SPIRAL_SEARCH deadlock in deployment mode.
+        _sonar_seed_confidence = None
+        if (
+            sonar_reading is not None
+            and sonar_reading.valid
+            and sonar_reading.estimated_heading_ned_deg is not None
+            and (not bootstrap_fit_ready or detection_age_s > 10.0)
+        ):
+            fused_heading_deg = sonar_reading.estimated_heading_ned_deg
+            if sonar_reading.estimated_position_ned_m is not None:
+                estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
+            guidance_source = "SONAR_SEED"
+            _sonar_seed_confidence = sonar_confidence * 0.8
+        elif sonar_reading is not None and sonar_reading.valid and ((sonar_reading.distance_m is not None and sonar_reading.distance_m >= self.scenario.tracking.sonar_preferred_distance_m) or weak_signal_flag):
             fused_heading_deg = sonar_reading.estimated_heading_ned_deg
             if sonar_reading.estimated_position_ned_m is not None:
                 estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
@@ -1904,40 +2038,40 @@ class MagneticCablePerception:
             self.scenario.tracking.min_zigzag_width_m,
             self.scenario.tracking.max_zigzag_width_m,
         ))
-        # --- Perception-Anchored Safe-Lock (Criterion A & B) ---
-        # Criterion A: signal strength collapse + excessive displacement
+        # --- TEMPORARY DISABLE: Safe-Lock Criterion A & B (Ablation Test) ---
+        # Disable to prevent washout from clearing the peak cloud during debugging.
+        # Re-enable after confirming pure Peak PCA fit stability in Case 1.
         self.safe_lock_criterion_a_active = False
-        if (
-            self.last_valid_peak_strength_nt > 0.0
-            and tracking_strength_nt < self.scenario.tracking.safe_lock_strength_ratio_threshold * self.last_valid_peak_strength_nt
-            and self.displacement_since_last_peak_m > self.scenario.tracking.safe_lock_displacement_factor * self.scenario.tracking.safe_lock_ideal_field_width_m
-        ):
-            self.safe_lock_criterion_a_active = True
-            self.safe_lock_fit_invalidated = True
-            # Invalidate the old fit to prevent following a stale line
-            self.last_accepted_fit_result = FitResult(
-                origin_xy_m=None, direction_xy=None,
-                residual_m=float("inf"), covariance_xy_m2=None,
-            )
-            self.safe_lock_until_s = reading.time_s + 2.0
+        # if (
+        #     self.last_valid_peak_strength_nt > 0.0
+        #     and tracking_strength_nt < self.scenario.tracking.safe_lock_strength_ratio_threshold * self.last_valid_peak_strength_nt
+        #     and self.displacement_since_last_peak_m > self.scenario.tracking.safe_lock_displacement_factor * self.scenario.tracking.safe_lock_ideal_field_width_m
+        # ):
+        #     self.safe_lock_criterion_a_active = True
+        #     self.safe_lock_fit_invalidated = True
+        #     self.last_accepted_fit_result = FitResult(
+        #         origin_xy_m=None, direction_xy=None,
+        #         residual_m=float("inf"), covariance_xy_m2=None,
+        #     )
+        #     self.safe_lock_until_s = reading.time_s + 2.0
 
         # Criterion B: gradient direction inconsistency with fitted line normal
         self.safe_lock_criterion_b_active = False
         gradient_penalty = 0.0
-        if (
-            self.envelope_tracker.gradient_heading_deg is not None
-            and fit_result.direction_xy is not None
-            and not self.scenario.tracking.use_nominal_route_prior
-        ):
-            line_normal_deg = (
-                float(np.rad2deg(np.arctan2(fit_result.direction_xy[0], -fit_result.direction_xy[1]))) % 360.0
-            )
-            gradient_angle_error = abs(smallest_angle_error_deg(
-                self.envelope_tracker.gradient_heading_deg, line_normal_deg
-            ))
-            if gradient_angle_error > self.scenario.tracking.safe_lock_gradient_angle_threshold_deg:
-                self.safe_lock_criterion_b_active = True
-                gradient_penalty = self.scenario.tracking.safe_lock_gradient_confidence_penalty
+        # if (
+        #     self.envelope_tracker.gradient_heading_deg is not None
+        #     and fit_result.direction_xy is not None
+        #     and not self.scenario.tracking.use_nominal_route_prior
+        # ):
+        #     line_normal_deg = (
+        #         float(np.rad2deg(np.arctan2(fit_result.direction_xy[0], -fit_result.direction_xy[1]))) % 360.0
+        #     )
+        #     gradient_angle_error = abs(smallest_angle_error_deg(
+        #         self.envelope_tracker.gradient_heading_deg, line_normal_deg
+        #     ))
+        #     if gradient_angle_error > self.scenario.tracking.safe_lock_gradient_angle_threshold_deg:
+        #         self.safe_lock_criterion_b_active = True
+        #         gradient_penalty = self.scenario.tracking.safe_lock_gradient_confidence_penalty
 
         # Original safe-lock logic (peak drop detection)
         safe_lock_active = (
@@ -1958,6 +2092,10 @@ class MagneticCablePerception:
             confidence = min(confidence, 0.25)
         elif guidance_source == "MEMORY":
             confidence = max(confidence, self.scenario.tracking.memory_guidance_confidence_floor)
+        elif guidance_source == "SONAR_SEED" and _sonar_seed_confidence is not None:
+            # Cap SONAR_SEED confidence at 0.6 to prevent premature HOLD entry
+            # before magnetic peaks are captured
+            confidence = max(min(confidence, 0.6), max(_sonar_seed_confidence, 0.4))
         # Apply gradient inconsistency penalty from criterion B
         if gradient_penalty > 0:
             confidence = float(np.clip(confidence - gradient_penalty, 0.0, 1.0))

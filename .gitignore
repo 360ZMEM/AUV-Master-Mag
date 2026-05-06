@@ -14,3 +14,4 @@ trae/
 # 根目录和所有.DS_Store文件
 .DS_Store
 **/.DS_Store
+health*
