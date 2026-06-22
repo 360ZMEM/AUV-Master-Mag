@@ -248,10 +248,8 @@ class TrackingConfig:
         low_confidence_threshold: 低置信度阈值。
         search_leg_time_s: 之字形搜索单腿时长。
         sonar_preferred_distance_m: 声呐最偏好的工作距离。
-        magnetic_takeover_strength_nt: 磁感知接管控制所需的强度阈值。
         min_zigzag_width_m: 之字形最小横向宽度。
         max_zigzag_width_m: 之字形最大横向宽度。
-        zigzag_width_gain_m_per_nt: 强度到横向宽度的增益系数。
         safe_lock_peak_drop_nt: 进入安全锁定时允许的峰值下降阈值。
         blind_follow_memory_size: 盲跟踪记忆长度。
         fit_acceptance_residual_m: 拟合结果可接受的最大残差。
@@ -288,9 +286,6 @@ class TrackingConfig:
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
-        weighted_ransac_iterations: 加权 RANSAC 迭代次数，0 表示关闭。
-        weighted_ransac_inlier_threshold_m: RANSAC 内点阈值。
-        weighted_ransac_min_inlier_ratio: RANSAC 最小内点比例。
         safe_lock_strength_ratio_threshold: 安全锁定所需的强度比阈值。
         safe_lock_ideal_field_width_m: 理想磁场宽度，用于锁定判定。
         safe_lock_displacement_factor: 安全锁定的位移放大因子。
@@ -318,10 +313,8 @@ class TrackingConfig:
     low_confidence_threshold: float = 0.35
     search_leg_time_s: float = 4.0
     sonar_preferred_distance_m: float = 7.5
-    magnetic_takeover_strength_nt: float = 55.0
     min_zigzag_width_m: float = 2.5
     max_zigzag_width_m: float = 9.0
-    zigzag_width_gain_m_per_nt: float = 0.02
     safe_lock_peak_drop_nt: float = 15.0
     blind_follow_memory_size: int = 3
     fit_acceptance_residual_m: float = 12.0
@@ -361,9 +354,6 @@ class TrackingConfig:
     peak_position_delay_s: float = 0.04
     # --- Global estimation parameters ---
     bootstrap_min_heading_diff_deg: float = 30.0
-    weighted_ransac_iterations: int = 0
-    weighted_ransac_inlier_threshold_m: float = 5.0
-    weighted_ransac_min_inlier_ratio: float = 0.5
     # --- Perception safe-lock parameters ---
     safe_lock_strength_ratio_threshold: float = 0.20
     safe_lock_ideal_field_width_m: float = 12.0
@@ -655,7 +645,6 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             median_window_samples=9,
             search_leg_time_s=5.0,
             safe_lock_peak_drop_nt=22.0,
-            magnetic_takeover_strength_nt=85.0,
             sonar_preferred_distance_m=9.0,
             weighted_fitter_capacity=8,
         ),
@@ -753,7 +742,6 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             envelope_time_constant_s=0.24,
             peak_cooldown_s=0.85,
             min_peak_strength_nt=100.0,
-            magnetic_takeover_strength_nt=65.0,
             safe_lock_peak_drop_nt=16.0,
             fit_acceptance_residual_m=10.0,
             weighted_fitter_capacity=8,

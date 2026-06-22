@@ -11,7 +11,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from auv_mag_tracking.config import build_default_scenarios
-from auv_mag_tracking.perception import CableRouteFitter, FitResult, MagneticCablePerception, PeakDetector, RMSExtractor
+from auv_mag_tracking.perception import FitResult, MagneticCablePerception, PeakDetector, RMSExtractor
 
 
 class PerceptionTest(unittest.TestCase):
@@ -69,14 +69,6 @@ class PerceptionTest(unittest.TestCase):
 
         self.assertFalse(perception._is_peak_outlier(np.array([5.0, 1.5], dtype=float)))
         self.assertTrue(perception._is_peak_outlier(np.array([5.0, 3.2], dtype=float)))
-
-    def test_route_fitter_tracks_linear_points(self) -> None:
-        fitter = CableRouteFitter(history_size=5, forgetting_factor=0.7)
-        for index in range(5):
-            fitter.add_peak(np.array([float(index), float(index) * 0.1]), time_s=float(index))
-        fit = fitter.fit()
-        self.assertIsNotNone(fit.direction_xy)
-        self.assertLess(fit.residual_m, 0.2)
 
 
 if __name__ == "__main__":

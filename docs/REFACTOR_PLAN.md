@@ -21,6 +21,8 @@
 - **契约收敛**：`PerceptionState` 一拆为二，`PerceptionResult` (~19 字段) 是控制器硬契约，`PerceptionDiagnostics` 仅供 UI/log。
 - **新增能力**：`MagneticBurialInverter` 把"埋深反演"从伪观测升级为真磁法 (peak_amplitude + 电流 → 距离 → 埋深)。
 
+> **总纲 — 高度可维护**：每个模块设计都要"有智慧"，算法简单而精妙；拒绝徒增内容、无效兜底与未触发的死分支；优先让结构便于人工修改（职责单一、参数集中、命名自解释）。这是贯穿所有 Phase 的硬约束，而非某个阶段的任务。
+
 ---
 
 ## 1. 当前架构（病灶视图）
@@ -399,6 +401,24 @@ class MagneticBurialInverter:
 
 ### Phase 5（可选，未来）：实验性模块下沉
 - `experimental/{high_fidelity_mag, phyphox, simulator_connector}` 隔离。
+
+### Phase 6（TODO，代码全绿后执行）：docs/ 全面重构
+> **触发条件**：Phase 1-4 完成、代码定型后再启动，避免文档反复返工。
+
+**重构目标（呼应"高度可维护"总纲）**：
+
+- **单一信息源**：当前根目录散落 `README.md`、`原理与代码详解.md`、`极简重构法则.md`、`docs/REFACTOR_PLAN.md`、`tools/health_report_case1.md`，存在重复与漂移。统一收敛到 `docs/`，建立清晰目录树。
+- **建议目录结构**：
+  - `docs/README.md`（项目入口，3 分钟跑通）
+  - `docs/architecture.md`（洋葱分层 + 三态 FSM 数据流，含 mermaid 源 + 导出 PNG/PDF）
+  - `docs/perception.md`（信号链：带通→RMS→峰值→拟合→置信度→埋深反演，每步配公式）
+  - `docs/mission_fsm.md`（三态 FSM 状态机、转移判据、阈值表）
+  - `docs/burial_inversion.md`（磁法反演物理推导 + 验证结果）
+  - `docs/config_reference.md`（所有可配置参数集中说明，对应 `TrackingConfig`/`MissionThresholds`）
+  - `docs/dev_log/`（历史决策与 health-report 归档，与现行文档分离）
+- **删冗原则**：`极简重构法则.md` 的设计精神并入 `architecture.md`，原文件移入 `docs/dev_log/`；过期 health-report 归档。
+- **文档即契约**：每个 `perception/` 模块文件头部 docstring 与对应 `docs/*.md` 章节一一对应，便于人工修改时同步定位。
+- **验收**：根目录除 `README.md` 外无散落设计文档；`docs/` 目录树自洽；每个公开模块都能在 docs 找到对应章节。
 
 ---
 

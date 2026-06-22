@@ -797,52 +797,6 @@ class MagneticVectorAnalyzer:
         self.vector_confidence = float(np.clip(resultant_length, 0.0, 1.0))
 
 
-class CableRouteFitter:
-    """基于峰值位置历史对电缆中心线进行加权线性拟合。"""
-
-    def __init__(self, history_size: int, forgetting_factor: float) -> None:
-        """初始化历史长度和遗忘因子。"""
-        self.history_size = history_size
-        self.forgetting_factor = np.clip(forgetting_factor, 0.1, 0.99)
-        self.peak_positions_xy: Deque[np.ndarray] = deque(maxlen=history_size)
-        self.last_detection_time_s = -1e9
-
-    def add_peak(self, position_xy_m: np.ndarray, time_s: float) -> None:
-        """记录新的峰值位置并更新时间戳。"""
-        self.peak_positions_xy.append(np.asarray(position_xy_m, dtype=float))
-        self.last_detection_time_s = time_s
-
-    def fit(self) -> FitResult:
-        """根据当前历史峰值执行主方向拟合。"""
-        if len(self.peak_positions_xy) < 2:
-            return FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None)
-
-        points = np.vstack(self.peak_positions_xy)
-        sample_count = len(points)
-        weights = self.forgetting_factor ** np.arange(sample_count - 1, -1, -1)
-        weights = weights / np.sum(weights)
-        centroid = np.sum(points * weights[:, None], axis=0)
-        centered = points - centroid
-        covariance = np.zeros((2, 2), dtype=float)
-        for weight, point in zip(weights, centered):
-            covariance += weight * np.outer(point, point)
-
-        eigenvalues, eigenvectors = np.linalg.eigh(covariance)
-        direction = eigenvectors[:, int(np.argmax(eigenvalues))]
-        direction = direction / max(np.linalg.norm(direction), 1e-9)
-
-        # Chronological Sign Correction: 确保特征向量与宏观时间流向一致
-        oldest_point = self.peak_positions_xy[0]
-        latest_point = self.peak_positions_xy[-1]
-        macro_vec = latest_point - oldest_point
-        if np.dot(direction, macro_vec) < 0:
-            direction = -direction
-
-        orthogonal = np.array([-direction[1], direction[0]], dtype=float)
-        residual = float(np.sqrt(np.sum(weights * (centered @ orthogonal) ** 2)))
-        return FitResult(origin_xy_m=centroid, direction_xy=direction, residual_m=residual, covariance_xy_m2=covariance)
-
-
 class WeightedSlidingWindowFitter:
     """结合 SNR 权重的滑动窗口拟合器，用于部署模式下的稳健中心线估计。"""
 
@@ -1825,32 +1779,6 @@ class MagneticCablePerception:
         guidance_source = "SEARCH"
         fused_heading_deg = None
 
-        # --- TEMPORARY ISOLATION: Disable vector_cable_heading_deg ---
-        vector_cable_heading_deg = None
-
-        # --- Divergence Protection: Reject vector heading when it disagrees with line fit ---
-        if vector_cable_heading_deg is not None and line_heading_deg is not None:
-            vector_vs_line_divergence = abs(smallest_angle_error_deg(vector_cable_heading_deg, line_heading_deg))
-            if vector_vs_line_divergence > 45.0:
-                vector_cable_heading_deg = None
-            elif not (tracking_strength_nt > 40.0 and vector_vs_line_divergence < 30.0):
-                vector_cable_heading_deg = None
-
-        if (
-            line_heading_deg is not None
-            and vector_cable_heading_deg is not None
-            and self.vector_analyzer is not None
-            and self.vector_analyzer.vector_consistency_score >= 0.5
-        ):
-            cand_a = float(vector_cable_heading_deg)
-            cand_b = float((vector_cable_heading_deg + 180.0) % 360.0)
-            err_a = abs(smallest_angle_error_deg(line_heading_deg, cand_a))
-            err_b = abs(smallest_angle_error_deg(line_heading_deg, cand_b))
-            if err_b < err_a:
-                line_heading_deg = cand_b
-            else:
-                line_heading_deg = cand_a
-
         # --- Task 1: Sonar Seed Injection (Highest Priority) ---
         # When sonar is online and valid, and magnetic fit is not yet mature,
         # force use sonar heading as the primary navigation command.
@@ -2010,13 +1938,6 @@ class MagneticCablePerception:
                 self.deployment_estimated_cable_heading_deg = line_heading_deg
                 fit_confidence = float(np.clip(np.exp(-fit_result.residual_m / 6.0), 0.0, 1.0))
                 self.deployment_heading_confidence = max(self.deployment_heading_confidence, fit_confidence)
-            elif self.deployment_estimated_cable_heading_deg is None and vector_cable_heading_deg is not None and signal_reliable:
-                self.deployment_estimated_cable_heading_deg = vector_cable_heading_deg
-                vector_confidence = self.vector_analyzer.vector_confidence if self.vector_analyzer is not None else 0.0
-                self.deployment_heading_confidence = max(
-                    self.deployment_heading_confidence,
-                    float(np.clip(0.35 + 0.40 * vector_confidence, 0.0, 0.85)),
-                )
 
             # Rule 4 — Dominant source governs fused_heading_deg:
             # Override sonar/magnetic selection only when line_fit is not orthogonal
@@ -2054,40 +1975,11 @@ class MagneticCablePerception:
             ):
                 self.deployment_reacquire_required = False
 
-        # --- TEMPORARY DISABLE: Safe-Lock Criterion A & B (Ablation Test) ---
-        # Disable to prevent washout from clearing the peak cloud during debugging.
-        # Re-enable after confirming pure Peak PCA fit stability in Case 1.
+        # Safe-Lock Criterion A/B are disabled (kept as inert diagnostics until the
+        # mission-FSM refactor removes them from the perception contract).
         self.safe_lock_criterion_a_active = False
-        # if (
-        #     self.last_valid_peak_strength_nt > 0.0
-        #     and tracking_strength_nt < self.scenario.tracking.safe_lock_strength_ratio_threshold * self.last_valid_peak_strength_nt
-        #     and self.displacement_since_last_peak_m > self.scenario.tracking.safe_lock_displacement_factor * self.scenario.tracking.safe_lock_ideal_field_width_m
-        # ):
-        #     self.safe_lock_criterion_a_active = True
-        #     self.safe_lock_fit_invalidated = True
-        #     self.last_accepted_fit_result = FitResult(
-        #         origin_xy_m=None, direction_xy=None,
-        #         residual_m=float("inf"), covariance_xy_m2=None,
-        #     )
-        #     self.safe_lock_until_s = reading.time_s + 2.0
-
-        # Criterion B: gradient direction inconsistency with fitted line normal
         self.safe_lock_criterion_b_active = False
         gradient_penalty = 0.0
-        # if (
-        #     self.envelope_tracker.gradient_heading_deg is not None
-        #     and fit_result.direction_xy is not None
-        #     and not self.scenario.tracking.use_nominal_route_prior
-        # ):
-        #     line_normal_deg = (
-        #         float(np.rad2deg(np.arctan2(fit_result.direction_xy[0], -fit_result.direction_xy[1]))) % 360.0
-        #     )
-        #     gradient_angle_error = abs(smallest_angle_error_deg(
-        #         self.envelope_tracker.gradient_heading_deg, line_normal_deg
-        #     ))
-        #     if gradient_angle_error > self.scenario.tracking.safe_lock_gradient_angle_threshold_deg:
-        #         self.safe_lock_criterion_b_active = True
-        #         gradient_penalty = self.scenario.tracking.safe_lock_gradient_confidence_penalty
 
         confidence = self.confidence_estimator.fused_confidence(
             magnetic_confidence,
