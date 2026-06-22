@@ -166,9 +166,10 @@ class ApproachNode(BehaviorNode):
     def run(self, context: BehaviorContext) -> BehaviorDecision:
         """构造接近阶段的控制决策。"""
         source = "SONAR" if context.sonar_status == "ONLINE" and context.weak_signal_flag else "MAGNETIC"
+        base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
         return BehaviorDecision(
             mode=BehaviorMode.APPROACH,
-            base_heading_deg=context.fused_heading_deg,
+            base_heading_deg=base_heading,
             speed_mps=0.95 * context.cruise_speed_mps,
             zigzag_width_m=context.zigzag_width_m,
             guidance_source=source,
@@ -194,15 +195,17 @@ class LostNode(BehaviorNode):
 
     def run(self, context: BehaviorContext) -> BehaviorDecision:
         """构造失锁或螺旋搜索恢复决策。"""
-        # Sonar protection: when sonar is online, avoid SPIRAL_SEARCH
+        # Task 1: Bootstrap Override
         if context.deployment_mode and context.deployment_reacquire_required:
-            if context.sonar_status == "ONLINE":
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
                 return BehaviorDecision(
-                    mode=BehaviorMode.SEARCH,
-                    base_heading_deg=context.nominal_heading_deg,
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=base_heading,
                     speed_mps=context.search_speed_mps,
                     zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
+                    guidance_source="BOOTSTRAP_OVERRIDE",
+                    force_centerline=False,
                 )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
@@ -213,14 +216,7 @@ class LostNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.fused_heading_deg is None and context.blind_heading_deg is None:
-            if context.sonar_status == "ONLINE":
-                return BehaviorDecision(
-                    mode=BehaviorMode.SEARCH,
-                    base_heading_deg=context.nominal_heading_deg,
-                    speed_mps=context.search_speed_mps,
-                    zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
-                )
+            # We already know fused_heading_deg is None here
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -252,9 +248,10 @@ class SearchNode(BehaviorNode):
         # so that AUV performs zig-zag crossings to generate magnetic peaks.
         # Use large zigzag width to ensure active cable crossing during initialization.
         if context.guidance_source == "SONAR_SEED" and context.fused_heading_deg is not None:
+            base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
             return BehaviorDecision(
                 mode=BehaviorMode.APPROACH,
-                base_heading_deg=context.fused_heading_deg,
+                base_heading_deg=base_heading,
                 speed_mps=0.95 * context.cruise_speed_mps,
                 zigzag_width_m=context.zigzag_width_m,
                 guidance_source="SONAR_SEED",
@@ -270,14 +267,15 @@ class SearchNode(BehaviorNode):
                 force_centerline=False,
             )
         if context.deployment_mode and not context.has_detection_history:
-            # Sonar protection: when sonar is online, avoid SPIRAL_SEARCH
-            if context.sonar_status == "ONLINE":
+            # Task 1: Bootstrap Override - Never return to spiral if we have a heading
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
                 return BehaviorDecision(
                     mode=BehaviorMode.APPROACH,
-                    base_heading_deg=context.fused_heading_deg,
+                    base_heading_deg=base_heading,
                     speed_mps=context.search_speed_mps,
                     zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
+                    guidance_source="BOOTSTRAP_OVERRIDE",
                     force_centerline=False,
                 )
             return BehaviorDecision(
@@ -289,13 +287,14 @@ class SearchNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.deployment_reacquire_required and context.tracking_maturity < context.deployment_hold_maturity_threshold:
-            if context.sonar_status == "ONLINE":
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
                 return BehaviorDecision(
                     mode=BehaviorMode.APPROACH,
-                    base_heading_deg=context.fused_heading_deg,
+                    base_heading_deg=base_heading,
                     speed_mps=context.search_speed_mps,
                     zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
+                    guidance_source="BOOTSTRAP_OVERRIDE",
                     force_centerline=False,
                 )
             return BehaviorDecision(
@@ -309,13 +308,14 @@ class SearchNode(BehaviorNode):
         if context.deployment_mode and context.deployment_heading_confidence < context.high_confidence_threshold and not (
             context.tracking_maturity >= context.deployment_hold_maturity_threshold and context.blind_heading_deg is not None
         ):
-            if context.sonar_status == "ONLINE":
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
                 return BehaviorDecision(
                     mode=BehaviorMode.APPROACH,
-                    base_heading_deg=context.fused_heading_deg,
+                    base_heading_deg=base_heading,
                     speed_mps=context.search_speed_mps,
                     zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
+                    guidance_source="BOOTSTRAP_OVERRIDE",
                     force_centerline=False,
                 )
             return BehaviorDecision(
@@ -327,15 +327,7 @@ class SearchNode(BehaviorNode):
                 force_centerline=True,
             )
         if context.deployment_mode and context.fused_heading_deg is None and context.blind_heading_deg is None:
-            if context.sonar_status == "ONLINE":
-                return BehaviorDecision(
-                    mode=BehaviorMode.APPROACH,
-                    base_heading_deg=context.fused_heading_deg,
-                    speed_mps=context.search_speed_mps,
-                    zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
-                    force_centerline=False,
-                )
+            # We already know fused_heading_deg is None here, so this stays SPIRAL_SEARCH
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.nominal_heading_deg,
@@ -424,13 +416,15 @@ class BehaviorTree:
         """按节点优先级评估上下文并返回首个命中的行为决策。"""
         self._update_turn_recovery(context)
         if context.deployment_mode and context.deployment_reacquire_required:
-            if context.sonar_status == "ONLINE":
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
                 return self._finalize_decision(BehaviorDecision(
-                    mode=BehaviorMode.SEARCH,
-                    base_heading_deg=context.nominal_heading_deg,
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=base_heading,
                     speed_mps=context.search_speed_mps,
                     zigzag_width_m=context.zigzag_width_m,
-                    guidance_source="SONAR_AVOID_SPIRAL",
+                    guidance_source="BOOTSTRAP_OVERRIDE",
+                    force_centerline=False,
                 ), context)
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
@@ -441,6 +435,16 @@ class BehaviorTree:
                 force_centerline=True,
             )
         if self._should_force_spiral_search(context):
+            if context.fused_heading_deg is not None:
+                base_heading = context.intercept_heading_deg if context.nominal_distance_m > 3.0 else context.fused_heading_deg
+                return BehaviorDecision(
+                    mode=BehaviorMode.APPROACH,
+                    base_heading_deg=base_heading,
+                    speed_mps=context.search_speed_mps,
+                    zigzag_width_m=context.zigzag_width_m,
+                    guidance_source="BOOTSTRAP_OVERRIDE",
+                    force_centerline=False,
+                )
             return BehaviorDecision(
                 mode=BehaviorMode.SPIRAL_SEARCH,
                 base_heading_deg=context.blind_heading_deg if context.blind_heading_deg is not None else context.nominal_heading_deg,

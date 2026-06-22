@@ -951,11 +951,23 @@ class ConfidenceEstimator:
         """初始化丢失超时参数。"""
         self.lost_timeout_s = max(lost_timeout_s, 0.1)
 
-    def magnetic_confidence(self, snr: float, fit_residual_m: float, detection_age_s: float, weak_signal_flag: bool) -> float:
-        """根据信噪比、拟合残差和检测时效评估磁感知置信度。"""
+    def magnetic_confidence(
+        self,
+        snr: float,
+        fit_residual_m: float,
+        detection_age_s: float,
+        weak_signal_flag: bool,
+        zigzag_width_m: float = 0.0,
+        speed_mps: float = 1.0,
+    ) -> float:
+        """根据信噪比、拟合残差和动态检测时效评估磁感知置信度。"""
         snr_score = np.clip((snr - 1.0) / 8.0, 0.0, 1.0)
         fit_score = float(np.exp(-fit_residual_m / 10.0)) if np.isfinite(fit_residual_m) else 0.0
-        age_score = float(np.exp(-detection_age_s / self.lost_timeout_s))
+        
+        # 动态容忍时间：横切一整个宽度所需时间
+        dynamic_timeout_s = max(self.lost_timeout_s, (zigzag_width_m * 2.0) / max(speed_mps, 0.5))
+        age_score = float(np.exp(-detection_age_s / dynamic_timeout_s))
+        
         weak_penalty = 0.35 if weak_signal_flag else 1.0
         return float(np.clip((0.45 * snr_score + 0.35 * fit_score + 0.20 * age_score) * weak_penalty, 0.0, 1.0))
 
@@ -988,6 +1000,8 @@ class ConfidenceEstimator:
             confidence = min(0.82, confidence)
         elif guidance_source == "BLIND":
             confidence = min(0.4, 0.6 * magnetic_confidence + 0.4 * sonar_confidence)
+        elif guidance_source == "SONAR_SEED":
+            confidence = min(0.6, max(sonar_confidence * 0.8, magnetic_confidence))
         else:
             confidence = max(magnetic_confidence, sonar_confidence * 0.75)
         return float(np.clip(confidence, 0.0, 1.0))
@@ -1782,11 +1796,18 @@ class MagneticCablePerception:
 
         line_heading_deg = heading_from_direction_xy(fit_result.direction_xy) if fit_result.direction_xy is not None else None
 
+        # Retrieve previous zigzag width, assuming it was stored or calculated.
+        # Since it's not stored in state directly, let's use max_zigzag_width_m as a safe upper bound if not available,
+        # but wait, self.last_output_confidence was used above. I should add self.last_zigzag_width_m.
+        # Actually I can just use self.scenario.tracking.max_zigzag_width_m or the dynamic value.
+        current_zigzag_width = getattr(self, "last_zigzag_width_m", self.scenario.tracking.max_zigzag_width_m)
         magnetic_confidence = self.confidence_estimator.magnetic_confidence(
             snr,
             fit_result.residual_m,
             detection_age_s,
             weak_signal_flag,
+            zigzag_width_m=current_zigzag_width,
+            speed_mps=pose_measurement.speed_mps if hasattr(pose_measurement, 'speed_mps') else self.scenario.vehicle.cruise_speed_mps,
         )
 
         sonar_status = "OFFLINE"
@@ -2033,11 +2054,6 @@ class MagneticCablePerception:
             ):
                 self.deployment_reacquire_required = False
 
-        zigzag_width_m = float(np.clip(
-            self.scenario.tracking.min_zigzag_width_m + self.scenario.tracking.zigzag_width_gain_m_per_nt * tracking_strength_nt,
-            self.scenario.tracking.min_zigzag_width_m,
-            self.scenario.tracking.max_zigzag_width_m,
-        ))
         # --- TEMPORARY DISABLE: Safe-Lock Criterion A & B (Ablation Test) ---
         # Disable to prevent washout from clearing the peak cloud during debugging.
         # Re-enable after confirming pure Peak PCA fit stability in Case 1.
@@ -2073,14 +2089,6 @@ class MagneticCablePerception:
         #         self.safe_lock_criterion_b_active = True
         #         gradient_penalty = self.scenario.tracking.safe_lock_gradient_confidence_penalty
 
-        # Original safe-lock logic (peak drop detection)
-        safe_lock_active = (
-            detection_age_s <= recent_detection_window_s
-            and reading.time_s <= self.safe_lock_until_s
-        ) or self.safe_lock_criterion_a_active
-        if safe_lock_active:
-            zigzag_width_m = self.scenario.tracking.min_zigzag_width_m
-
         confidence = self.confidence_estimator.fused_confidence(
             magnetic_confidence,
             sonar_confidence,
@@ -2100,6 +2108,38 @@ class MagneticCablePerception:
         if gradient_penalty > 0:
             confidence = float(np.clip(confidence - gradient_penalty, 0.0, 1.0))
         self.last_output_confidence = confidence
+
+        # --- Task 3: Inverse Confidence Zigzag Width Mapping ---
+        # High confidence -> tight tracking (min_width)
+        # Low confidence -> wide sweeping search (max_width)
+        max_z_width = self.scenario.tracking.max_zigzag_width_m
+        min_z_width = self.scenario.tracking.min_zigzag_width_m
+        
+        # Override: During Bootstrap phase, force maximum width to ensure cable crossing
+        magnetic_fit_ready = fit_result.origin_xy_m is not None and (len(self.valid_points_xy) >= 3 if self.valid_points_xy else False)
+        if not magnetic_fit_ready:
+            zigzag_width_m = max_z_width
+        else:
+            zigzag_width_m = float(np.clip(
+                max_z_width - (max_z_width - min_z_width) * confidence,
+                min_z_width,
+                max_z_width
+            ))
+
+        # Task 2: Residual-driven width reduction
+        valid_fit = (len(self.fitter.peak_observations) >= 3) and (fit_result.residual_m <= 3.0)
+        if valid_fit:
+            zigzag_width_m = min(zigzag_width_m, min_z_width * 1.5)
+
+        self.last_zigzag_width_m = zigzag_width_m
+
+        # Original safe-lock logic (peak drop detection)
+        safe_lock_active = (
+            detection_age_s <= recent_detection_window_s
+            and reading.time_s <= self.safe_lock_until_s
+        ) or self.safe_lock_criterion_a_active
+        if safe_lock_active:
+            zigzag_width_m = min_z_width
 
         estimated_path_points_xy_m = np.vstack(self.valid_points_xy) if self.valid_points_xy else np.empty((0, 2), dtype=float)
         estimated_path_covariance_xy_m2 = fit_result.covariance_xy_m2

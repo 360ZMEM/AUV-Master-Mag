@@ -57,6 +57,7 @@ class ZigZagController:
         self.last_mode: Optional[TrackingMode] = None
         self.nominal_route_xy = self._build_nominal_route_xy()
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
+        self.smoothed_base_heading_deg: Optional[float] = None
 
     def _build_nominal_route_xy(self) -> np.ndarray:
         """根据场景中的路线模式生成控制器使用的名义电缆路径。"""
@@ -117,8 +118,13 @@ class ZigZagController:
             nominal_route_heading_deg = heading_from_direction_xy(nominal_tangent_xy)
             fused_heading_deg = perception.fused_heading_deg if perception.fused_heading_deg is not None else nominal_route_heading_deg
         else:
-            nominal_point_xy = pose.position_ned_m[:2].copy()
-            nominal_distance_m = 0.0
+            if perception.estimated_cable_point_xy_m is not None:
+                nominal_point_xy = perception.estimated_cable_point_xy_m.copy()
+                nominal_distance_m = float(np.linalg.norm(nominal_point_xy - pose.position_ned_m[:2]))
+            else:
+                nominal_point_xy = pose.position_ned_m[:2].copy()
+                nominal_distance_m = 0.0
+            
             # Deployment mode must not use any cable-angle prior.  Start from
             # the vehicle's current heading and let the perception stack build
             # a measurement-derived estimate from peak geometry.
@@ -168,67 +174,64 @@ class ZigZagController:
             )
         )
 
-        # --- Time-based leg flip for SEARCH/LOST/SPIRAL modes ---
-        if behavior.mode in {BehaviorMode.SEARCH, BehaviorMode.APPROACH, BehaviorMode.LOST, BehaviorMode.SPIRAL_SEARCH} and perception.time_s - self.last_leg_flip_time_s >= self.scenario.tracking.search_leg_time_s:
+        # --- Time-based leg flip for LOST/SPIRAL modes ---
+        if behavior.mode in {BehaviorMode.LOST, BehaviorMode.SPIRAL_SEARCH} and perception.time_s - self.last_leg_flip_time_s >= self.scenario.tracking.search_leg_time_s:
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
 
         # --- Task 4: Watchdog Leg Flip (Anti-Escape Safety Lock) ---
         # If no leg flip for too long, force a turn to prevent AUV from flying away.
-        leg_timeout_s = max(
-            behavior.zigzag_width_m / max(behavior.speed_mps, 0.3) * 1.5,
-            5.0
-        )
-        if perception.time_s - self.last_leg_flip_time_s >= leg_timeout_s:
+        expected_cross_time_s = max(behavior.zigzag_width_m * 2.5 / max(pose.speed_mps, 0.5), 10.0)
+        if perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s:
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
 
-        # --- Task 5: Inverse Confidence Zigzag Width Mapping ---
-        # Low confidence -> large width (wide sweeping search)
-        # High confidence -> small width (tight cable following)
-        confidence = perception.confidence
-        max_width = self.scenario.tracking.max_zigzag_width_m
-        min_width = self.scenario.tracking.min_zigzag_width_m
-        inverse_width = max_width - (max_width - min_width) * confidence
-        adjusted_zigzag_width = float(np.clip(inverse_width, min_width, max_width))
+        # --- Task 3 (Fix): Low-pass filter for base heading ---
+        if self.smoothed_base_heading_deg is None:
+            self.smoothed_base_heading_deg = behavior.base_heading_deg
+        else:
+            heading_diff = smallest_angle_error_deg(behavior.base_heading_deg, self.smoothed_base_heading_deg)
+            self.smoothed_base_heading_deg = wrap_angle_deg(self.smoothed_base_heading_deg + heading_diff * 0.1)
+        
+        effective_base_heading_deg = self.smoothed_base_heading_deg
 
         # --- Task 6: Force minimum crossing angle during initialization ---
         # Before magnetic fit is mature, force a probing crossing angle even if force_centerline is True.
         effective_force_centerline = behavior.force_centerline
         magnetic_fit_ready = perception.fit_result.origin_xy_m is not None and len(perception.estimated_path_points_xy_m) >= 3
         if not effective_force_centerline:
-            crossing_angle_deg = self._crossing_angle_deg(adjusted_zigzag_width)
+            crossing_angle_deg = self._crossing_angle_deg(behavior.zigzag_width_m)
         elif not magnetic_fit_ready:
-            # Initialization phase: force at least 15° probing angle
-            crossing_angle_deg = max(self._crossing_angle_deg(adjusted_zigzag_width), 15.0)
+            # Initialization phase: force at least 35° probing angle
+            crossing_angle_deg = max(self._crossing_angle_deg(behavior.zigzag_width_m), 35.0)
             effective_force_centerline = False
         else:
             crossing_angle_deg = 0.0
 
-        desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+        desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
         if perception.safe_lock_active:
-            desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg)
+            desired_heading_deg = wrap_angle_deg(effective_base_heading_deg)
 
         # --- Task 2: Startup Swing (Large Amplitude) ---
         # If bootstrap not ready (< 3 fit points), force large crossing angle
         if not magnetic_fit_ready and behavior.mode in {BehaviorMode.APPROACH, BehaviorMode.SEARCH}:
-            crossing_angle_deg = max(crossing_angle_deg, 45.0)
-            desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+            crossing_angle_deg = max(crossing_angle_deg, 35.0)
+            desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
 
         mode = TrackingMode(behavior.mode.value)
         if mode == TrackingMode.HOLD:
             # Don't lock to base_heading if bootstrap not ready
             if not magnetic_fit_ready:
-                crossing_angle_deg = max(crossing_angle_deg, 15.0)
-                desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+                crossing_angle_deg = max(crossing_angle_deg, 35.0)
+                desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
             else:
-                desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg)
+                desired_heading_deg = wrap_angle_deg(effective_base_heading_deg)
 
         if mode == TrackingMode.SPIRAL_SEARCH:
             desired_heading_deg, yaw_rate_deg_s, turning_radius_from_command = self._spiral_guidance(pose, behavior, perception.time_s)
         else:
             if mode == TrackingMode.TURN:
-                desired_heading_deg = wrap_angle_deg(behavior.base_heading_deg + self.leg_sign * crossing_angle_deg)
+                desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
             yaw_rate_deg_s = self._limited_yaw_rate_deg_s(behavior.speed_mps, desired_heading_deg, pose.heading_deg)
             turning_radius_from_command = float("inf")
             if abs(yaw_rate_deg_s) > 1e-6:
