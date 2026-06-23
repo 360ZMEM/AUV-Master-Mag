@@ -419,6 +419,37 @@ class MagneticBurialInverter:
 - **改造对齐（后续，可在 Phase 2e 内或独立完成）**：`main_viz.SimulationVisualizer` 改为消费 `RunRecord`（实时增量喂帧），`SimulationReport` / `DeploymentPerformanceEvaluator` 指标并入 `viz/metrics.py`，避免两份实现。**当前 Phase 2V 只交付离线体系，实时 dashboard 仍为独立实现，避免范围漂移**。
 - **验收**：`python tools/visualize.py --all` 一键生成 `results/<ts>/case{1..5}/` 全套图与报告 + `showcase.*`；图中三态 FSM、声呐/磁贡献、case 指标矩阵齐备；`grep -R "matplotlib" src/auv_mag_tracking/viz` 仅 `figures.py` 出现（绘图单点）；live dashboard 与离线报告指标一致（同一 `compute_health_metrics`）。
 
+### Phase 2e：迁移 sweep + 测试到 FSM API（✅ 完成，commit `b1e5f62`）
+- [tools/sweep_tracking_params.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) `MODE_SCORE` 改用 `MissionState.value`（track/align/search/emergency）。
+- [tests/test_fusion_features.py](file:///Users/bytedance/coding/AUV-Master-Mag/tests/test_fusion_features.py)：删除全部 `behavior_tree` / deployment-消歧死引用测试，新增 `MissionFsmTest`（8 个 FSM 转移用例）。
+- **验收**：FSM 测试全绿；剩余 6 个失败（PeakDetector morphology ×3、WeightedSlidingWindowFitter ×2、perception_driver 插值率 ×1）经确认**先于重构存在**（baseline `ee2fe14` 即失败），属感知内核存量债，单列 Phase 2H 处理；重构本身零新增失败。
+
+### Phase 2f：回归验收（✅ 完成）
+- `python main_demo.py --case case1..5 --no-viz` 全部正常退出，无运行期回归。
+- `python tools/visualize.py --all` + `python tools/sweep_tracking_params.py --cases case1` 烟测通过。
+
+### Phase 2G：收敛性修复（可视化体系驱动诊断，待实施）
+
+> **动机**：Phase 2V 可视化体系把「成果不可见」变为「问题可量化」。`showcase` 暴露：仅 case1 达标（health 93、mean_err 4.2°、TRACK 73%、switches 2），case2/3/4 出现**模式切换风暴**，case5 出现**航向违约**。从 `results/<ts>/<case>/record.npz` 逐帧回放定位到两个**正交**根因：
+
+**根因 1 — SEARCH↔LOCK_ALIGN 抖振（case2/3/4）**
+- 现象：case2 switches=164（search→align 81 + align→search 81）、case3=134、case4=83。
+- 机理：FSM 用**单一** `mag_lock_threshold_nT=50` 硬门限判信号有无；而 zig-zag 横切电缆时磁强天然在峰谷间振荡（case2 mean 108 nT，仅 56% 帧 >50 nT，门限穿越 138 次）。`lock_streak/loss_streak` 去抖窗（5/3 步）远小于一个完整横切周期，于是每个谷底就触发 `align→search` 回退、每个峰顶又 `search→align`，形成极限环。
+- 关键证据：拟合一旦建立即收敛（`fit_perp_eig<1.0` 占比 100%），即真实跟踪能力没问题，**纯属状态判据对周期性信号过敏**。
+- 修复方向（择一/组合，需保护性最小改动）：① 信号判据加**迟滞**（lock 用 50 nT，loss 用更低的 release 阈值，如 25 nT）使峰谷不再来回穿越；② loss 判据从"瞬时磁强"改为"**滑窗内峰值检测时效**"（一个 zig-zag 周期内有过峰即视为有信号），与 `ConfidenceEstimator` 的 `dynamic_timeout` 同源；③ 提高 `loss_streak_required` 到覆盖一个横切周期。**首选 ①+②**：迟滞最简、时效判据物理上正确。
+
+**根因 2 — case5 航向违约（mean_err 21.7°）**
+- 现象：case5 switches 仅 3（状态稳定），但 mean_err 21.7° > 15° 硬约束；磁强健康（82% >50 nT）。
+- 机理：case5 路由有 **94 处曲率违规**（min radius 22.4 m < 50 m 限制），急弯处电缆切向变化快于车辆 `min_turning_radius` 可跟踪速率 + 拟合滞后，沿切向的航向估计在弯段系统性落后。
+- 修复方向：① 在 `figures` detail 版叠加曲率-误差相关图确认误差集中于弯段；② 弯段降速（`align_speed_factor` 动态化随曲率）+ 缩短拟合窗以减小滞后；③ 若为路由本身不可跟踪（半径 < 物理极限），应在场景层修正 waypoints 或在验收中标注为"超出运动学可行域"。
+
+- **实施纪律**：本 Phase 会**改变 FSM 输出**，故必然打破与 baseline 的 byte-level 一致；须在独立提交、并用 `tools/visualize.py --all` 前后对照 `showcase` 指标矩阵量化收益（switches↓、mean_err↓、TRACK↑），作为新基线。
+- **验收**：case2/3/4 mode_switches ≤ 6；全 case mean_heading_error ≤ 15°（引导阶段目标 7.5°）；case1 不回归（health ≥ 90）。
+
+### Phase 2H：感知内核存量测试修复（独立，低优先）
+- 6 个先于重构存在的失败（PeakDetector morphology 状态机、WeightedSlidingWindowFitter 空拟合、perception_driver 200→1k 插值率）需逐一判定"修实现 vs 更新过期断言"，与 FSM 重构正交，不阻塞 Phase 2 收尾。
+
+
 ### Phase 3：契约收敛（0.5 d）
 - 把 controller 中所有 magic numbers (35°、`expected_cross_time = max(w*2.5/v, 10)`、`lookahead = max(2*r_min, 10)`、`heading low-pass = 0.1`) 提到 `TrackingConfig`。
 - `BehaviorContext` 完全删除。
