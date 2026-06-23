@@ -527,7 +527,19 @@ class MagneticBurialInverter:
 > **范围决策（用户确认"聚焦校正过期内容"）**：不做全量重写，只校正过期内容、补缺失章节、归档散落文档。
 
 
-**重构目标（呼应"高度可维护"总纲）**：
+**实际交付（聚焦校正，非全量重写）**：
+
+- **校正过期文档**：`git mv docs/03_行为树方法论.md → docs/03_任务状态机方法论.md` 并全文重写为现行三态 FSM（准确引用 `mission_manager.py`：状态/职责表、迟滞锁存与时效丢失判据、P_yy 协方差代理、阈值表、MissionInput/MissionDecision 契约）。删除已不存在的六节点行为树（SafeLock/Turn/Hold/Approach/Lost/Search）描述。
+- **补缺失章节**：新增 `docs/08_磁法埋深反演.md`（Phase 4 方法论：原方案失效分析、标定幅度法、横向门控、累积中位数融合、验证结果）。
+- **校正 `docs/README.md`**：导航条目/学习路径/速查表/三大支柱中所有 `行为树` → `三态 FSM`，新增 08 埋深文档导航条目与编号顺延。
+- **校正根 `README.md`**：架构清单更新为包结构（`perception/`）+ `mission_manager.py` FSM + `controller.py` 分轴 + `experimental/`；修正"不是纯磁法直接反演"的过期声明（Phase 4 已实现）。
+- **归档散落文档**：`极简重构法则.md`、`原理与代码详解.md` 经 `git mv` 移入 `docs/dev_log/`，与现行文档分离。
+- **验收**：根目录仅保留 `README.md`；`docs/` 无指向已删除架构的过期引用；60/60 单元测试绿。
+
+> **未做（超范围，留待后续）**：架构/感知/配置参考文档的全量重写与 mermaid 导出、模块 docstring 与 docs 章节一一映射的契约化——按用户"聚焦校正过期内容"决策暂缓。
+
+<details>
+<summary>原 Phase 6 全量重构愿景（已收窄，留档）</summary>
 
 - **单一信息源**：当前根目录散落 `README.md`、`原理与代码详解.md`、`极简重构法则.md`、`docs/REFACTOR_PLAN.md`、`tools/health_report_case1.md`，存在重复与漂移。统一收敛到 `docs/`，建立清晰目录树。
 - **建议目录结构**：
@@ -540,7 +552,8 @@ class MagneticBurialInverter:
   - `docs/dev_log/`（历史决策与 health-report 归档，与现行文档分离）
 - **删冗原则**：`极简重构法则.md` 的设计精神并入 `architecture.md`，原文件移入 `docs/dev_log/`；过期 health-report 归档。
 - **文档即契约**：每个 `perception/` 模块文件头部 docstring 与对应 `docs/*.md` 章节一一对应，便于人工修改时同步定位。
-- **验收**：根目录除 `README.md` 外无散落设计文档；`docs/` 目录树自洽；每个公开模块都能在 docs 找到对应章节。
+
+</details>
 
 ---
 
