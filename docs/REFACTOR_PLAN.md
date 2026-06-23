@@ -368,7 +368,7 @@ class MagneticBurialInverter:
 
 ### 6.4 保留的 tools
 
-- [tools/diagnose_heading_error.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/diagnose_heading_error.py) ✅ — 长期 health-report 工具
+- [tools/diagnose_heading_error.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/diagnose_heading_error.py) ✅ — Phase 2V 起退化为 [tools/visualize.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/visualize.py) 的薄 wrapper（单例 health-report，逻辑全部下沉 `viz/`）
 - [tools/sweep_tracking_params.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) ✅ — 扫参工具
 
 ---
@@ -395,6 +395,29 @@ class MagneticBurialInverter:
 - 删除 [behavior_tree.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/behavior_tree.py) 与 `perception._update_deployment_cable_heading` 整套部署分支。
 - `controller.py` 退回纯运动学 + 单一航向 PID。
 - **验收**：case1 健康报告 `MAGNETIC_PEAK` 占比 > 5%；模式切换 ≤ 6 次；mean_heading_error ≤ 5°。
+
+### Phase 2V：统一可视化与成果展示体系（0.5–1 d，承接 Phase 2 之后）
+
+> **动机**：Phase 0–2 完成了「删死码 → perception 拆包 → 三态 FSM → 声呐喂拟合 → 磁横偏转向」一系列结构性修复，但**成果不可见**——当前 viz 资产分散三处、零共享抽象、且从不落盘归档：
+> - [main_viz.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/main_viz.py) `SimulationVisualizer`：实时 5 面板 dashboard，`plt.ion()`，**从不 savefig**；
+> - [tools/diagnose_heading_error.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/diagnose_heading_error.py)：headless 9 面板静态 PNG + Markdown health report + /100 健康分，但**重复实现了一整套 sim loop**、硬编码 case1、写绝对路径；
+> - `DeploymentPerformanceEvaluator` / `SimulationReport`（main_viz）：deployment 指标，仅 print。
+>
+> 三者各自记录通道、各自算指标，无法复用、无法跨 case 对比、无统一输出目录。本 Phase 将其收敛为**单一可视化体系**，使「前序重构的成果」可一键复现、归档、对比。
+
+**设计原则（呼应「高度可维护」总纲 + GUI/Logic 分离）**：仿真循环只产出数据，可视化只消费数据；指标计算与绘图彻底解耦；实时 dashboard 与离线报告共享同一份采集契约与同一套指标函数，杜绝「两套 sim loop / 两套指标」漂移。
+
+- **新建 `viz/` 包**（`src/auv_mag_tracking/viz/`，每文件 ≤ 300 行）：
+  - `recorder.py` — `RunRecorder` / `RunRecord`：**唯一**的逐帧采集契约（pose / truth / PerceptionState / GuidanceCommand / MissionState 等 ~24 通道，二进制友好的 `np.ndarray` 列存）。`main_viz` 与离线工具都从它取数，消除 `diagnose_heading_error` 里重复的 sim loop。
+  - `metrics.py` — 纯函数 `compute_health_metrics(record) -> HealthMetrics` + `health_score(metrics) -> float`（迁移自 `diagnose_heading_error`，去掉 I/O 副作用），新增三态 FSM 占比、声呐/磁导航贡献比、mode-switch 计数等 Phase 2 关键指标。
+  - `figures.py` — 学术风格（IEEE/HKU）静态多面板：`matplotlib.use("Agg")`、Times New Roman、语义冷暖配色（声呐域=冷色 / 磁域=暖色）、LaTeX 公式标注、**分版输出**（`overview` 总览版 1.5:1~2:1 粗边框 + `detail` 详细版），统一 `savefig(dpi=150/300)`。
+  - `report.py` — `save_markdown_report(metrics, fig_paths, out_dir)`：health-report Markdown + /100 分 + 自动问题分析（迁移 `auto_analyze_issues`）。
+  - `__init__.py` — 重导出 `RunRecorder / compute_health_metrics / health_score / render_figures / save_markdown_report`。
+- **统一输出目录**：新建 `results/`（git 忽略），结构 `results/<timestamp>/<case>/{figures/*.png, report.md, record.npz}`，外加 `results/<timestamp>/showcase.{png,md}` 跨 case 汇总。根目录与 `tools/` 不再散落 `health_report_case1.{png,md}`。
+- **成果展示总图（showcase）**：批量跑 case1–5，输出一张**重构成果对照图**——三态 FSM 时间线、声呐+磁协同贡献堆叠、case×指标矩阵（heading_err / TRACK_ACTIVE 占比 / mode_switches / cross-track），用于「系统展示前序修复成果」。
+- **CLI**：新增 [tools/visualize.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/visualize.py)：`--case caseN`（单例完整报告）、`--all`（批量 + showcase）、`--live`（转调 main_viz 实时 dashboard），全部写入 `results/`。`diagnose_heading_error.py` 已退化为薄 wrapper（保留历史入口 + `--case`，逻辑全部委托 `viz/`）。
+- **改造对齐（后续，可在 Phase 2e 内或独立完成）**：`main_viz.SimulationVisualizer` 改为消费 `RunRecord`（实时增量喂帧），`SimulationReport` / `DeploymentPerformanceEvaluator` 指标并入 `viz/metrics.py`，避免两份实现。**当前 Phase 2V 只交付离线体系，实时 dashboard 仍为独立实现，避免范围漂移**。
+- **验收**：`python tools/visualize.py --all` 一键生成 `results/<ts>/case{1..5}/` 全套图与报告 + `showcase.*`；图中三态 FSM、声呐/磁贡献、case 指标矩阵齐备；`grep -R "matplotlib" src/auv_mag_tracking/viz` 仅 `figures.py` 出现（绘图单点）；live dashboard 与离线报告指标一致（同一 `compute_health_metrics`）。
 
 ### Phase 3：契约收敛（0.5 d）
 - 把 controller 中所有 magic numbers (35°、`expected_cross_time = max(w*2.5/v, 10)`、`lookahead = max(2*r_min, 10)`、`heading low-pass = 0.1`) 提到 `TrackingConfig`。
@@ -445,6 +468,10 @@ python -m unittest discover -s tests
 # 3. 健康报告对比
 python tools/diagnose_heading_error.py --case case1
 diff <(prev_report) <(new_report)  # 关键指标在 ±10% 内
+
+# 4. 统一可视化体系（Phase 2V 之后）
+python tools/visualize.py --all     # 生成 results/<ts>/case{1..5}/ + showcase.{png,md}
+grep -R "matplotlib" src/auv_mag_tracking/viz   # 只应命中 figures.py（绘图单点）
 ```
 
 **Phase 2 之后的额外指标改善目标**：
@@ -460,6 +487,8 @@ diff <(prev_report) <(new_report)  # 关键指标在 ±10% 内
 | 文件总数（src/auv_mag_tracking/） | 10 | 12-15 |
 | BehaviorContext 字段数 | 30 | 0（删除） |
 | PerceptionState 字段数 | 55 | 拆为 19 + 25 |
+| viz sim-loop 实现份数 | 2（main_viz + diagnose） | 1（RunRecorder 单点） |
+| 可被归档复现的 case 报告 | 0 | 5（case1–5 + showcase） |
 
 ---
 

@@ -12,4 +12,5 @@ __all__ = [
     "routes",
     "sensor_model",
     "simulator_connector",
+    "viz",
 ]
