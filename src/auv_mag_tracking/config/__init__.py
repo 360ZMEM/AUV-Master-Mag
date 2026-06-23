@@ -301,6 +301,13 @@ class TrackingConfig:
         safe_lock_gradient_confidence_penalty: 梯度不稳定时的置信度惩罚。
         vector_heading_enabled: 是否启用向量航向分析。
         vector_heading_confidence_weight: 向量航向在综合置信度中的权重。
+        probing_crossing_angle_deg: 拟合收敛前强制的宽穿越角，主动横切电缆以产生磁峰。
+        base_heading_smoothing: 沿缆基准航向的逐步低通系数（越小越平滑、越滞后）。
+        min_zigzag_half_band_width_m: 之字形半带下限，防止退化宽度把扫描压成逐步翻转的极限环。
+        lookahead_turn_radius_factor: 交叉角前视距离相对最小转弯半径的倍数。
+        lookahead_min_distance_m: 交叉角前视距离的下限。
+        crossing_width_periods: 一次电缆穿越对应的沿缆宽度数（用于扫描周期与看门狗翻腿时限）。
+        watchdog_min_cross_time_s: 看门狗翻腿时限的下限，避免冷启动无电缆点时无法翻腿。
     """
 
     approach_angle_deg: float = 45.0
@@ -381,6 +388,14 @@ class TrackingConfig:
     # --- Vector heading analysis ---
     vector_heading_enabled: bool = True
     vector_heading_confidence_weight: float = 0.15
+    # --- Controller zig-zag geometry (lifted from controller magic numbers) ---
+    probing_crossing_angle_deg: float = 35.0
+    base_heading_smoothing: float = 0.1
+    min_zigzag_half_band_width_m: float = 2.0
+    lookahead_turn_radius_factor: float = 2.0
+    lookahead_min_distance_m: float = 10.0
+    crossing_width_periods: float = 2.5
+    watchdog_min_cross_time_s: float = 10.0
 
 
 @dataclass

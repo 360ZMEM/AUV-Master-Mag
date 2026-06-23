@@ -8,14 +8,13 @@ import numpy as np
 from ..config import ScenarioConfig
 from ..math_utils import (
     body_to_ned,
+    build_nominal_route_xy,
     build_polyline_projection_cache,
     heading_from_direction_xy,
     nearest_point_on_polyline,
     norm,
     project_point_to_line,
     rotation_matrix_sensor_to_body,
-    sample_sine_overlay_path,
-    sample_spline_path,
     sensor_to_body,
     smallest_angle_error_deg,
 )
@@ -99,23 +98,8 @@ class MagneticCablePerception:
         self.safe_lock_criterion_a_active: bool = False
         self.safe_lock_criterion_b_active: bool = False
         self.safe_lock_fit_invalidated: bool = False
-        self.nominal_route_xy = self._build_nominal_route_xy()
+        self.nominal_route_xy = build_nominal_route_xy(self.scenario.environment)
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
-
-    def _build_nominal_route_xy(self) -> np.ndarray:
-        """根据场景中的路线模式生成用于先验参考的名义电缆路径。"""
-        waypoints_xy = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
-        step_m = max(self.scenario.environment.field_segment_length_m * 0.5, 1.0)
-        if self.scenario.environment.cable_route_mode == "spline":
-            return sample_spline_path(waypoints_xy, step_m)
-        if self.scenario.environment.cable_route_mode == "sine":
-            return sample_sine_overlay_path(
-                waypoints_xy,
-                step_m,
-                amplitudes_m=self.scenario.environment.sine_amplitudes_m,
-                wavelengths_m=self.scenario.environment.sine_wavelengths_m,
-            )
-        return waypoints_xy.copy()
 
     def _blind_heading(self) -> Optional[float]:
         """在没有可用航向先验时，根据历史有效点估计盲航向。"""

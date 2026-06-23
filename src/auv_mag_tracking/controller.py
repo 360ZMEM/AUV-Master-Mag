@@ -14,25 +14,15 @@ import numpy as np
 from .config import ScenarioConfig
 from .math_utils import (
     Pose,
+    build_nominal_route_xy,
     build_polyline_projection_cache,
     heading_from_direction_xy,
     nearest_point_on_polyline,
-    sample_sine_overlay_path,
-    sample_spline_path,
     smallest_angle_error_deg,
     wrap_angle_deg,
 )
 from .mission_manager import MissionDecision, MissionInput, MissionManager, MissionState, MissionThresholds
 from .perception import PerceptionState
-
-# Initialization probing: before the line fit has enough points we force a wide
-# crossing angle so the vehicle actively cuts across the cable to generate peaks.
-_PROBING_CROSSING_ANGLE_DEG = 35.0
-# Base-heading low-pass coefficient (per step). Phase 3 will lift this to config.
-_BASE_HEADING_SMOOTHING = 0.1
-# Lower bound on the zig-zag half-band so a degenerate (near-zero) reported width
-# can never collapse the sweep into a flip-every-step limit cycle.
-_MIN_ZIGZAG_WIDTH_M = 2.0
 
 
 @dataclass
@@ -57,7 +47,7 @@ class ZigZagController:
         self.leg_sign = 1.0
         self.last_leg_flip_time_s = 0.0
         self.mission_manager = MissionManager(self._build_mission_thresholds())
-        self.nominal_route_xy = self._build_nominal_route_xy()
+        self.nominal_route_xy = build_nominal_route_xy(self.scenario.environment)
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
         self.smoothed_base_heading_deg: Optional[float] = None
 
@@ -66,27 +56,12 @@ class ZigZagController:
         tracking = self.scenario.tracking
         vehicle = self.scenario.vehicle
         # The loss hold must outlast one zig-zag crossing period so a sweep
-        # trough is never mistaken for cable loss; ~2.5 widths per crossing.
-        sweep_period_s = tracking.max_zigzag_width_m * 2.5 / max(vehicle.cruise_speed_mps, 0.5)
+        # trough is never mistaken for cable loss.
+        sweep_period_s = tracking.max_zigzag_width_m * tracking.crossing_width_periods / max(vehicle.cruise_speed_mps, 0.5)
         return MissionThresholds(
             track_confidence_required=tracking.high_confidence_threshold,
             signal_hold_s=max(tracking.lost_timeout_s, sweep_period_s),
         )
-
-    def _build_nominal_route_xy(self) -> np.ndarray:
-        """根据场景中的路线模式生成控制器使用的名义电缆路径。"""
-        waypoints_xy = np.asarray(self.scenario.environment.cable_waypoints_xy_m, dtype=float)
-        step_m = max(self.scenario.environment.field_segment_length_m * 0.5, 1.0)
-        if self.scenario.environment.cable_route_mode == "spline":
-            return sample_spline_path(waypoints_xy, step_m)
-        if self.scenario.environment.cable_route_mode == "sine":
-            return sample_sine_overlay_path(
-                waypoints_xy,
-                step_m,
-                amplitudes_m=self.scenario.environment.sine_amplitudes_m,
-                wavelengths_m=self.scenario.environment.sine_wavelengths_m,
-            )
-        return waypoints_xy.copy()
 
     def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
         """返回当前位置在名义路线上的最近点、切向与距离。"""
@@ -95,7 +70,11 @@ class ZigZagController:
 
     def _crossing_angle_deg(self, zigzag_width_m: float) -> float:
         """根据当前之字形宽度估计交叉入射角。"""
-        lookahead_distance_m = max(2.0 * self.scenario.vehicle.min_turning_radius_m, 10.0)
+        tracking = self.scenario.tracking
+        lookahead_distance_m = max(
+            tracking.lookahead_turn_radius_factor * self.scenario.vehicle.min_turning_radius_m,
+            tracking.lookahead_min_distance_m,
+        )
         nominal_angle_deg = float(np.rad2deg(np.arctan2(max(zigzag_width_m, 1e-6), lookahead_distance_m)))
         return float(np.clip(
             nominal_angle_deg,
@@ -196,7 +175,7 @@ class ZigZagController:
         if state in (MissionState.SEARCH_ZIGZAG, MissionState.LOCK_ALIGN):
             angle_deg = self._crossing_angle_deg(zigzag_width_m)
             if not magnetic_fit_ready:
-                angle_deg = max(angle_deg, _PROBING_CROSSING_ANGLE_DEG)
+                angle_deg = max(angle_deg, self.scenario.tracking.probing_crossing_angle_deg)
             return angle_deg
         return 0.0  # TRACK_ACTIVE / EMERGENCY_SURFACE: hold centerline
 
@@ -214,7 +193,7 @@ class ZigZagController:
         # tangent, every leg advances along-track while weaving ±half_band across
         # the line, so cable crossings recur at a fixed along-track spacing and the
         # field reliably rises-peaks-falls (the peak detector's prerequisite).
-        half_band_m = 0.5 * max(zigzag_width_m, _MIN_ZIGZAG_WIDTH_M)
+        half_band_m = 0.5 * max(zigzag_width_m, self.scenario.tracking.min_zigzag_half_band_width_m)
         cross_track_offset_m = self._cross_track_offset_m(pose, perception, base_heading_deg)
         if cross_track_offset_m is not None and not perception.safe_lock_active:
             if self.leg_sign > 0.0 and cross_track_offset_m >= half_band_m:
@@ -227,7 +206,10 @@ class ZigZagController:
         # --- Watchdog leg flip (anti-escape fallback) ---
         # Guards the case where no cable point is available (deployment cold start)
         # so the band rule cannot fire; forces a turn after a generous sweep time.
-        expected_cross_time_s = max(zigzag_width_m * 2.5 / max(pose.speed_mps, 0.5), 10.0)
+        expected_cross_time_s = max(
+            zigzag_width_m * self.scenario.tracking.crossing_width_periods / max(pose.speed_mps, 0.5),
+            self.scenario.tracking.watchdog_min_cross_time_s,
+        )
         if perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s:
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
@@ -237,7 +219,7 @@ class ZigZagController:
             self.smoothed_base_heading_deg = base_heading_deg
         else:
             heading_diff = smallest_angle_error_deg(base_heading_deg, self.smoothed_base_heading_deg)
-            self.smoothed_base_heading_deg = wrap_angle_deg(self.smoothed_base_heading_deg + heading_diff * _BASE_HEADING_SMOOTHING)
+            self.smoothed_base_heading_deg = wrap_angle_deg(self.smoothed_base_heading_deg + heading_diff * self.scenario.tracking.base_heading_smoothing)
         effective_base_heading_deg = self.smoothed_base_heading_deg
 
         magnetic_fit_ready = perception.fit_result.origin_xy_m is not None and len(perception.estimated_path_points_xy_m) >= 3

@@ -332,6 +332,27 @@ def sample_sine_overlay_path(
     return base_path + normals * lateral_offset[:, None]
 
 
+def build_nominal_route_xy(environment_config) -> np.ndarray:
+    """按环境配置的路线模式生成名义电缆折线（先验参考的单一来源）。
+
+    供 controller 与 perception 共享，避免两处各自复制采样逻辑而漂移。线性模式
+    返回原始 waypoints（与控制器 / 感知历史行为字节一致），spline/sine 模式按
+    ``field_segment_length_m`` 半步采样。
+    """
+    waypoints_xy = np.asarray(environment_config.cable_waypoints_xy_m, dtype=float)
+    step_m = max(environment_config.field_segment_length_m * 0.5, 1.0)
+    if environment_config.cable_route_mode == "spline":
+        return sample_spline_path(waypoints_xy, step_m)
+    if environment_config.cable_route_mode == "sine":
+        return sample_sine_overlay_path(
+            waypoints_xy,
+            step_m,
+            amplitudes_m=environment_config.sine_amplitudes_m,
+            wavelengths_m=environment_config.sine_wavelengths_m,
+        )
+    return waypoints_xy.copy()
+
+
 def nearest_point_on_polyline(
     point_xy: np.ndarray,
     polyline_xy: Union[np.ndarray, PolylineProjectionCache],

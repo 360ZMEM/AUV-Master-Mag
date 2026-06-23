@@ -489,11 +489,18 @@ class MagneticBurialInverter:
 - **验收**：`python tools/visualize.py --progress` 一键产出进度图与报告，量化 Phase 0–2G 收益；`grep -R "matplotlib" src/auv_mag_tracking/viz` 仍仅 `figures.py` 命中（绘图单点）；基线为可提交常量（不依赖 `results/`）。
 
 
-### Phase 3：契约收敛（0.5 d）
+### Phase 3：契约收敛（0.5 d）✅ 完成
 - 把 controller 中所有 magic numbers (35°、`expected_cross_time = max(w*2.5/v, 10)`、`lookahead = max(2*r_min, 10)`、`heading low-pass = 0.1`) 提到 `TrackingConfig`。
 - `BehaviorContext` 完全删除。
 - 统一 nominal route：`CableEnvironment` 持有 `NominalRouteCache`，perception 与 controller 共享。
 - **验收**：`grep -nE "(35\.0|0\.1\b)" src/` 不应再出现裸数。
+
+**完成记录**：
+- (a) magic numbers 全部上提 `TrackingConfig`：新增 7 字段（`probing_crossing_angle_deg=35.0`、`base_heading_smoothing=0.1`、`min_zigzag_half_band_width_m=2.0`、`lookahead_turn_radius_factor=2.0`、`lookahead_min_distance_m=10.0`、`crossing_width_periods=2.5`、`watchdog_min_cross_time_s=10.0`），默认值逐字匹配原字面量；删除 controller 三个模块常量，6 处 usage 改读 config。
+- (b) `BehaviorContext` 经 grep 确认 `src/` 零引用（前序阶段已彻底删除）。
+- (c) 统一 nominal route：以共享纯函数 `math_utils.build_nominal_route_xy(environment_config)` 作"单一信息源"，controller 与 perception orchestrator 各自重复的 `_build_nominal_route_xy` 已删除并改调共享函数（控制器/感知构造仅接收 scenario，纯函数去重是 byte-identical 的最小改动，避免全量 DI churn 构造点与测试）。
+- **验证**：54/54 测试绿；`tools/visualize.py --all` 指标与基线字节级一致（health 96/90/93/94/50，switches 2/2/2/4/2），确认 behavior-preserving。
+
 
 ### Phase 4：埋深反演落地（1 d，与 Phase 1 并行）
 - 实现 `MagneticBurialInverter`（§5）。
