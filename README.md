@@ -9,9 +9,11 @@
 - `src/auv_mag_tracking/math_utils.py`: 旋转矩阵、坐标变换、有限线段 Biot-Savart 求场。
 - `src/auv_mag_tracking/environment.py`: 电缆路由、海床、埋深真值和磁场环境。
 - `src/auv_mag_tracking/sensor_model.py`: 磁力计、IMU 与埋深观测模拟。
-- `src/auv_mag_tracking/perception.py`: 带通提取、滑动 RMS、中值抑毛刺、迟滞过峰、中心线拟合、置信度融合。
-- `src/auv_mag_tracking/controller.py`: Zig-zag 状态机与简化运动学。
+- `src/auv_mag_tracking/perception/`: 感知包——带通提取、滑动 RMS、中值抑毛刺、迟滞过峰、中心线拟合、置信度融合、磁横偏与磁法埋深反演。
+- `src/auv_mag_tracking/mission_manager.py`: 三态任务 FSM（SEARCH_ZIGZAG → LOCK_ALIGN → TRACK_ACTIVE，+ EMERGENCY 终态）。
+- `src/auv_mag_tracking/controller.py`: 纵向/横向分轴运动学控制律。
 - `src/auv_mag_tracking/main_viz.py`: 实时动画和状态看板。
+- `src/auv_mag_tracking/experimental/`: 实验件隔离区（Phyphox 手机磁力计适配器、HoloOcean 连接器桩），不属于核心管线。
 
 ## 标准映射
 
@@ -25,7 +27,7 @@
 - 默认 AC 模式使用 50Hz 工频，并保留 10-20Hz Demo 模式。
 - 磁力计标准档噪声参考 0.05nT，手机档噪声参考 150nT。
 - AC 场景下使用带通提取和两周期以上 RMS 窗口，减少采样走样和宽带噪声污染。
-- “埋深”同时显示真值与估计值，估计值由模拟的辅助埋深观测通道产生，而不是声称由纯磁法直接反演。
+- “埋深”同时显示真值与估计值。除模拟的辅助埋深观测通道外，Phase 4 已实现纯磁法埋深反演（标定幅度法 + 横向门控，详见 `docs/08_磁法埋深反演.md`），在过线点附近由磁强度直接推算埋深。
 
 没有直接硬编码进控制律的标准条款包括船载测线间距、尾拖拖鱼距底高度、船速等。这些更适合用来解释工业探测场景，不应直接变成 AUV 本体的运动控制参数。
 

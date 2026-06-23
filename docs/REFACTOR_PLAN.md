@@ -517,11 +517,15 @@ class MagneticBurialInverter:
   - 估计器为**累积稳健中位数**（SNR > 6 dB & B > min_strength & lateral < gate 帧），`sigma_m = IQR/1.349`。
   - 保留 `BurialDepthObserver` 作仿真真值通道（GT），仅用于评估 inverter 误差。
 
-### Phase 5（可选，未来）：实验性模块下沉
-- `experimental/{high_fidelity_mag, phyphox, simulator_connector}` 隔离。
+### Phase 5（✅ 完成，commit `50986f8` + 清理 `3c8f5e8`）：实验性模块下沉
+- **范围决策（用户确认"仅下沉真正实验件"）**：仅将非核心管线模块移入 `experimental/`——`phyphox_adapter`（手机磁力计实时适配器 + demo）与 `simulator_connector`（HoloOcean 连接器桩）。
+- **`HighFidelityMagnetometer` 不下沉**：它被 `case_hf_phone`/`case_hf_industrial` 实际使用且有测试（`test_high_fidelity_scenarios_are_registered`），是活跃特性而非实验件，留在 `sensor_model.py`，避免误标 + 大面积 import 改动。
+- 实现：`git mv` 保留历史（rename 99%/100%/96%）；`experimental/__init__.py` 导出 12 符号；修复移动后相对 import（`from ..math_utils import Pose`）；`tools/` 包整体清空。
+- **验收**：60/60 单元测试绿；导入冒烟通过。
 
-### Phase 6（TODO，代码全绿后执行）：docs/ 全面重构
-> **触发条件**：Phase 1-4 完成、代码定型后再启动，避免文档反复返工。
+### Phase 6（✅ 完成）：docs/ 校正
+> **范围决策（用户确认"聚焦校正过期内容"）**：不做全量重写，只校正过期内容、补缺失章节、归档散落文档。
+
 
 **重构目标（呼应"高度可维护"总纲）**：
 
