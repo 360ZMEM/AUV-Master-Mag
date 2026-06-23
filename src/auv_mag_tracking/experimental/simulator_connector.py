@@ -6,7 +6,7 @@ from typing import Dict, Optional
 
 import numpy as np
 
-from .math_utils import Pose
+from ..math_utils import Pose
 
 
 @dataclass

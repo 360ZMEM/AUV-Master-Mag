@@ -21,11 +21,10 @@ from auv_mag_tracking.main_viz import AuvCableTrackingSimulation
 
 
 MODE_SCORE = {
-    "HOLD": 3.0,
-    "APPROACH": 2.0,
-    "TURN": 1.5,
-    "SEARCH": 1.0,
-    "LOST": 0.0,
+    "track": 3.0,
+    "align": 2.0,
+    "search": 1.0,
+    "emergency": 0.0,
 }
 
 

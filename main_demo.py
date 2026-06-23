@@ -19,7 +19,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from auv_mag_tracking.config import build_default_scenarios
 from auv_mag_tracking.main_viz import AuvCableTrackingSimulation
-from auv_mag_tracking.simulator_connector import build_connector
+from auv_mag_tracking.experimental.simulator_connector import build_connector
 
 
 def parse_args() -> argparse.Namespace:
@@ -89,7 +89,7 @@ def configure_sonar_mode(scenario, args: argparse.Namespace):
 def main() -> int:
     args = parse_args()
     if args.phyphox_ip:
-        from auv_mag_tracking.tools.phyphox_adapter import run_demo
+        from auv_mag_tracking.experimental.phyphox_adapter import run_demo
 
         return run_demo(
             phone_ip=args.phyphox_ip,

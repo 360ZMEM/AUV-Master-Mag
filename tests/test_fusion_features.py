@@ -11,13 +11,13 @@ SRC_ROOT = WORKSPACE_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from auv_mag_tracking.behavior_tree import BehaviorContext, BehaviorMode, BehaviorTree
 from auv_mag_tracking.config import SonarConfig, build_default_scenarios
-from auv_mag_tracking.controller import GuidanceCommand, TrackingMode, ZigZagController, propagate_vehicle
+from auv_mag_tracking.controller import GuidanceCommand, propagate_vehicle
 from auv_mag_tracking.environment import CableEnvironment, CableFitTruth, CableRoute
 from auv_mag_tracking.math_utils import Pose, project_point_to_line, smallest_angle_error_deg
 from auv_mag_tracking.main_viz import _initial_vehicle_position_ned_m
-from auv_mag_tracking.perception import ConfidenceEstimator, MagneticCablePerception, PeakDetector, PeakEvent, PerceptionState, WeightedSlidingWindowFitter, FitResult, MagneticVectorAnalyzer, StreamingVectorPCAFitter
+from auv_mag_tracking.mission_manager import MissionInput, MissionManager, MissionState, MissionThresholds
+from auv_mag_tracking.perception import ConfidenceEstimator, MagneticCablePerception, PeakDetector, PerceptionState, WeightedSlidingWindowFitter, FitResult, MagneticVectorAnalyzer, StreamingVectorPCAFitter
 from auv_mag_tracking.sensor_model import MagnetometerModel, PoseMeasurement, SonarModel
 
 
@@ -173,26 +173,6 @@ class FusionFeatureTest(unittest.TestCase):
         adjusted_position_ned_m = _initial_vehicle_position_ned_m(scenario, environment)
         np.testing.assert_allclose(adjusted_position_ned_m, np.asarray(scenario.vehicle.initial_position_ned_m, dtype=float))
 
-    def test_deployment_weak_signal_fallback_promotes_consistent_memory_heading(self) -> None:
-        scenario = copy.deepcopy(build_default_scenarios()["case1"])
-        scenario.tracking.use_nominal_route_prior = False
-        scenario.sonar.mode = "off"
-        perception = MagneticCablePerception(scenario)
-        fallback_heading_deg, used_memory_heading = perception._deployment_fallback_heading(  # type: ignore[attr-defined]
-            line_heading_deg=0.0,
-            blind_heading_deg=0.0,
-            fit_result=FitResult(
-                origin_xy_m=np.zeros(2, dtype=float),
-                direction_xy=np.array([1.0, 0.0], dtype=float),
-                residual_m=0.5,
-                covariance_xy_m2=np.eye(2, dtype=float),
-            ),
-            bootstrap_fit_ready=False,
-        )
-
-        self.assertTrue(used_memory_heading)
-        self.assertAlmostEqual(fallback_heading_deg, 0.0)
-
     def test_deployment_peak_observations_project_to_reliable_fit(self) -> None:
         scenario = copy.deepcopy(build_default_scenarios()["case1"])
         scenario.tracking.use_nominal_route_prior = False
@@ -222,190 +202,8 @@ class FusionFeatureTest(unittest.TestCase):
 
         self.assertIsNone(perception._blind_heading())
 
-    def test_deployment_fit_rejects_conflicting_candidate_heading(self) -> None:
-        scenario = copy.deepcopy(build_default_scenarios()["case1"])
-        scenario.tracking.use_nominal_route_prior = False
-        perception = MagneticCablePerception(scenario)
-        perception.deployment_estimated_cable_heading_deg = 10.0
-        perception.deployment_heading_confidence = 0.8
-
-        self.assertFalse(perception._deployment_fit_is_consistent(100.0))
-        self.assertTrue(perception._deployment_fit_is_consistent(25.0))
-
-    def test_deployment_gradient_heading_requires_signal_strength(self) -> None:
-        scenario = copy.deepcopy(build_default_scenarios()["case1"])
-        scenario.tracking.use_nominal_route_prior = False
-        scenario.tracking.vector_heading_enabled = True
-        perception = MagneticCablePerception(scenario)
-        perception.envelope_tracker.gradient_heading_deg = 356.0
-        perception.envelope_tracker.gradient_nT_per_m = 0.3
-        self.assertIsNone(perception._deployment_gradient_heading())
-
-        perception.envelope_tracker.gradient_nT_per_m = 2.5
-        self.assertEqual(perception._deployment_gradient_heading(), 356.0)
-
-    def test_behavior_tree_prioritizes_safe_lock(self) -> None:
-        tree = BehaviorTree()
-        context = BehaviorContext(
-            time_s=1.0,
-            nominal_heading_deg=0.0,
-            intercept_heading_deg=30.0,
-            nominal_distance_m=2.0,
-            confidence=0.8,
-            has_detection_history=True,
-            last_detection_age_s=0.4,
-            fused_heading_deg=12.0,
-            blind_heading_deg=None,
-            sonar_status="ONLINE",
-            weak_signal_flag=False,
-            safe_lock_active=True,
-            peak_detected=False,
-            zigzag_width_m=5.0,
-            high_confidence_threshold=0.65,
-            low_confidence_threshold=0.35,
-            lost_timeout_s=4.0,
-            guidance_memory_timeout_s=7.5,
-            consecutive_miss_threshold=3,
-            spiral_entry_window_s=2.0,
-            search_speed_mps=0.8,
-            cruise_speed_mps=1.2,
-            guidance_source="SAFE_LOCK",
-            fit_residual_m=1.0,
-        )
-        decision = tree.evaluate(context)
-        self.assertEqual(decision.mode, BehaviorMode.TURN)
-        self.assertTrue(decision.force_centerline)
-
-    def test_behavior_tree_promotes_blind_memory_to_approach(self) -> None:
-        tree = BehaviorTree()
-        context = BehaviorContext(
-            time_s=10.0,
-            nominal_heading_deg=0.0,
-            intercept_heading_deg=30.0,
-            nominal_distance_m=2.0,
-            confidence=0.2,
-            has_detection_history=True,
-            last_detection_age_s=6.0,
-            fused_heading_deg=12.0,
-            blind_heading_deg=25.0,
-            sonar_status="OFFLINE",
-            weak_signal_flag=False,
-            safe_lock_active=True,
-            peak_detected=False,
-            zigzag_width_m=5.0,
-            high_confidence_threshold=0.65,
-            low_confidence_threshold=0.35,
-            lost_timeout_s=4.0,
-            guidance_memory_timeout_s=7.5,
-            consecutive_miss_threshold=3,
-            spiral_entry_window_s=2.0,
-            search_speed_mps=0.8,
-            cruise_speed_mps=1.2,
-            guidance_source="BLIND_RECOVERY",
-            fit_residual_m=1.0,
-        )
-        decision = tree.evaluate(context)
-        self.assertEqual(decision.mode, BehaviorMode.APPROACH)
-        self.assertEqual(decision.guidance_source, "BLIND_RECOVERY")
-
-    def test_behavior_tree_promotes_stable_memory_to_hold(self) -> None:
-        tree = BehaviorTree()
-        context = BehaviorContext(
-            time_s=16.0,
-            nominal_heading_deg=0.0,
-            intercept_heading_deg=30.0,
-            nominal_distance_m=2.0,
-            confidence=0.4,
-            has_detection_history=True,
-            last_detection_age_s=8.5,
-            fused_heading_deg=25.0,
-            blind_heading_deg=25.0,
-            sonar_status="OFFLINE",
-            weak_signal_flag=True,
-            safe_lock_active=False,
-            peak_detected=False,
-            zigzag_width_m=5.0,
-            high_confidence_threshold=0.65,
-            low_confidence_threshold=0.35,
-            lost_timeout_s=4.0,
-            guidance_memory_timeout_s=7.5,
-            consecutive_miss_threshold=3,
-            spiral_entry_window_s=2.0,
-            search_speed_mps=0.8,
-            cruise_speed_mps=1.2,
-            guidance_source="MEMORY",
-            fit_residual_m=2.9,
-        )
-        decision = tree.evaluate(context)
-        self.assertEqual(decision.mode, BehaviorMode.HOLD)
-        self.assertEqual(decision.guidance_source, "FUSION_HOLD")
-
-    def test_behavior_tree_falls_back_to_spiral_search_after_consecutive_misses(self) -> None:
-        tree = BehaviorTree()
-        turn_context = BehaviorContext(
-            time_s=1.0,
-            nominal_heading_deg=0.0,
-            intercept_heading_deg=10.0,
-            nominal_distance_m=1.5,
-            confidence=0.9,
-            has_detection_history=True,
-            last_detection_age_s=0.0,
-            fused_heading_deg=5.0,
-            blind_heading_deg=None,
-            sonar_status="OFFLINE",
-            weak_signal_flag=False,
-            safe_lock_active=False,
-            peak_detected=True,
-            zigzag_width_m=5.0,
-            high_confidence_threshold=0.65,
-            low_confidence_threshold=0.35,
-            lost_timeout_s=4.0,
-            guidance_memory_timeout_s=7.5,
-            consecutive_miss_threshold=3,
-            spiral_entry_window_s=2.0,
-            search_speed_mps=0.8,
-            cruise_speed_mps=1.2,
-            guidance_source="MAGNETIC_PEAK",
-            fit_residual_m=0.8,
-        )
-        self.assertEqual(tree.evaluate(turn_context).mode, BehaviorMode.TURN)
-
-        miss_context = BehaviorContext(
-            time_s=1.1,
-            nominal_heading_deg=0.0,
-            intercept_heading_deg=10.0,
-            nominal_distance_m=1.5,
-            confidence=0.3,
-            has_detection_history=True,
-            last_detection_age_s=0.2,
-            fused_heading_deg=5.0,
-            blind_heading_deg=15.0,
-            sonar_status="OFFLINE",
-            weak_signal_flag=True,
-            safe_lock_active=False,
-            peak_detected=False,
-            zigzag_width_m=5.0,
-            high_confidence_threshold=0.65,
-            low_confidence_threshold=0.35,
-            lost_timeout_s=4.0,
-            guidance_memory_timeout_s=7.5,
-            consecutive_miss_threshold=3,
-            spiral_entry_window_s=2.0,
-            search_speed_mps=0.8,
-            cruise_speed_mps=1.2,
-            guidance_source="BLIND_RECOVERY",
-            fit_residual_m=1.2,
-        )
-        tree.evaluate(miss_context)
-        miss_context.time_s = 1.2
-        tree.evaluate(miss_context)
-        miss_context.time_s = 1.3
-        decision = tree.evaluate(miss_context)
-        self.assertEqual(decision.mode, BehaviorMode.SPIRAL_SEARCH)
-        self.assertEqual(decision.guidance_source, "SPIRAL_RECOVERY")
-
     def test_weighted_sliding_window_fitter_prefers_high_snr_points(self) -> None:
-        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05)
+        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05, spatial_exclusion_m=0.0)
         for point_xy in [(-2.0, -0.3), (-1.0, -0.1), (1.0, 0.1), (2.0, 0.2)]:
             fitter.add_peak(np.array(point_xy, dtype=float), snr_linear=100.0, confidence=0.9, time_s=1.0)
         for point_xy in [(-0.2, -2.0), (0.0, -1.0), (0.1, 1.0), (0.2, 2.0)]:
@@ -439,7 +237,7 @@ class FusionFeatureTest(unittest.TestCase):
         np.testing.assert_allclose(projected, np.array([10.0, 0.0], dtype=float))
 
     def test_projected_peak_points_preserve_route_heading(self) -> None:
-        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05)
+        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05, spatial_exclusion_m=0.0)
         raw_peak_points = [
             np.array([-91.206, -17.546], dtype=float),
             np.array([-94.798, -8.071], dtype=float),
@@ -470,146 +268,10 @@ class FusionFeatureTest(unittest.TestCase):
 
         np.testing.assert_allclose(observed_point, np.array([12.0, -8.0], dtype=float))
 
-    def test_deployment_heading_consensus_updates_from_crossings(self) -> None:
-        scenario = build_default_scenarios()["case1"]
-        scenario.tracking.use_nominal_route_prior = False
-        perception = MagneticCablePerception(scenario)
-
-        for time_s, heading_deg in [(1.0, 15.0), (2.0, 205.0), (3.0, 28.0)]:
-            perception.last_time_s = time_s
-            perception._update_deployment_cable_heading(heading_deg, np.array([time_s, 0.0], dtype=float))
-
-        self.assertIsNotNone(perception.deployment_estimated_cable_heading_deg)
-        self.assertGreater(perception.deployment_heading_confidence, 0.0)
-        self.assertGreaterEqual(len(perception.crossing_headings), 3)
-
-    def test_deployment_mode_bootstraps_with_spiral_search(self) -> None:
-        tree = BehaviorTree()
-        decision = tree.evaluate(
-            BehaviorContext(
-                time_s=0.0,
-                nominal_heading_deg=0.0,
-                intercept_heading_deg=0.0,
-                nominal_distance_m=0.0,
-                confidence=0.0,
-                has_detection_history=False,
-                last_detection_age_s=1e9,
-                fused_heading_deg=None,
-                blind_heading_deg=None,
-                sonar_status="OFFLINE",
-                weak_signal_flag=True,
-                safe_lock_active=False,
-                peak_detected=False,
-                zigzag_width_m=3.0,
-                high_confidence_threshold=0.65,
-                low_confidence_threshold=0.35,
-                lost_timeout_s=4.0,
-                guidance_memory_timeout_s=7.5,
-                consecutive_miss_threshold=3,
-                spiral_entry_window_s=2.0,
-                search_speed_mps=0.8,
-                cruise_speed_mps=1.2,
-                guidance_source="SEARCH",
-                fit_residual_m=float("inf"),
-                deployment_mode=True,
-            )
-        )
-        self.assertEqual(decision.mode, BehaviorMode.SPIRAL_SEARCH)
-        self.assertEqual(decision.guidance_source, "BOOTSTRAP_SPIRAL")
-        self.assertTrue(decision.force_centerline)
-
-    def test_deployment_mode_reacquire_forces_spiral_search(self) -> None:
-        tree = BehaviorTree()
-        decision = tree.evaluate(
-            BehaviorContext(
-                time_s=1.0,
-                nominal_heading_deg=17.0,
-                intercept_heading_deg=17.0,
-                nominal_distance_m=0.0,
-                confidence=0.2,
-                has_detection_history=True,
-                last_detection_age_s=0.0,
-                fused_heading_deg=17.0,
-                blind_heading_deg=None,
-                sonar_status="OFFLINE",
-                weak_signal_flag=True,
-                safe_lock_active=False,
-                peak_detected=True,
-                zigzag_width_m=3.0,
-                high_confidence_threshold=0.65,
-                low_confidence_threshold=0.35,
-                lost_timeout_s=4.0,
-                guidance_memory_timeout_s=7.5,
-                consecutive_miss_threshold=3,
-                spiral_entry_window_s=2.0,
-                search_speed_mps=0.8,
-                cruise_speed_mps=1.2,
-                guidance_source="MAGNETIC_PEAK",
-                fit_residual_m=1.0,
-                deployment_mode=True,
-                deployment_reacquire_required=True,
-            )
-        )
-        self.assertEqual(decision.mode, BehaviorMode.SPIRAL_SEARCH)
-        self.assertEqual(decision.guidance_source, "REACQUIRE_SPIRAL")
-        self.assertTrue(decision.force_centerline)
-
-    def test_deployment_mode_controller_bootstraps_spiral_search(self) -> None:
-        scenario = build_default_scenarios()["case1"]
-        scenario.tracking.use_nominal_route_prior = False
-        controller = ZigZagController(scenario)
-        pose = Pose(position_ned_m=np.array([10.0, 5.0, 25.0], dtype=float), heading_deg=17.0, pitch_deg=0.0, roll_deg=0.0)
-        perception = PerceptionState(
-            time_s=1.0,
-            sensor_field_nt=np.zeros(3, dtype=float),
-            body_field_nt=np.zeros(3, dtype=float),
-            ned_field_nt=np.zeros(3, dtype=float),
-            anomaly_ned_nt=np.zeros(3, dtype=float),
-            ac_component_ned_nt=np.zeros(3, dtype=float),
-            filtered_strength_nt=0.0,
-            rms_strength_nt=0.0,
-            tracking_strength_nt=0.0,
-            noise_floor_nt=1.0,
-            snr=0.0,
-            snr_db=-120.0,
-            magnetic_confidence=0.0,
-            sonar_confidence=0.0,
-            confidence=0.0,
-            weak_signal_flag=True,
-            signal_reliable=False,
-            is_ac_detected=False,
-            dominant_frequency_hz=0.0,
-            peak_detected=False,
-            fit_result=FitResult(origin_xy_m=None, direction_xy=None, residual_m=float("inf"), covariance_xy_m2=None),
-            line_heading_deg=None,
-            fused_heading_deg=None,
-            blind_heading_deg=None,
-            guidance_source="SEARCH",
-            safe_lock_active=False,
-            zigzag_width_m=3.0,
-            sonar_status="OFFLINE",
-            sonar_relative_position_body_m=None,
-            sonar_heading_deg=None,
-            estimated_cable_point_xy_m=None,
-            estimated_path_points_xy_m=np.empty((0, 2), dtype=float),
-            estimated_path_covariance_xy_m2=None,
-            fit_update_rejected=False,
-            estimated_burial_depth_m=None,
-            true_burial_depth_m=1.5,
-            burial_measurement_valid=False,
-            last_detection_age_s=1e9,
-        )
-
-        command = controller.update(pose, perception)
-        self.assertEqual(command.mode, TrackingMode.SPIRAL_SEARCH)
-        self.assertEqual(command.guidance_source, "BOOTSTRAP_SPIRAL")
-        self.assertLess(abs(smallest_angle_error_deg(command.desired_heading_deg, pose.heading_deg)), 15.0)
-        self.assertGreater(abs(smallest_angle_error_deg(command.desired_heading_deg, 120.0)), 45.0)
-
     def test_propagate_vehicle_respects_turning_radius_limit(self) -> None:
         scenario = build_default_scenarios()["case6"]
         pose = Pose(position_ned_m=np.array([0.0, 0.0, 25.0]), heading_deg=0.0, pitch_deg=0.0, roll_deg=0.0, speed_mps=0.5)
-        command = GuidanceCommand(desired_heading_deg=90.0, speed_mps=0.5, mode=TrackingMode.TURN, yaw_rate_deg_s=100.0)
+        command = GuidanceCommand(desired_heading_deg=90.0, speed_mps=0.5, mode=MissionState.LOCK_ALIGN, yaw_rate_deg_s=100.0)
         updated = propagate_vehicle(pose, command, scenario, seabed_depth_m=30.0, dt_s=1.0)
         max_expected_heading_step = min(
             scenario.vehicle.max_yaw_rate_deg_s,
@@ -682,7 +344,7 @@ class FusionFeatureTest(unittest.TestCase):
 
         # Baseline with good attitude
         good_pose = PoseMeasurement(time_s=1.0, heading_deg=0.0, pitch_deg=0.5, roll_deg=0.5, speed_mps=1.0)
-        for i in range(10):
+        for _ in range(10):
             analyzer.update(
                 np.array([100.0, 50.0, 0.0], dtype=float),
                 tracking_strength_nt=80.0,
@@ -834,6 +496,102 @@ class FusionFeatureTest(unittest.TestCase):
         )
         self.assertAlmostEqual(state.vector_consistency_score, 0.75)
         self.assertFalse(state.attitude_leakage_risk)
+
+
+class MissionFsmTest(unittest.TestCase):
+    """Covers the three-state mission FSM that replaced behavior_tree."""
+
+    def setUp(self) -> None:
+        self.thresholds = MissionThresholds()
+        self.manager = MissionManager(self.thresholds)
+
+    def _input(
+        self,
+        time_s: float,
+        *,
+        signal: bool = False,
+        converged: bool = False,
+        confidence: float = 0.0,
+        peak: bool = False,
+    ) -> MissionInput:
+        return MissionInput(
+            time_s=time_s,
+            mag_strength_nT=self.thresholds.mag_lock_threshold_nT + 10.0 if signal else 0.0,
+            sonar_confidence=0.0,
+            confidence=confidence,
+            fused_heading_deg=0.0,
+            yaw_error_deg=2.0 if converged else 30.0,
+            fit_covariance_xy_m2=(
+                np.array([[5.0, 0.0], [0.0, 0.4]], dtype=float) if converged else None
+            ),
+            peak_detected=peak,
+        )
+
+    def test_starts_in_search(self) -> None:
+        self.assertEqual(self.manager.state, MissionState.SEARCH_ZIGZAG)
+
+    def test_search_to_lock_after_signal_streak(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            decision = self.manager.update(self._input(float(step), signal=True))
+        self.assertEqual(decision.state, MissionState.LOCK_ALIGN)
+        self.assertEqual(decision.guidance_source, "MAGNETIC")
+        self.assertAlmostEqual(decision.speed_factor, self.thresholds.align_speed_factor)
+
+    def test_lock_to_track_after_converged_streak(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        self.assertEqual(self.manager.state, MissionState.LOCK_ALIGN)
+        for step in range(self.thresholds.track_streak_required):
+            decision = self.manager.update(
+                self._input(10.0 + step, signal=True, converged=True, confidence=0.8)
+            )
+        self.assertEqual(decision.state, MissionState.TRACK_ACTIVE)
+
+    def test_lock_falls_back_to_search_on_signal_loss(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        self.assertEqual(self.manager.state, MissionState.LOCK_ALIGN)
+        last_signal_s = float(self.thresholds.lock_streak_required - 1)
+        # One trough frame is not enough; loss is declared only after the signal
+        # has been absent longer than the time-based hold window.
+        self.manager.update(self._input(last_signal_s + 1.0, signal=False))
+        decision = self.manager.update(
+            self._input(last_signal_s + self.thresholds.signal_hold_s + 1.0, signal=False)
+        )
+        self.assertEqual(decision.state, MissionState.SEARCH_ZIGZAG)
+
+    def test_track_to_emergency_on_sustained_low_confidence(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        for step in range(self.thresholds.track_streak_required):
+            self.manager.update(self._input(10.0 + step, signal=True, converged=True, confidence=0.8))
+        self.assertEqual(self.manager.state, MissionState.TRACK_ACTIVE)
+
+        start_s = 100.0
+        self.manager.update(self._input(start_s, signal=True, confidence=0.0))
+        decision = self.manager.update(
+            self._input(start_s + self.thresholds.emergency_hold_s, signal=True, confidence=0.0)
+        )
+        self.assertEqual(decision.state, MissionState.EMERGENCY_SURFACE)
+        self.assertTrue(decision.emergency_flag)
+        self.assertEqual(decision.speed_factor, 0.0)
+
+    def test_emergency_is_terminal(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        for step in range(self.thresholds.track_streak_required):
+            self.manager.update(self._input(10.0 + step, signal=True, converged=True, confidence=0.8))
+        self.manager.update(self._input(100.0, signal=True, confidence=0.0))
+        self.manager.update(self._input(100.0 + self.thresholds.emergency_hold_s, confidence=0.0))
+        self.assertEqual(self.manager.state, MissionState.EMERGENCY_SURFACE)
+        # Even a perfect signal cannot leave the terminal state.
+        decision = self.manager.update(self._input(200.0, signal=True, converged=True, confidence=1.0))
+        self.assertEqual(decision.state, MissionState.EMERGENCY_SURFACE)
+
+    def test_peak_promotes_guidance_source(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            decision = self.manager.update(self._input(float(step), signal=True, peak=True))
+        self.assertEqual(decision.guidance_source, "MAGNETIC_PEAK")
 
 
 if __name__ == "__main__":

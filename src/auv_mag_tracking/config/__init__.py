@@ -248,10 +248,8 @@ class TrackingConfig:
         low_confidence_threshold: 低置信度阈值。
         search_leg_time_s: 之字形搜索单腿时长。
         sonar_preferred_distance_m: 声呐最偏好的工作距离。
-        magnetic_takeover_strength_nt: 磁感知接管控制所需的强度阈值。
         min_zigzag_width_m: 之字形最小横向宽度。
         max_zigzag_width_m: 之字形最大横向宽度。
-        zigzag_width_gain_m_per_nt: 强度到横向宽度的增益系数。
         safe_lock_peak_drop_nt: 进入安全锁定时允许的峰值下降阈值。
         blind_follow_memory_size: 盲跟踪记忆长度。
         fit_acceptance_residual_m: 拟合结果可接受的最大残差。
@@ -285,12 +283,17 @@ class TrackingConfig:
         envelope_savgol_window: 包络 Savitzky-Golay 平滑窗口长度。
         envelope_savgol_polyorder: 包络平滑多项式阶数。
         spatial_gradient_min_speed_mps: 计算空间梯度所需的最低速度。
+        mag_cross_track_enabled: 是否启用磁比值横向偏移估计（无峰值转向信号）。
+        mag_cross_track_window: 比值估计滑动窗样本数。
+        mag_cross_track_min_perp_amplitude_nt: 垂直分量 RMS 下限，低于此值视为无效信号。
+        mag_cross_track_quality_gate: 比值拟合质量门限（主特征值占比），区分直线段与弯段。
+        mag_cross_track_max_offset_m: 可信横向偏移上限，超出视为离群。
+        mag_cross_track_stabilized_cov_m2: 拟合稳定判据（垂直散布上限），稳定后才采信磁偏移。
+        track_cross_track_gain_deg_per_m: TRACK_ACTIVE 压线时每米横偏对应的航向修正增益。
+        track_cross_track_max_correction_deg: 压线航向修正的饱和上限。
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
-        weighted_ransac_iterations: 加权 RANSAC 迭代次数，0 表示关闭。
-        weighted_ransac_inlier_threshold_m: RANSAC 内点阈值。
-        weighted_ransac_min_inlier_ratio: RANSAC 最小内点比例。
         safe_lock_strength_ratio_threshold: 安全锁定所需的强度比阈值。
         safe_lock_ideal_field_width_m: 理想磁场宽度，用于锁定判定。
         safe_lock_displacement_factor: 安全锁定的位移放大因子。
@@ -298,6 +301,13 @@ class TrackingConfig:
         safe_lock_gradient_confidence_penalty: 梯度不稳定时的置信度惩罚。
         vector_heading_enabled: 是否启用向量航向分析。
         vector_heading_confidence_weight: 向量航向在综合置信度中的权重。
+        probing_crossing_angle_deg: 拟合收敛前强制的宽穿越角，主动横切电缆以产生磁峰。
+        base_heading_smoothing: 沿缆基准航向的逐步低通系数（越小越平滑、越滞后）。
+        min_zigzag_half_band_width_m: 之字形半带下限，防止退化宽度把扫描压成逐步翻转的极限环。
+        lookahead_turn_radius_factor: 交叉角前视距离相对最小转弯半径的倍数。
+        lookahead_min_distance_m: 交叉角前视距离的下限。
+        crossing_width_periods: 一次电缆穿越对应的沿缆宽度数（用于扫描周期与看门狗翻腿时限）。
+        watchdog_min_cross_time_s: 看门狗翻腿时限的下限，避免冷启动无电缆点时无法翻腿。
     """
 
     approach_angle_deg: float = 45.0
@@ -318,10 +328,8 @@ class TrackingConfig:
     low_confidence_threshold: float = 0.35
     search_leg_time_s: float = 4.0
     sonar_preferred_distance_m: float = 7.5
-    magnetic_takeover_strength_nt: float = 55.0
     min_zigzag_width_m: float = 2.5
     max_zigzag_width_m: float = 9.0
-    zigzag_width_gain_m_per_nt: float = 0.02
     safe_lock_peak_drop_nt: float = 15.0
     blind_follow_memory_size: int = 3
     fit_acceptance_residual_m: float = 12.0
@@ -356,14 +364,21 @@ class TrackingConfig:
     envelope_savgol_window: int = 7
     envelope_savgol_polyorder: int = 2
     spatial_gradient_min_speed_mps: float = 0.3
+    # --- Magnetic cross-track ratio estimator (peak-free steering signal) ---
+    mag_cross_track_enabled: bool = True
+    mag_cross_track_window: int = 40
+    mag_cross_track_min_perp_amplitude_nt: float = 20.0
+    mag_cross_track_quality_gate: float = 0.985
+    mag_cross_track_max_offset_m: float = 25.0
+    mag_cross_track_stabilized_cov_m2: float = 1.0
+    # --- TRACK_ACTIVE centerline hold (drives cross-track offset to zero) ---
+    track_cross_track_gain_deg_per_m: float = 2.0
+    track_cross_track_max_correction_deg: float = 20.0
     # --- Robust peak finding parameters ---
     parabolic_interpolation_enabled: bool = True
     peak_position_delay_s: float = 0.04
     # --- Global estimation parameters ---
     bootstrap_min_heading_diff_deg: float = 30.0
-    weighted_ransac_iterations: int = 0
-    weighted_ransac_inlier_threshold_m: float = 5.0
-    weighted_ransac_min_inlier_ratio: float = 0.5
     # --- Perception safe-lock parameters ---
     safe_lock_strength_ratio_threshold: float = 0.20
     safe_lock_ideal_field_width_m: float = 12.0
@@ -373,6 +388,14 @@ class TrackingConfig:
     # --- Vector heading analysis ---
     vector_heading_enabled: bool = True
     vector_heading_confidence_weight: float = 0.15
+    # --- Controller zig-zag geometry (lifted from controller magic numbers) ---
+    probing_crossing_angle_deg: float = 35.0
+    base_heading_smoothing: float = 0.1
+    min_zigzag_half_band_width_m: float = 2.0
+    lookahead_turn_radius_factor: float = 2.0
+    lookahead_min_distance_m: float = 10.0
+    crossing_width_periods: float = 2.5
+    watchdog_min_cross_time_s: float = 10.0
 
 
 @dataclass
@@ -472,6 +495,33 @@ class SurveyConfig:
 
 
 @dataclass
+class BurialInversionConfig:
+    """标定幅度法磁埋深反演参数。
+
+    反演把仿真几何与处理链衰减折叠进单个离线标定常数 ``K``（nT·m/A_rms），
+    按 ``d3d = K·I_rms / B``、``burial = sqrt(d3d² - lateral²) - altitude`` 推算
+    埋深。``K`` 依赖信号模式与整条滤波链，是【按部署】的常数，故默认关闭，仅
+    在已完成标定的场景显式启用并填入对应 ``K``，避免在未标定场景输出错误埋深。
+
+    Attributes:
+        enabled: 是否启用磁法埋深反演输出（关闭时 estimated_burial 为空）。
+        coupling_constant_nt_m_per_a_rms: 离线标定耦合常数 ``K``，单位 nT·m/A_rms。
+        snr_gate_db: 单帧入样所需的最低信噪比，低于此值的帧不参与累积。
+        min_strength_nt: 单帧入样所需的最低跟踪强度，过滤近零场导致的发散反演。
+        min_samples: 输出前所需的最小累积样本数（暖机门控）。
+        max_lateral_offset_m: 入样所需的最大横距；仅在近过线（横距小）处反演，
+            因 burial 对横距误差在 lateral→0 处一阶不敏感且此处场强最高。
+    """
+
+    enabled: bool = False
+    coupling_constant_nt_m_per_a_rms: float = 0.0
+    snr_gate_db: float = 6.0
+    min_strength_nt: float = 1.0
+    min_samples: int = 20
+    max_lateral_offset_m: float = 1.0
+
+
+@dataclass
 class VisualizationConfig:
     """可视化刷新与历史显示参数。
 
@@ -531,6 +581,7 @@ class ScenarioConfig:
     vehicle: VehicleConfig = field(default_factory=VehicleConfig)
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     survey: SurveyConfig = field(default_factory=SurveyConfig)
+    burial_inversion: BurialInversionConfig = field(default_factory=BurialInversionConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
 
 
@@ -582,6 +633,10 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             cable_route_mode="spline",
             nominal_route_heading_deg=0.0,
             burial_depth_m=1.5,
+        ),
+        burial_inversion=BurialInversionConfig(
+            enabled=True,
+            coupling_constant_nt_m_per_a_rms=11.4329,  # offline-calibrated on case1 geometry+chain
         ),
     )
 
@@ -655,7 +710,6 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             median_window_samples=9,
             search_leg_time_s=5.0,
             safe_lock_peak_drop_nt=22.0,
-            magnetic_takeover_strength_nt=85.0,
             sonar_preferred_distance_m=9.0,
             weighted_fitter_capacity=8,
         ),
@@ -753,7 +807,6 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             envelope_time_constant_s=0.24,
             peak_cooldown_s=0.85,
             min_peak_strength_nt=100.0,
-            magnetic_takeover_strength_nt=65.0,
             safe_lock_peak_drop_nt=16.0,
             fit_acceptance_residual_m=10.0,
             weighted_fitter_capacity=8,
