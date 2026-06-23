@@ -18,6 +18,7 @@ class WeightedSlidingWindowFitter:
         washout_residual_m: float = 5.0,
         washout_snr_linear_threshold: float = 10.0,
         washout_retention_count: int = 2,
+        spatial_exclusion_m: float = 8.0,
     ) -> None:
         """初始化滑动窗口容量、权重下限与洗出阈值。"""
         self.capacity = max(2, capacity)
@@ -25,6 +26,7 @@ class WeightedSlidingWindowFitter:
         self.washout_residual_m = max(washout_residual_m, 0.5)
         self.washout_snr_linear_threshold = max(washout_snr_linear_threshold, self.snr_floor)
         self.washout_retention_count = max(1, washout_retention_count)
+        self.spatial_exclusion_m = max(0.0, spatial_exclusion_m)
         self.peak_observations: Deque[PeakObservation] = deque(maxlen=self.capacity)
         self.last_detection_time_s = -1e9
 
@@ -64,25 +66,25 @@ class WeightedSlidingWindowFitter:
         position_xy_m = np.asarray(position_xy_m, dtype=float)
 
         # Spatial mutual exclusion filter: prevent dense clusters from dominating PCA fit
-        SPATIAL_EXCLUSION_M = 8.0
-        for i, obs in enumerate(self.peak_observations):
-            dist = float(np.linalg.norm(position_xy_m - obs.position_xy_m))
-            if dist < SPATIAL_EXCLUSION_M:
-                # New point is too close to an existing point
-                if snr_linear > obs.snr_linear:
-                    # Replace old point with better SNR new point
-                    self.peak_observations[i] = PeakObservation(
-                        position_xy_m=position_xy_m,
-                        snr_linear=float(max(snr_linear, self.snr_floor)),
-                        confidence=float(confidence),
-                        time_s=float(time_s),
-                    )
-                    self.last_detection_time_s = time_s
-                    return washout_triggered
-                else:
-                    # Old point is better, discard new point
-                    self.last_detection_time_s = time_s
-                    return washout_triggered
+        if self.spatial_exclusion_m > 0.0:
+            for i, obs in enumerate(self.peak_observations):
+                dist = float(np.linalg.norm(position_xy_m - obs.position_xy_m))
+                if dist < self.spatial_exclusion_m:
+                    # New point is too close to an existing point
+                    if snr_linear > obs.snr_linear:
+                        # Replace old point with better SNR new point
+                        self.peak_observations[i] = PeakObservation(
+                            position_xy_m=position_xy_m,
+                            snr_linear=float(max(snr_linear, self.snr_floor)),
+                            confidence=float(confidence),
+                            time_s=float(time_s),
+                        )
+                        self.last_detection_time_s = time_s
+                        return washout_triggered
+                    else:
+                        # Old point is better, discard new point
+                        self.last_detection_time_s = time_s
+                        return washout_triggered
 
         if len(self.peak_observations) >= 2 and snr_linear >= self.washout_snr_linear_threshold:
             current_fit = self._fit_observations(self.peak_observations)

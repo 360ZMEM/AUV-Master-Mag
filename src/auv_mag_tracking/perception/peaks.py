@@ -42,8 +42,6 @@ class PeakDetector:
         self.peak_zone_samples: Deque[PeakZoneSample] = deque(maxlen=self.peak_zone_window_size)
         # Deep reset mechanism
         self.armed = True
-        # Morphology-driven detection window (size 7 for trend analysis)
-        self.morphology_window: Deque[PeakZoneSample] = deque(maxlen=7)
 
     def _reset_tracking_state(self) -> None:
         """重置峰区追踪状态，回到空闲等待下一次峰值。"""
@@ -192,7 +190,6 @@ class PeakDetector:
             position_xy_m=None if position_xy_m is None else np.asarray(position_xy_m, dtype=float).copy(),
         )
         self.recent_samples.append(sample)
-        self.morphology_window.append(sample)
 
         if self.previous_strength_nt is None or self.previous_time_s is None:
             self.previous_strength_nt = sample.strength_nt
@@ -217,8 +214,8 @@ class PeakDetector:
             self.previous_time_s = sample.time_s
             return PeakEvent(detected=False)
 
-        # --- Morphology-driven detection (replaces slope-based logic) ---
-        morphology_trend = self._get_morphology_trend()
+        # --- Local-slope morphology with consecutive-count gating ---
+        morphology_trend = self._get_morphology_trend(sample.strength_nt)
 
         if morphology_trend == "rising":
             self.ascending_count += 1
@@ -261,32 +258,26 @@ class PeakDetector:
         self.previous_time_s = sample.time_s
         return PeakEvent(detected=False)
 
-    def _get_morphology_trend(self) -> str:
-        """Analyze morphology of recent samples to determine trend.
+    def _get_morphology_trend(self, strength_nt: float) -> str:
+        """Classify the local trend from the previous sample to this one.
 
-        Uses a hybrid approach: majority vote for rising trend +
-        relative drop for falling trend. Relaxed to allow small noise.
+        A peak detector must react to the *local* slope, not an average over a
+        long window (which stays biased by the ascent and masks the descent).
+        ``hysteresis_fraction`` of the running peak forms a symmetric deadband
+        so sensor noise near the crest does not flip the trend, while a drop
+        below ``turn_trigger_ratio`` of the running peak forces ``falling`` as a
+        fast path even inside that deadband.
         """
-        if len(self.morphology_window) < 3:
+        if self.previous_strength_nt is None:
             return "flat"
 
-        values = [s.strength_nt for s in self.morphology_window]
-        n = len(values)
+        deadband_nt = self.hysteresis_fraction * max(self.current_peak_strength_nt, abs(strength_nt))
+        delta_nt = strength_nt - self.previous_strength_nt
 
-        # Rising detection: count how many recent steps are increasing
-        # Allow up to 1 noisy point in the window
-        steps_increasing = sum(1 for i in range(1, n) if values[i] > values[i-1])
-        total_steps = n - 1
-        rising_ratio = steps_increasing / total_steps if total_steps > 0 else 0.0
-
-        # Falling detection: current value dropped below max * turn_trigger_ratio
-        max_val = max(values)
-        current_val = values[-1]
-        drop_ratio = current_val / max_val if max_val > 1e-6 else 1.0
-
-        if rising_ratio >= 0.6:
-            return "rising"
-        elif drop_ratio < self.turn_trigger_ratio:
+        if self.current_peak_strength_nt > 1e-6 and strength_nt < self.turn_trigger_ratio * self.current_peak_strength_nt:
             return "falling"
-        else:
-            return "flat"
+        if delta_nt > deadband_nt:
+            return "rising"
+        if delta_nt < -deadband_nt:
+            return "falling"
+        return "flat"

@@ -446,8 +446,12 @@ class MagneticBurialInverter:
 - **实施纪律**：本 Phase 会**改变 FSM 输出**，故必然打破与 baseline 的 byte-level 一致；须在独立提交、并用 `tools/visualize.py --all` 前后对照 `showcase` 指标矩阵量化收益（switches↓、mean_err↓、TRACK↑），作为新基线。
 - **验收**：case2/3/4 mode_switches ≤ 6；全 case mean_heading_error ≤ 15°（引导阶段目标 7.5°）；case1 不回归（health ≥ 90）。
 
-### Phase 2H：感知内核存量测试修复（独立，低优先）
-- 6 个先于重构存在的失败（PeakDetector morphology 状态机、WeightedSlidingWindowFitter 空拟合、perception_driver 200→1k 插值率）需逐一判定"修实现 vs 更新过期断言"，与 FSM 重构正交，不阻塞 Phase 2 收尾。
+### Phase 2H：感知内核存量测试修复（✅ 完成，独立）
+- 6 个先于重构存在的失败逐一判定"修实现 vs 更新过期断言"后收口，全套件 54/54 绿；真实仿真零回归（`tools/visualize.py --all` case1–5 全收尾 TRACK，FSM switches 386→12）。
+  1. **PeakDetector morphology ×3（修实现）**：`_get_morphology_trend()` 原以 7 样本全局窗判趋势，下降段 `drop_ratio`（相对窗口最大值）仍高于 `turn_trigger_ratio`、`rising_ratio` 又跌破 0.6 → 整段判 `flat` → 每步复位 `descending_count`，清晰峰永不触发（`test_peak_detector_returns_peak_position / _cooldown / _uses_weighted_centroid_position` 全失败）。改为**局部逐样本斜率**判趋势：`hysteresis_fraction`（原为死参数）作对称噪声死区，`turn_trigger_ratio`（相对运行峰值）作深跌快路径；`ascending/descending_min_samples` 连续计数仍提供噪声抑制。删除冗余 `morphology_window`。
+  2. **WeightedSlidingWindowFitter ×2（实现刚性，做可注入）**：`SPATIAL_EXCLUSION_M=8.0` 硬编码，把测试中密集合成点压成 <2 观测 → `direction_xy=None` → `arctan2(None)` 抛 ERROR。改为构造参数 `spatial_exclusion_m`（默认 8.0，真实仿真不变），`>0` 才启用互斥；两个拟合单测以 `spatial_exclusion_m=0.0` 构造，纯验 PCA 数学。
+  3. **perception_driver 插值率 ×1（过期 fixture）**：测试名为 "200hz input" 但加载的 case1 传感器率已改为 500 Hz（> 250 Hz 插值阈值），插值正确地不触发（500≠1000）。在测试中显式设 `magnetometer_sample_rate_hz=200.0` 以匹配其语义意图。
+
 
 ### Phase 2G 实测结果（✅ 根因 1 完成，commit `5fff7ab`）
 

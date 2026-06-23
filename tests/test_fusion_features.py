@@ -203,7 +203,7 @@ class FusionFeatureTest(unittest.TestCase):
         self.assertIsNone(perception._blind_heading())
 
     def test_weighted_sliding_window_fitter_prefers_high_snr_points(self) -> None:
-        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05)
+        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05, spatial_exclusion_m=0.0)
         for point_xy in [(-2.0, -0.3), (-1.0, -0.1), (1.0, 0.1), (2.0, 0.2)]:
             fitter.add_peak(np.array(point_xy, dtype=float), snr_linear=100.0, confidence=0.9, time_s=1.0)
         for point_xy in [(-0.2, -2.0), (0.0, -1.0), (0.1, 1.0), (0.2, 2.0)]:
@@ -237,7 +237,7 @@ class FusionFeatureTest(unittest.TestCase):
         np.testing.assert_allclose(projected, np.array([10.0, 0.0], dtype=float))
 
     def test_projected_peak_points_preserve_route_heading(self) -> None:
-        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05)
+        fitter = WeightedSlidingWindowFitter(capacity=8, snr_floor=1.05, spatial_exclusion_m=0.0)
         raw_peak_points = [
             np.array([-91.206, -17.546], dtype=float),
             np.array([-94.798, -8.071], dtype=float),

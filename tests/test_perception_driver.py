@@ -113,6 +113,7 @@ class PerceptionDriverTest(unittest.TestCase):
     def test_perception_driver_interpolates_200hz_input_to_1khz_processing_rate(self) -> None:
         scenario = build_default_scenarios()["case1"]
         scenario.signal_processing.window_size = 64
+        scenario.sensor.magnetometer_sample_rate_hz = 200.0
         driver = PerceptionDriver(scenario)
         sample_rate_hz = scenario.sensor.magnetometer_sample_rate_hz
         sample_times_s = np.arange(10, dtype=float) / sample_rate_hz
