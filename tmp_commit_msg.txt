@@ -1,0 +1,16 @@
+refactor(phase5): 下沉实验模块到 experimental/ 包
+
+把非核心管线的实验件从核心包隔离，保持 perception/control 主链聚焦：
+
+- simulator_connector.py（HoloOcean/硬件桥接桩）→ experimental/
+- tools/phyphox_adapter.py（手机磁力计实时演示）→ experimental/
+- tools/main_demo.py → experimental/phyphox_demo.py（语义更准）
+- 删除空的 tools/ 包；新增 experimental/__init__.py 统一导出。
+- 更新全部 import：root main_demo.py、包 __init__.py、
+  tools/phyphox_fft_demo.py、tests/test_phyphox_adapter.py、
+  simulator_connector 内部相对 import（.math_utils → ..math_utils）。
+
+HighFidelityMagnetometer 保留在 sensor_model（case_hf_* 场景活跃使用
+且有测试覆盖，非实验件，不下沉）。
+
+验收：60/60 测试绿；experimental 包导出与 root main_demo 导入冒烟通过。

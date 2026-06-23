@@ -4,6 +4,7 @@ __all__ = [
     "config",
     "controller",
     "environment",
+    "experimental",
     "main_viz",
     "math_utils",
     "mission_manager",
@@ -11,6 +12,5 @@ __all__ = [
     "perception_driver",
     "routes",
     "sensor_model",
-    "simulator_connector",
     "viz",
 ]

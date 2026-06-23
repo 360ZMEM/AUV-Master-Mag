@@ -22,7 +22,7 @@ SRC_ROOT = WORKSPACE_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from auv_mag_tracking.tools.phyphox_adapter import PhyphoxStreamer, SignalProcessor
+from auv_mag_tracking.experimental.phyphox_adapter import PhyphoxStreamer, SignalProcessor
 
 
 class FftVisualizer:
