@@ -376,10 +376,18 @@ class MagneticBurialInverter:
 ## 7. Phase 1-4 路线（顺序执行）
 
 ### Phase 1：拆分 perception（0.5–1 d）
-- 按 §4 拆出 `perception/` 包。
-- `MagneticCablePerception.update()` 仅做编排。
-- 同步合并 driver 中的 `ScalarStreamingBandpassFilter / SlidingWindowRMS` 到 `perception/filters.py`（共享同一份代码）。
-- **验收**：`python main_demo.py --case case1 --no-viz` 输出与重构前 byte-for-byte 一致；`pytest tests/` 全绿。
+- **纯机械拆分**（verbatim）：把 `perception.py` 的 16 个类/dataclass 逐字抽到 `perception/` 包，`__init__.py` 重导出全部公开符号，5 个外部 importer 零改动。Phase 1 不做任何逻辑重写（`HeadingFusion` 单实现、`MagneticBurialInverter` 新增均属 Phase 2/4）。
+- 实际文件落地（与 §4.1 接口对齐，但本阶段不删/不改逻辑）：
+  - `state.py` — `FitResult / PeakEvent / PeakObservation / PeakZoneSample / PerceptionState`
+  - `filters.py` — `LowPassFilter / MedianWindowFilter / StreamingBandpassFilter / RMSExtractor`
+  - `peaks.py` — `PeakDetector`
+  - `vector.py` — `EnvelopeGradientTracker / StreamingVectorPCAFitter / MagneticVectorAnalyzer`
+  - `fitter.py` — `WeightedSlidingWindowFitter`
+  - `confidence.py` — `ConfidenceEstimator`
+  - `orchestrator.py` — `MagneticCablePerception`
+  - `__init__.py` — 重导出全部公开符号
+- **决议（2026-06-23，用户确认）**：driver 的 `ScalarStreamingBandpassFilter / SlidingWindowRMS` **本阶段不合并**。它们与 perception 滤波器 API 不同（标量块 vs 三轴向量、增量 RMS vs `np.mean`），强行合并会引入 `orchestrator → perception_driver → perception.filters` 循环导入且无法保证 byte-for-byte。该整合推迟到 Phase 3 契约收敛一并处理。
+- **验收**：`python main_demo.py --case case1..5 --no-viz` 输出与重构前 byte-for-byte 一致；`pytest tests/` 失败集不新增（基线 12 failed / 41 passed，均属 Phase 2 将重写部分）。
 
 ### Phase 2：替换 behavior_tree → mission_manager（1–2 d）
 - 新建 [mission_manager.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/mission_manager.py) 三态 FSM（按 §3 实现）。
