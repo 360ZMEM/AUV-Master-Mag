@@ -108,7 +108,6 @@ class PerceptionState:
     deployment_heading_confidence: float = 0.0
     deployment_reacquire_required: bool = False
     tracking_maturity: float = 0.0
-    gradient_heading_offset_deg: float = 0.0
     # --- Signal enhancement layer outputs ---
     envelope_gradient_nT_per_m: float = 0.0
     envelope_gradient_heading_deg: Optional[float] = None
