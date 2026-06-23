@@ -459,9 +459,14 @@ class MagneticBurialInverter:
 | case2 | **164 → 2** | 54 → 83 | 7.2 |
 | case3 | **134 → 2** | 59 → 93 | 0.0 |
 | case4 | **83 → 2** | 69 → 95 | 0.7 |
-| case5 | 3 → 2 | 48 → 49 | 21.7（根因 2 待修） |
+| case5 | 3 → 2 | 48 → 49 | 21.7（指标错觉，见根因 2） |
 
-根因 2（case5 弯段航向违约，路由 94 处曲率违规 min r 22.4 m）仍待实施。
+根因 2（case5 弯段，路由 94 处曲率违规 min r 22 m）经可视化体系深挖，确认是**两个分离问题**：
+
+1. **控制律缺陷（✅ 已修复，commit 见下）**：原 `controller._base_heading_deg` 在名义模式下只要 `confidence ≥ 0.35` 就用 `fused_heading` 覆盖先验路线切向。但进入 `TRACK_ACTIVE` 压线后车辆停止横摆 → 磁峰枯竭（105 s TRACK 仅 3 峰）→ 滑窗**直线**拟合冻结（`line_heading` 卡在 8.2° 长达 35 s，真值已弯到 −40°），陈旧拟合反过来把车辆甩出弯道（横偏冲到 ~15 m）。修复：**纵向基准与横向压线分轴**——名义模式纵向恒取先验切向（该模式唯一权威纵向参考，实测 vs 真值 `mean|d|=0.0`），磁/声呐继续只管横向回缆；仅部署模式（无先验）才退回采信 fused。修复后 case5 在 TRACK 段**车辆实际航向误差 0.7°、横偏 0.1 m**，车辆已贴线行驶；case1–4 不回归（case2 health 83→90、case4 95）。
+
+2. **perception 直线拟合的结构性失效（待 Phase 4）**：`mean_heading_error_deg` 指标测的是 perception 的 `fused_heading`，而非车辆实际航向。在 <50 m 急弯里，`WeightedSlidingWindowFitter` 的**直线**模型无法表达曲率，拟合在弯段冻结，故 case5 指标仍显示 22.8°（其余 case 因路线平缓，fused 误差 0.9–2.2° 远小于车辆误差，指标可信）。要让 case5 指标真正达标，需把直线滑窗升级为曲率感知拟合（分段/曲线），归入 perception 内核工作（Phase 4 拟合内核重做），不属控制层。
+
 
 ### Phase 2W：重构成果进度可视化体系（成果系统展示）
 

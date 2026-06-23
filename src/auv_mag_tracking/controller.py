@@ -112,20 +112,21 @@ class ZigZagController:
         return float(np.clip(requested_yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
 
     def _base_heading_deg(self, pose: Pose, perception: PerceptionState) -> float:
-        """选择本步之字形扫描的基准航向：始终沿电缆方向。
+        """选择本步之字形扫描的基准（沿电缆纵向）航向。
 
-        基准航向恒为电缆切向（名义模式取先验路线切向，部署模式取车辆/融合航向），
-        保证车辆持续沿电缆推进；横向回缆由 :meth:`_cross_track_offset_m` 的偏移带
-        翻腿机制负责，而非把基准航向整段替换为垂直切入——后者会让指令航向出现沿
-        电缆的负分量，使车辆原地打转、峰值簇拥而拟合无法自举。仅当置信度足够时才
-        采信融合航向，否则引导期噪声航向会污染扫描基准。
+        纵向基准与横向压线分属两个轴：名义模式下纵向参考权威地来自先验路线切向，
+        磁/声呐只负责横向回缆（见 :meth:`_cross_track_offset_m` /
+        :meth:`_track_cross_track_offset_m`），不参与纵向基准。否则在急弯处滑窗
+        【直线】拟合会结构性滞后真实切向（拟合窗内电缆非直线），又被 TRACK 压线
+        饿死峰值而冻结，反过来污染基准航向、把车辆甩出弯道。
+
+        部署模式没有先验路线，此时纵向基准只能退回采信融合航向（置信度足够时）。
         """
         if self.scenario.tracking.use_nominal_route_prior:
             _, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
-            along_cable_heading_deg = heading_from_direction_xy(tangent_xy)
-        else:
-            along_cable_heading_deg = pose.heading_deg
+            return heading_from_direction_xy(tangent_xy)
 
+        along_cable_heading_deg = pose.heading_deg
         if (
             perception.fused_heading_deg is not None
             and perception.confidence >= self.scenario.tracking.low_confidence_threshold
