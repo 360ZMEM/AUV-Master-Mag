@@ -6,10 +6,18 @@ plotting backend / the file system.  Real-time dashboard (``main_viz``) and offl
 reporting share the same metric functions, so numbers never drift.
 """
 
-from .figures import render_detail, render_overview, render_run, render_showcase
-from .metrics import HealthMetrics, compute_health_metrics, health_score, metrics_to_dict
+from .baseline import PRE_2G, PRE_REFACTOR, MilestoneMetrics
+from .figures import render_detail, render_overview, render_progress, render_run, render_showcase
+from .metrics import (
+    HealthMetrics,
+    ProgressDelta,
+    compare_to_baseline,
+    compute_health_metrics,
+    health_score,
+    metrics_to_dict,
+)
 from .recorder import RunRecord, RunRecorder, simulate_case, simulate_run
-from .report import save_run_report, save_showcase_report
+from .report import save_progress_report, save_run_report, save_showcase_report
 
 __all__ = [
     "RunRecord",
@@ -20,10 +28,17 @@ __all__ = [
     "compute_health_metrics",
     "health_score",
     "metrics_to_dict",
+    "ProgressDelta",
+    "compare_to_baseline",
+    "MilestoneMetrics",
+    "PRE_2G",
+    "PRE_REFACTOR",
     "render_run",
     "render_overview",
     "render_detail",
     "render_showcase",
+    "render_progress",
     "save_run_report",
     "save_showcase_report",
+    "save_progress_report",
 ]

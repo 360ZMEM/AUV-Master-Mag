@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
-from .metrics import HealthMetrics, health_score, metrics_to_dict
+from .metrics import HealthMetrics, ProgressDelta, health_score, metrics_to_dict
 
 
 def _auto_analysis(metrics: HealthMetrics) -> List[str]:
@@ -152,6 +152,97 @@ def save_showcase_report(metrics_list: List[HealthMetrics], showcase_fig: Path, 
             f"{m.sonar_contribution*100:.0f} | {m.magnetic_contribution*100:.0f} | {m.max_cross_track_m:.1f} |"
         )
     lines.append("")
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    return out_path
+
+
+_PROGRESS_FIELD_LABELS = {
+    "switches": "FSM switches",
+    "health": "Health /100",
+    "mean_err": "Mean err [deg]",
+    "track_pct": "TRACK [%]",
+}
+
+# Sub-noise tolerance per field: the committed baselines are rounded, so changes
+# within these bands are reported as "flat" rather than spurious improve/regress.
+_PROGRESS_TOLERANCE = {
+    "switches": 0.5,
+    "health": 1.5,
+    "mean_err": 0.5,
+    "track_pct": 1.5,
+}
+
+
+def _progress_verdict(delta: ProgressDelta, field: str) -> str:
+    """单字段进度结论：改善/持平/回退，并标注是否达标。"""
+    before, after, change, higher_is_better, _, target = delta.fields[field]
+    meets = (after >= target) if higher_is_better else (after <= target)
+    if abs(change) <= _PROGRESS_TOLERANCE.get(field, 0.0):
+        trend = "flat"
+    elif delta.improved(field):
+        trend = "improved"
+    else:
+        trend = "REGRESSED"
+    return f"{trend}{' ✓' if meets else ''}"
+
+
+def save_progress_report(deltas: List[ProgressDelta], progress_fig: Path, out_path: Path,
+                         subtitle: str = "Phase 0–2G refactor gains") -> Path:
+    """写出 before→after 进度对照报告（系统展示前序修复成果）。"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines: List[str] = [
+        "# Refactor Progress Report — before → after",
+        "",
+        f"**Generated**: {timestamp}",
+        f"**Scope**: {subtitle}",
+        "",
+        "Quantifies the gain delivered by the prior structural fixes (dead-code"
+        " removal, perception package split, three-state FSM, sonar-fed line"
+        " fitting, magnetic cross-track steering, and the Phase 2G Schmitt"
+        " hysteresis + time-hold that collapsed the FSM switch storm). Baselines"
+        " are committed constants (see `viz/baseline.py`), so this report"
+        " reproduces from a clean checkout without the git-ignored `results/`.",
+        "",
+        "---",
+        "",
+        "## Progress figure",
+        "",
+        f"![progress]({Path(progress_fig).name})",
+        "",
+        "---",
+        "",
+        "## Per-case progress matrix",
+        "",
+    ]
+
+    for field, label in _PROGRESS_FIELD_LABELS.items():
+        lines += [f"### {label}", "", "| Case | before | after | Δ | verdict |",
+                  "|------|--------|-------|---|---------|"]
+        for delta in deltas:
+            before, after, change, _, _, _ = delta.fields[field]
+            lines.append(
+                f"| {delta.case_name} | {before:.1f} | {after:.1f} | {change:+.1f} | "
+                f"{_progress_verdict(delta, field)} |"
+            )
+        lines.append("")
+
+    # Aggregate headline numbers for the switch storm collapse.
+    sw_before = sum(d.fields["switches"][0] for d in deltas)
+    sw_after = sum(d.fields["switches"][1] for d in deltas)
+    reduction = (1.0 - sw_after / sw_before) * 100.0 if sw_before else 0.0
+    err_ok = sum(1 for d in deltas if d.fields["mean_err"][1] <= 15.0)
+    lines += [
+        "---",
+        "",
+        "## Headline",
+        "",
+        f"- FSM switch storm: total {sw_before:.0f} → {sw_after:.0f} switches "
+        f"across {len(deltas)} cases ({reduction:.1f}% reduction).",
+        f"- Heading accuracy: {err_ok}/{len(deltas)} cases now within the 15° hard limit.",
+        "",
+    ]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines), encoding="utf-8")

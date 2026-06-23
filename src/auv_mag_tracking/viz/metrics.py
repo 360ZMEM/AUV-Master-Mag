@@ -14,6 +14,7 @@ from typing import Dict, List
 import numpy as np
 
 from ..math_utils import smallest_angle_error_deg
+from .baseline import MilestoneMetrics
 from .recorder import RunRecord
 
 # Heading-quality gates (deg)
@@ -219,3 +220,39 @@ def metrics_to_dict(metrics: HealthMetrics) -> Dict[str, object]:
             out[key] = value
     out["health_score"] = health_score(metrics)
     return out
+
+
+# Progress fields: (label, getter, higher_is_better, unit, accept_target)
+_PROGRESS_FIELDS = (
+    ("health", lambda h, b: (health_score(h), b.health), True, "/100", 90.0),
+    ("mean_err", lambda h, b: (h.mean_heading_error_deg, b.mean_heading_error_deg),
+     False, "deg", 15.0),
+    ("track_pct", lambda h, b: (h.track_active_fraction * 100.0, b.track_active_fraction * 100.0),
+     True, "%", 30.0),
+    ("switches", lambda h, b: (float(h.mode_switches), float(b.mode_switches)),
+     False, "", 6.0),
+)
+
+
+@dataclass
+class ProgressDelta:
+    """单场景 before→after 进度对照（每个关键指标的修复前/后值与改善量）。"""
+
+    case_name: str
+    # field -> (before, after, delta, higher_is_better, unit, accept_target)
+    fields: Dict[str, tuple]
+
+    def improved(self, field: str) -> bool:
+        before, after, delta, higher_is_better, _, _ = self.fields[field]
+        return delta > 0 if higher_is_better else delta < 0
+
+
+def compare_to_baseline(current: HealthMetrics, baseline: MilestoneMetrics) -> ProgressDelta:
+    """把当前运行指标与固化基线逐字段对照（纯函数，供图/报告共用）。"""
+    fields: Dict[str, tuple] = {}
+    for name, getter, higher_is_better, unit, target in _PROGRESS_FIELDS:
+        after, before = getter(current, baseline)
+        delta = after - before
+        fields[name] = (before, after, delta, higher_is_better, unit, target)
+    return ProgressDelta(case_name=current.case_name, fields=fields)
+

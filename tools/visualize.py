@@ -24,10 +24,14 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from auv_mag_tracking.viz import (  # noqa: E402
+    PRE_2G,
+    compare_to_baseline,
     compute_health_metrics,
     health_score,
+    render_progress,
     render_run,
     render_showcase,
+    save_progress_report,
     save_run_report,
     save_showcase_report,
     simulate_case,
@@ -60,6 +64,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Unified AUV cable-tracking visualization")
     parser.add_argument("--case", default="case1", help="scenario name (default: case1)")
     parser.add_argument("--all", action="store_true", help="run case1..5 + showcase")
+    parser.add_argument("--progress", action="store_true",
+                        help="run case1..5 + before/after progress report vs committed baseline")
     parser.add_argument("--deployment", action="store_true", help="disable nominal route prior")
     parser.add_argument("--live", action="store_true", help="real-time dashboard via main_viz")
     parser.add_argument("--max-steps", type=int, default=None, help="cap simulation steps")
@@ -79,13 +85,25 @@ def main() -> None:
     run_dir = Path(args.outdir) if args.outdir else RESULTS_ROOT / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    cases = DEFAULT_CASES if args.all else [args.case]
+    cases = DEFAULT_CASES if (args.all or args.progress) else [args.case]
     metrics_list = [_process_case(c, run_dir, args.deployment, args.max_steps) for c in cases]
 
     if args.all:
         showcase_fig = render_showcase(metrics_list, run_dir / "showcase.png")
         save_showcase_report(metrics_list, showcase_fig, run_dir / "showcase.md")
         print(f"[viz] showcase written to {run_dir / 'showcase.png'}")
+
+    if args.progress:
+        deltas = [
+            compare_to_baseline(m, PRE_2G[m.case_name])
+            for m in metrics_list if m.case_name in PRE_2G
+        ]
+        progress_fig = render_progress(deltas, run_dir / "progress.png")
+        save_progress_report(deltas, progress_fig, run_dir / "progress.md")
+        total_before = sum(d.fields["switches"][0] for d in deltas)
+        total_after = sum(d.fields["switches"][1] for d in deltas)
+        print(f"[viz] progress written to {run_dir / 'progress.png'}  "
+              f"(FSM switches {total_before:.0f} -> {total_after:.0f})")
 
     print(f"[viz] all artifacts under: {run_dir}")
 

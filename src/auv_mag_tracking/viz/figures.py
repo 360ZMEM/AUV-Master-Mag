@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .metrics import HealthMetrics, health_score
+from .metrics import HealthMetrics, ProgressDelta, health_score
 from .recorder import RunRecord
 
 # --- Semantic palette (cold = sonar / geometry, warm = magnetic) ---
@@ -287,6 +287,60 @@ def render_showcase(metrics_list: List[HealthMetrics], out_path: Path) -> Path:
     ax.set_ylabel("Health score / 100"); ax.set_ylim(0, 100)
     ax.set_title("(d) Health score & FSM stability")
     ax.legend(loc="upper left"); ax2.legend(loc="upper right")
+
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+# Progress-view semantic colours: warm-grey = before fix, cold-green = after fix.
+_C_BEFORE = "#9e8e7a"
+_C_AFTER = "#2e7d32"
+
+_PROGRESS_PANELS = (
+    ("switches", "(a) FSM mode switches", r"switches", r"$\leq 6$ target"),
+    ("health", "(b) Health score", r"score / 100", r"$\geq 90$ target"),
+    ("mean_err", "(c) Mean heading error", r"$\bar{e}_\psi$ [deg]", r"$15^\circ$ target"),
+    ("track_pct", "(d) TRACK_ACTIVE occupancy", r"TRACK [%]", r"$30\%$ target"),
+)
+
+
+def render_progress(deltas: List[ProgressDelta], out_path: Path,
+                    subtitle: str = "Phase 0–2G refactor gains") -> Path:
+    """渲染 before→after 进度对照图（系统展示前序修复成果，本包唯一另一绘图入口）。"""
+    _apply_style()
+    cases = [d.case_name for d in deltas]
+    x = np.arange(len(cases))
+    width = 0.36
+    fig = plt.figure(figsize=(16, 9))
+    fig.suptitle(f"Refactor Progress — before → after  ({subtitle})",
+                 fontsize=15, fontweight="bold")
+    gs = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.22,
+                          left=0.07, right=0.97, top=0.9, bottom=0.1)
+
+    for panel_idx, (field, title, ylabel, target_label) in enumerate(_PROGRESS_PANELS):
+        ax = fig.add_subplot(gs[panel_idx // 2, panel_idx % 2])
+        before = np.array([d.fields[field][0] for d in deltas], dtype=float)
+        after = np.array([d.fields[field][1] for d in deltas], dtype=float)
+        target = deltas[0].fields[field][5]
+
+        ax.bar(x - width / 2, before, width, color=_C_BEFORE, label="before")
+        ax.bar(x + width / 2, after, width, color=_C_AFTER, label="after")
+        ax.axhline(target, color=_C_BAD, ls="--", lw=1.2, label=target_label)
+
+        # Annotate the per-case improvement on top of the "after" bar.
+        for xi, (b, a) in enumerate(zip(before, after)):
+            if not np.isfinite(b) or not np.isfinite(a):
+                continue
+            delta = a - b
+            ax.annotate(f"{delta:+.0f}" if abs(delta) >= 1 else f"{delta:+.1f}",
+                        xy=(xi + width / 2, a), xytext=(0, 3),
+                        textcoords="offset points", ha="center", fontsize=8,
+                        color=_C_AFTER if (delta != 0) else "#666")
+
+        ax.set_xticks(x); ax.set_xticklabels(cases, rotation=20)
+        ax.set_ylabel(ylabel); ax.set_title(title)
+        ax.legend(loc="best", ncol=2)
 
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(fig)

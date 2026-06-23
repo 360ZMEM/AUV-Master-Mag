@@ -449,6 +449,36 @@ class MagneticBurialInverter:
 ### Phase 2H：感知内核存量测试修复（独立，低优先）
 - 6 个先于重构存在的失败（PeakDetector morphology 状态机、WeightedSlidingWindowFitter 空拟合、perception_driver 200→1k 插值率）需逐一判定"修实现 vs 更新过期断言"，与 FSM 重构正交，不阻塞 Phase 2 收尾。
 
+### Phase 2G 实测结果（✅ 根因 1 完成，commit `5fff7ab`）
+
+根因 1（SEARCH↔LOCK 抖振）以 **Schmitt 迟滞 + 时效保持**收口：信号"存在"用双门限锁存（上升 `mag_lock_threshold_nT=50` 置位 / 下降 `mag_release_threshold_nT=25` 复位），信号"丢失"改为"距上次检测 > `signal_hold_s≈12 s`（一个完整横切周期）"，删除原 `loss_streak_required`。`controller._build_mission_thresholds` 从扫描周期推导 `signal_hold_s`。`tools/visualize.py --all` 前后对照：
+
+| Case | switches before→after | health before→after | mean_err [deg] |
+|---|---|---|---|
+| case1 | 2 → 2 | 93 → 93 | 4.2（不回归） |
+| case2 | **164 → 2** | 54 → 83 | 7.2 |
+| case3 | **134 → 2** | 59 → 93 | 0.0 |
+| case4 | **83 → 2** | 69 → 95 | 0.7 |
+| case5 | 3 → 2 | 48 → 49 | 21.7（根因 2 待修） |
+
+根因 2（case5 弯段航向违约，路由 94 处曲率违规 min r 22.4 m）仍待实施。
+
+### Phase 2W：重构成果进度可视化体系（成果系统展示）
+
+> **动机**：Phase 2V 交付的 `showcase` 是"**当前状态快照**"——它能展示某一次运行有多好，却无法回答用户真正关心的问题：「**前序这一系列修复到底带来了多大改善？**」。`results/` 目录被 `.gitignore` 忽略（仅本地、易丢失），因此 `20260623_171744`（修复前 switch-storm）与 `20260623_173616`（修复后）这类对照档案不可作为持久基线。本 Phase 在可视化体系内**固化一份可提交的基线**，并新增"**before → after 进度对照**"视图，把 Phase 0–2G 的结构性修复转化为**可一键复现、带阶段归因的量化成果展示**。
+
+**设计原则（呼应"高度可维护"总纲 + GUI/Logic 分离）**：复用 Phase 2V 已有的 `RunRecord → metrics → figures/report` 单一链路，**不引入第二套 sim loop、不引入第二个 matplotlib 入口**；基线是纯数据（JSON），进度对照是 metrics 的纯函数 + figures 的单一新面板族。
+
+- **固化基线 `viz/baseline.py`**（纯数据，无 I/O 依赖）：内置两组里程碑指标常量——
+  - `PRE_REFACTOR`（Phase 0 之前，来自 `tools/health_report_case1.md` 的 case1 事实数字：mean_err 2.91°、磁峰 2、TRACK 等价 0%、BOOTSTRAP 占比 80%）；
+  - `PRE_2G`（Phase 2V 修复前的 switch-storm 截面：case1–5 的 health / mean_err / TRACK% / switches，取自 `results/20260623_171744/showcase.md` 实测）。
+  - 以 `dataclass MilestoneMetrics` 承载，字段与 `HealthMetrics` 关键子集对齐，便于与现跑结果做差。
+- **`metrics.py` 增纯函数** `compare_to_baseline(current, baseline) -> ProgressDelta`：逐字段算 `Δ` 与方向（越大越好 / 越小越好），输出供 figure / report 共用，杜绝两份对照实现。
+- **`figures.py` 增 `render_progress(metrics_list)`**（仍是本包**唯一** matplotlib 入口）：学术风格进度对照图，语义配色（修复前=暖灰 / 修复后=冷绿），分面板呈现 case×{switches, health, mean_err, TRACK%} 的 before→after 箭头条形 + `15°`/`switches≤6` 验收线，并在标题标注阶段归因（FSM 迟滞+时效）。
+- **`report.py` 增 `save_progress_report()`**：markdown 进度矩阵（每指标 before / after / Δ / 结论列）+ 自动结论（"switch storm 收敛 98.8%""mean_err 全部进入 15° 域，4/5 达 7.5° 引导目标"）。
+- **CLI**：`tools/visualize.py` 增 `--progress`：批量重跑 case1–5（现状）→ 与固化基线对照 → 落 `results/<ts>/progress.{png,md}`。
+- **验收**：`python tools/visualize.py --progress` 一键产出进度图与报告，量化 Phase 0–2G 收益；`grep -R "matplotlib" src/auv_mag_tracking/viz` 仍仅 `figures.py` 命中（绘图单点）；基线为可提交常量（不依赖 `results/`）。
+
 
 ### Phase 3：契约收敛（0.5 d）
 - 把 controller 中所有 magic numbers (35°、`expected_cross_time = max(w*2.5/v, 10)`、`lookahead = max(2*r_min, 10)`、`heading low-pass = 0.1`) 提到 `TrackingConfig`。
