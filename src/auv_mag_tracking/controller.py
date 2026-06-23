@@ -64,9 +64,13 @@ class ZigZagController:
     def _build_mission_thresholds(self) -> MissionThresholds:
         """从场景配置组装任务层阈值（暂用默认 + 复用已有置信度阈值）。"""
         tracking = self.scenario.tracking
+        vehicle = self.scenario.vehicle
+        # The loss hold must outlast one zig-zag crossing period so a sweep
+        # trough is never mistaken for cable loss; ~2.5 widths per crossing.
+        sweep_period_s = tracking.max_zigzag_width_m * 2.5 / max(vehicle.cruise_speed_mps, 0.5)
         return MissionThresholds(
             track_confidence_required=tracking.high_confidence_threshold,
-            loss_streak_required=tracking.consecutive_miss_threshold,
+            signal_hold_s=max(tracking.lost_timeout_s, sweep_period_s),
         )
 
     def _build_nominal_route_xy(self) -> np.ndarray:

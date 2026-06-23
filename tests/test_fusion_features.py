@@ -551,8 +551,13 @@ class MissionFsmTest(unittest.TestCase):
         for step in range(self.thresholds.lock_streak_required):
             self.manager.update(self._input(float(step), signal=True))
         self.assertEqual(self.manager.state, MissionState.LOCK_ALIGN)
-        for step in range(self.thresholds.loss_streak_required):
-            decision = self.manager.update(self._input(10.0 + step, signal=False))
+        last_signal_s = float(self.thresholds.lock_streak_required - 1)
+        # One trough frame is not enough; loss is declared only after the signal
+        # has been absent longer than the time-based hold window.
+        self.manager.update(self._input(last_signal_s + 1.0, signal=False))
+        decision = self.manager.update(
+            self._input(last_signal_s + self.thresholds.signal_hold_s + 1.0, signal=False)
+        )
         self.assertEqual(decision.state, MissionState.SEARCH_ZIGZAG)
 
     def test_track_to_emergency_on_sustained_low_confidence(self) -> None:

@@ -40,9 +40,18 @@ class MissionThresholds:
     """任务层所有可调阈值（集中配置，便于人工修改）。"""
 
     mag_lock_threshold_nT: float = 50.0
+    # Hysteresis release (falling) threshold: once the cable's field has been
+    # sensed, the signal is only declared absent after strength drops below this
+    # lower bound.  A zig-zag sweep makes the field rise-peak-fall every crossing,
+    # so a single threshold would flap; the band (lock 50 / release 25 nT) keeps
+    # the "signal present" latch stable across the natural troughs.
+    mag_release_threshold_nT: float = 25.0
     sonar_confidence_threshold: float = 0.6
     lock_streak_required: int = 5
-    loss_streak_required: int = 3
+    # Time-based loss hold: the cable is declared lost only after this long with
+    # no fresh detection (covers one full zig-zag sweep period ~10 s).  This
+    # replaces a short consecutive-miss count, which fired in every sweep trough.
+    signal_hold_s: float = 12.0
     align_speed_factor: float = 0.5
     # EKF P_yy 代理：PCA 拟合协方差较小特征值（垂直方向散布）。
     cov_perp_converged_m2: float = 1.0
@@ -96,24 +105,49 @@ class MissionManager:
         self.thresholds = thresholds or MissionThresholds()
         self.state = MissionState.SEARCH_ZIGZAG
         self._lock_streak = 0
-        self._loss_streak = 0
         self._track_streak = 0
+        self._signal_latched = False
+        self._last_signal_time_s: Optional[float] = None
         self._low_confidence_since_s: Optional[float] = None
 
     def reset(self) -> None:
         """复位 FSM 到初始搜索态并清空计数器。"""
         self.state = MissionState.SEARCH_ZIGZAG
         self._lock_streak = 0
-        self._loss_streak = 0
         self._track_streak = 0
+        self._signal_latched = False
+        self._last_signal_time_s = None
         self._low_confidence_since_s = None
 
     def _signal_present(self, mission_input: MissionInput) -> bool:
-        """判断当前是否检测到电缆信号（磁强或声呐任一达标）。"""
-        return (
-            mission_input.mag_strength_nT >= self.thresholds.mag_lock_threshold_nT
-            or mission_input.sonar_confidence >= self.thresholds.sonar_confidence_threshold
-        )
+        """带迟滞地判断当前是否检测到电缆信号（磁强或声呐任一达标）。
+
+        上升沿用 ``mag_lock_threshold_nT`` 触发锁存，下降沿要跌破更低的
+        ``mag_release_threshold_nT`` 才解除——这样 zig-zag 横切产生的峰谷振荡
+        不会让"有信号"判定在单一门限上来回穿越（声呐置信度同理）。
+        """
+        thresholds = self.thresholds
+        if (
+            mission_input.mag_strength_nT >= thresholds.mag_lock_threshold_nT
+            or mission_input.sonar_confidence >= thresholds.sonar_confidence_threshold
+        ):
+            self._signal_latched = True
+        elif (
+            mission_input.mag_strength_nT < thresholds.mag_release_threshold_nT
+            and mission_input.sonar_confidence < thresholds.sonar_confidence_threshold
+        ):
+            self._signal_latched = False
+        return self._signal_latched
+
+    def _signal_lost(self, mission_input: MissionInput) -> bool:
+        """基于时效判断信号是否真正丢失（持续 ``signal_hold_s`` 无新检测）。
+
+        以"距上次检测的时长"代替短促的连续漏检计数：一个完整 zig-zag 扫描周期
+        内只要出现过峰值就视为仍在跟踪，避免每个扫描谷底都误判丢失而退态。
+        """
+        if self._last_signal_time_s is None:
+            return True
+        return (mission_input.time_s - self._last_signal_time_s) > self.thresholds.signal_hold_s
 
     def _fit_converged(self, mission_input: MissionInput) -> bool:
         """判断拟合是否收敛（垂直散布与偏航误差均达标且置信度足够）。"""
@@ -134,15 +168,17 @@ class MissionManager:
             return self._decision()
 
         signal_present = self._signal_present(mission_input)
+        if signal_present:
+            self._last_signal_time_s = mission_input.time_s
+        signal_lost = self._signal_lost(mission_input)
         self._lock_streak = self._lock_streak + 1 if signal_present else 0
-        self._loss_streak = 0 if signal_present else self._loss_streak + 1
 
         if self.state == MissionState.SEARCH_ZIGZAG:
             if self._lock_streak >= thresholds.lock_streak_required:
                 self._enter(MissionState.LOCK_ALIGN)
 
         elif self.state == MissionState.LOCK_ALIGN:
-            if self._loss_streak >= thresholds.loss_streak_required:
+            if signal_lost:
                 self._enter(MissionState.SEARCH_ZIGZAG)
             elif self._fit_converged(mission_input):
                 self._track_streak += 1
@@ -159,7 +195,7 @@ class MissionManager:
                     self._enter(MissionState.EMERGENCY_SURFACE)
             else:
                 self._low_confidence_since_s = None
-                if not signal_present and self._loss_streak >= thresholds.loss_streak_required:
+                if signal_lost:
                     self._enter(MissionState.LOCK_ALIGN)
 
         return self._decision(mission_input)
