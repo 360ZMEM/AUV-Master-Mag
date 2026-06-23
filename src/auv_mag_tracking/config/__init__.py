@@ -283,6 +283,14 @@ class TrackingConfig:
         envelope_savgol_window: 包络 Savitzky-Golay 平滑窗口长度。
         envelope_savgol_polyorder: 包络平滑多项式阶数。
         spatial_gradient_min_speed_mps: 计算空间梯度所需的最低速度。
+        mag_cross_track_enabled: 是否启用磁比值横向偏移估计（无峰值转向信号）。
+        mag_cross_track_window: 比值估计滑动窗样本数。
+        mag_cross_track_min_perp_amplitude_nt: 垂直分量 RMS 下限，低于此值视为无效信号。
+        mag_cross_track_quality_gate: 比值拟合质量门限（主特征值占比），区分直线段与弯段。
+        mag_cross_track_max_offset_m: 可信横向偏移上限，超出视为离群。
+        mag_cross_track_stabilized_cov_m2: 拟合稳定判据（垂直散布上限），稳定后才采信磁偏移。
+        track_cross_track_gain_deg_per_m: TRACK_ACTIVE 压线时每米横偏对应的航向修正增益。
+        track_cross_track_max_correction_deg: 压线航向修正的饱和上限。
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
@@ -349,6 +357,16 @@ class TrackingConfig:
     envelope_savgol_window: int = 7
     envelope_savgol_polyorder: int = 2
     spatial_gradient_min_speed_mps: float = 0.3
+    # --- Magnetic cross-track ratio estimator (peak-free steering signal) ---
+    mag_cross_track_enabled: bool = True
+    mag_cross_track_window: int = 40
+    mag_cross_track_min_perp_amplitude_nt: float = 20.0
+    mag_cross_track_quality_gate: float = 0.985
+    mag_cross_track_max_offset_m: float = 25.0
+    mag_cross_track_stabilized_cov_m2: float = 1.0
+    # --- TRACK_ACTIVE centerline hold (drives cross-track offset to zero) ---
+    track_cross_track_gain_deg_per_m: float = 2.0
+    track_cross_track_max_correction_deg: float = 20.0
     # --- Robust peak finding parameters ---
     parabolic_interpolation_enabled: bool = True
     peak_position_delay_s: float = 0.04

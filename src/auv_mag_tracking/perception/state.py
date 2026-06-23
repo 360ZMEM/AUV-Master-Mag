@@ -123,3 +123,6 @@ class PerceptionState:
     safe_lock_fit_invalidated: bool = False
     last_valid_peak_strength_nt: float = 0.0
     displacement_since_last_peak_m: float = 0.0
+    # --- Magnetic cross-track steering signal (peak-free ratio estimator) ---
+    magnetic_cross_track_offset_m: Optional[float] = None
+    magnetic_cross_track_quality: float = 0.0

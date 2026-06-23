@@ -22,6 +22,7 @@ from ..math_utils import (
 from ..perception_driver import ProcessedSignalFeatures
 from ..sensor_model import BurialDepthMeasurement, MagnetometerReading, PoseMeasurement, SonarReading
 from .confidence import ConfidenceEstimator
+from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
 from .peaks import PeakDetector
@@ -100,6 +101,11 @@ class MagneticCablePerception:
             min_speed_mps=scenario.tracking.spatial_gradient_min_speed_mps,
         )
         self.vector_analyzer = MagneticVectorAnalyzer() if scenario.tracking.vector_heading_enabled else None
+        self.cross_track_estimator = MagneticCrossTrackEstimator(
+            window=scenario.tracking.mag_cross_track_window,
+            min_perp_amplitude_nt=scenario.tracking.mag_cross_track_min_perp_amplitude_nt,
+            quality_gate=scenario.tracking.mag_cross_track_quality_gate,
+        )
         # --- Safe-lock state ---
         self.last_valid_peak_strength_nt: float = 0.0
         self.last_peak_position_xy_m: Optional[np.ndarray] = None
@@ -602,6 +608,57 @@ class MagneticCablePerception:
         self.deployment_estimated_cable_heading_deg = final_mean
         self.deployment_heading_confidence = float(np.clip(count_factor * spread_factor * consistency_factor, 0.0, 1.0))
 
+    @staticmethod
+    def _perpendicular_spread_m2(covariance_xy_m2: Optional[np.ndarray]) -> Optional[float]:
+        """从加权拟合协方差中提取垂直方向散布（较小特征值）。"""
+        if covariance_xy_m2 is None:
+            return None
+        covariance = np.asarray(covariance_xy_m2, dtype=float)
+        if covariance.shape != (2, 2) or not np.all(np.isfinite(covariance)):
+            return None
+        return float(np.min(np.linalg.eigvalsh(covariance)))
+
+    def _magnetic_cross_track_offset(
+        self,
+        anomaly_ned_nt: np.ndarray,
+        burial_measurement: BurialDepthMeasurement,
+    ) -> Optional[float]:
+        """从异常比值估计车辆相对电缆的带符号横向偏移（不触碰拟合器）。
+
+        以当前拟合方向为电缆走向参考，把异常向量分解为电缆垂直水平分量与
+        竖直分量；同一线电流驱动两者，故比值消去电流并满足无限长直线模型
+        ``y = (B_down / B_perp) * d``，其中 ``d`` 为车体到电缆的垂直分隔。
+        这是一个【转向】信号（左正右负），仅供控制器在 TRACK_ACTIVE 压线使用，
+        绝不喂入中心线拟合器——其 ~1m 精度会污染拟合协方差（即 LOCK->TRACK 门限）。
+
+        仅在拟合已稳定（声呐优先建立中心线）且比值质量达标时返回数值，从而
+        避免在弯段/远离段输出错误偏移。
+        """
+        direction_xy = self.last_accepted_fit_result.direction_xy
+        if direction_xy is None:
+            return None
+        direction_xy = np.asarray(direction_xy, dtype=float)
+        direction_norm = float(np.linalg.norm(direction_xy))
+        if direction_norm < 1e-6:
+            return None
+        direction_xy = direction_xy / direction_norm
+        perpendicular_xy = np.array([-direction_xy[1], direction_xy[0]], dtype=float)
+
+        b_perp = float(np.dot(anomaly_ned_nt[:2], perpendicular_xy))
+        b_down = float(anomaly_ned_nt[2])
+        self.cross_track_estimator.update(b_perp, b_down)
+
+        stabilised_spread_m2 = self._perpendicular_spread_m2(self.last_accepted_fit_result.covariance_xy_m2)
+        if stabilised_spread_m2 is None or stabilised_spread_m2 >= self.scenario.tracking.mag_cross_track_stabilized_cov_m2:
+            return None
+
+        burial_depth_m = burial_measurement.depth_m if burial_measurement.valid else self.scenario.environment.burial_depth_m
+        vertical_separation_m = self.scenario.vehicle.altitude_above_seabed_m + burial_depth_m
+        offset_m = self.cross_track_estimator.cross_track_offset_m(vertical_separation_m)
+        if offset_m is None or abs(offset_m) > self.scenario.tracking.mag_cross_track_max_offset_m:
+            return None
+        return offset_m
+
     def update(
         self,
         reading: MagnetometerReading,
@@ -758,6 +815,36 @@ class MagneticCablePerception:
         ):
             if self.peak_detector.current_peak_strength_nt < self.last_confirmed_peak_strength_nt - self.scenario.tracking.safe_lock_peak_drop_nt:
                 self.safe_lock_until_s = reading.time_s + 0.5
+
+        # --- Sonar positioning feed (sonar is the dedicated positioning sensor) ---
+        # The buried-cable field is too gentle for the magnetic peak detector to
+        # fire during steady-state zig-zag, so a magnetic-peak-only fitter never
+        # converges.  Sonar delivers direct cable-position fixes; routing them into
+        # the same SNR-weighted fitter lets the centreline — and its PCA covariance,
+        # the ``LOCK_ALIGN -> TRACK_ACTIVE`` gate — converge.  The fitter's spatial
+        # exclusion keeps the fixes spread along-track instead of clustering.
+        if sonar_reading is not None and sonar_reading.valid and sonar_reading.estimated_position_ned_m is not None:
+            self.fitter.add_peak(
+                np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2],
+                snr_linear=max(sonar_reading.confidence * 20.0, self.scenario.tracking.weighted_fitter_snr_floor),
+                confidence=max(sonar_reading.confidence, 0.05),
+                time_s=reading.time_s,
+            )
+            detection_age_s = reading.time_s - self.fitter.last_detection_time_s
+
+        # --- Magnetic cross-track steering signal (peak-free) ---
+        # The ratio ``B_down / B_perp == y / d`` yields a signed cross-track offset
+        # (the line current cancels), no peak detection needed.  This is a STEERING
+        # signal only: it is surfaced in the state for the controller's TRACK_ACTIVE
+        # centreline hold, and is deliberately NOT fed into the line fitter — its
+        # ~1 m precision would inflate the fit covariance that gates LOCK -> TRACK.
+        # Sonar remains the sole positioning sensor for the centreline itself.
+        magnetic_cross_track_offset_m = None
+        if self.scenario.tracking.mag_cross_track_enabled:
+            magnetic_cross_track_offset_m = self._magnetic_cross_track_offset(
+                anomaly_ned_nt=anomaly_ned_nt,
+                burial_measurement=burial_measurement,
+            )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
@@ -1175,4 +1262,6 @@ class MagneticCablePerception:
             last_valid_peak_strength_nt=self.last_valid_peak_strength_nt,
             displacement_since_last_peak_m=self.displacement_since_last_peak_m,
             deployment_reacquire_required=deployment_reacquire_required,
+            magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
+            magnetic_cross_track_quality=float(self.cross_track_estimator.quality),
         )

@@ -10,7 +10,8 @@ import numpy as np
 from tqdm.auto import tqdm
 
 from .config import ScenarioConfig
-from .controller import GuidanceCommand, ZigZagController, TrackingMode, apply_attitude_profile, propagate_vehicle
+from .controller import GuidanceCommand, ZigZagController, apply_attitude_profile, propagate_vehicle
+from .mission_manager import MissionState
 from .environment import CableEnvironment
 from .math_utils import Pose, smallest_angle_error_deg, wrap_angle_deg
 from .perception import MagneticCablePerception, PerceptionState
@@ -512,7 +513,7 @@ class AuvCableTrackingSimulation:
         self.latest_command = GuidanceCommand(
             desired_heading_deg=self.pose.heading_deg,
             speed_mps=self.pose.speed_mps,
-            mode=TrackingMode.SEARCH,
+            mode=MissionState.SEARCH_ZIGZAG,
         )
         self.latest_perception: Optional[PerceptionState] = None
         self.latest_signal_frame: Optional[PerceptionDriverFrame] = None
@@ -614,7 +615,7 @@ class AuvCableTrackingSimulation:
             tracked_distance_m += float(np.linalg.norm(self.pose.position_ned_m[:2] - previous_position[:2]))
             previous_position = self.pose.position_ned_m.copy()
 
-            if command.mode == TrackingMode.HOLD:
+            if command.mode == MissionState.TRACK_ACTIVE:
                 if hold_steps == 0:
                     hold_entry_estimated_heading_deg = perception_state.deployment_estimated_cable_heading_deg
                     if hold_entry_estimated_heading_deg is None:
@@ -723,7 +724,7 @@ class AuvCableTrackingSimulation:
                     directed_error_deg = abs(smallest_angle_error_deg(displayed_heading_deg, true_heading_deg))
                     displayed_centerline_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
 
-            if final_mode == TrackingMode.HOLD.value and hold_entry_estimated_heading_deg is not None and hold_entry_true_heading_deg is not None:
+            if final_mode == MissionState.TRACK_ACTIVE.value and hold_entry_estimated_heading_deg is not None and hold_entry_true_heading_deg is not None:
                 directed_error_deg = abs(smallest_angle_error_deg(hold_entry_estimated_heading_deg, hold_entry_true_heading_deg))
                 hold_entry_cable_heading_error = min(directed_error_deg, 180.0 - directed_error_deg)
 
