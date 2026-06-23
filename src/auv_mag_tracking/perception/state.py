@@ -125,3 +125,5 @@ class PerceptionState:
     # --- Magnetic cross-track steering signal (peak-free ratio estimator) ---
     magnetic_cross_track_offset_m: Optional[float] = None
     magnetic_cross_track_quality: float = 0.0
+    # --- Magnetic burial-depth inversion diagnostics ---
+    burial_inversion_uncertainty_m: Optional[float] = None

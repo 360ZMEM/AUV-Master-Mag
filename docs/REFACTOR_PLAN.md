@@ -288,6 +288,11 @@ class PerceptionDiagnostics:
 
 ## 5. 磁法埋深反演设计
 
+> **实现说明（Phase 4 落地）**：下方 §5.1/§5.2 为原始 spec 接口（峰值幅度 + 无限长公式）。
+> 该方案在本几何下不可行（埋设电缆磁场过弱，磁峰全程不触发），已改用**标定幅度反演法 + 横向门控**。
+> 落地决策与验收见 [Phase 4 节](#phase-4埋深反演落地-完成commit-见下)；实现见
+> [`perception/burial_inversion.py`](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/perception/burial_inversion.py)。
+
 ### 5.1 物理基础
 
 无限长直导线的横向磁场：
@@ -328,7 +333,7 @@ class MagneticBurialInverter:
 
 - **保留** `BurialDepthObserver` 作为仿真"真值通道"（GT），仅用于评估 inverter 误差。
 - `PerceptionResult.estimated_burial_depth_m` 改为 inverter 输出。
-- 在 `health_report` 中新增 `burial_inversion_error_mean_m` 指标。
+- 在 `health_report` 中新增 `burial_inversion_mae_m` 指标。
 
 ---
 
@@ -502,10 +507,15 @@ class MagneticBurialInverter:
 - **验证**：54/54 测试绿；`tools/visualize.py --all` 指标与基线字节级一致（health 96/90/93/94/50，switches 2/2/2/4/2），确认 behavior-preserving。
 
 
-### Phase 4：埋深反演落地（1 d，与 Phase 1 并行）
+### Phase 4：埋深反演落地（✅ 完成，commit 见下）
 - 实现 `MagneticBurialInverter`（§5）。
-- `health_report` 新增 `burial_inversion_error_mean_m`。
-- **验收**：case1 反演埋深与真值的 MAE < 0.5 m。
+- `health_report` 新增 `burial_inversion_mae_m`（`HealthMetrics` 字段；记录通道含 `burial_inversion_uncertainty_m`）。
+- **验收**（✅ 达标）：case1 反演埋深与真值 MAE = **0.056 m**（< 0.5 m）；case2–5 因 K 未标定正确门控为 `NaN`（不输出错误埋深）；60/60 单元测试绿；heading/mode-switch 指标与基线字节级一致（health 96/90/93/94/50，switches 2/2/2/4/2）。
+- **设计偏离决策（§5 原峰值接口 → 标定幅度法）**：spec §5 原方案（峰值幅度 + 无限长直线公式）在本几何下不可行——埋设电缆磁场过弱，全程不触发磁峰（`#peaks = 0`）；仿真离散导线场比无限长公式弱约 21×；几何病态（burial 1.5 m ≪ altitude 6 m）。改用**标定幅度反演法（方案 A）**：
+  - `slant = K·I_rms / B_track`，`burial = sqrt(slant² − lateral²) − altitude`；`K = 11.4329 nT·m/A_rms` 为离线标定常数（case1），把仿真几何 + 处理链衰减折叠为单一系数，**按部署标定**（依赖信号模式 + 滤波链，不可数据联合估计，否则病态）。
+  - **横向门控（`max_lateral_offset_m = 1.0`）**落地 §5"在过线处反演幅度"的本意——burial 对 lateral 误差在 `lateral→0` 处一阶不敏感且此处场强最高，故仅在近过线帧入样。这取代了"永不触发的磁峰检测"。实测：无门控时拟合中心线 lateral 含 ~1.5 m 偏置 → MAE 0.96 m；加 <1 m 门控后 → MAE 0.056 m。
+  - 估计器为**累积稳健中位数**（SNR > 6 dB & B > min_strength & lateral < gate 帧），`sigma_m = IQR/1.349`。
+  - 保留 `BurialDepthObserver` 作仿真真值通道（GT），仅用于评估 inverter 误差。
 
 ### Phase 5（可选，未来）：实验性模块下沉
 - `experimental/{high_fidelity_mag, phyphox, simulator_connector}` 隔离。

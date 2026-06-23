@@ -20,6 +20,7 @@ from ..math_utils import (
 )
 from ..perception_driver import ProcessedSignalFeatures
 from ..sensor_model import BurialDepthMeasurement, MagnetometerReading, PoseMeasurement, SonarReading
+from .burial_inversion import MagneticBurialInverter
 from .confidence import ConfidenceEstimator
 from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
@@ -90,6 +91,21 @@ class MagneticCablePerception:
             window=scenario.tracking.mag_cross_track_window,
             min_perp_amplitude_nt=scenario.tracking.mag_cross_track_min_perp_amplitude_nt,
             quality_gate=scenario.tracking.mag_cross_track_quality_gate,
+        )
+        # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
+        burial_cfg = scenario.burial_inversion
+        self.burial_inverter = (
+            MagneticBurialInverter(
+                coupling_constant_nt_m_per_a_rms=burial_cfg.coupling_constant_nt_m_per_a_rms,
+                current_rms_a=self._signal_current_rms_a(),
+                altitude_m=scenario.vehicle.altitude_above_seabed_m,
+                snr_gate_db=burial_cfg.snr_gate_db,
+                min_strength_nt=burial_cfg.min_strength_nt,
+                min_samples=burial_cfg.min_samples,
+                max_lateral_offset_m=burial_cfg.max_lateral_offset_m,
+            )
+            if burial_cfg.enabled
+            else None
         )
         # --- Safe-lock state ---
         self.last_valid_peak_strength_nt: float = 0.0
@@ -259,6 +275,33 @@ class MagneticCablePerception:
         if offset_m is None or abs(offset_m) > self.scenario.tracking.mag_cross_track_max_offset_m:
             return None
         return offset_m
+
+    def _signal_current_rms_a(self) -> float:
+        """返回电缆激励电流的 RMS 幅值（埋深反演标定单位）。"""
+        signal = self.scenario.signal
+        if signal.mode == "dc":
+            return abs(float(signal.dc_current_a))
+        return abs(float(signal.ac_current_amplitude_a)) / np.sqrt(2.0)
+
+    def _burial_lateral_offset_m(
+        self,
+        vehicle_position_xy_m: np.ndarray,
+        sonar_reading: Optional[SonarReading],
+        fit_result: FitResult,
+    ) -> Optional[float]:
+        """估计车辆到电缆中心线的水平横距，用于从斜距分离埋深。
+
+        优先用声呐确认的电缆位置（直接横距）；否则退回已接受拟合中心线的
+        垂距投影。两者都不可用时返回 None，让反演器跳过本帧。
+        """
+        if sonar_reading is not None and sonar_reading.valid and sonar_reading.estimated_position_ned_m is not None:
+            delta_xy = np.asarray(vehicle_position_xy_m, dtype=float) - np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2]
+            return float(norm(delta_xy))
+        if fit_result.origin_xy_m is not None and fit_result.direction_xy is not None:
+            line_point_xy = self._local_line_point(vehicle_position_xy_m, fit_result)
+            if line_point_xy is not None:
+                return float(norm(np.asarray(vehicle_position_xy_m, dtype=float) - line_point_xy))
+        return None
 
     def update(
         self,
@@ -630,6 +673,21 @@ class MagneticCablePerception:
         estimated_path_covariance_xy_m2 = fit_result.covariance_xy_m2
         if estimated_path_covariance_xy_m2 is None and estimated_path_points_xy_m.shape[0] >= 2:
             estimated_path_covariance_xy_m2 = np.cov(estimated_path_points_xy_m.T)
+
+        # --- Magnetic burial-depth inversion (calibrated amplitude, peak-free) ---
+        # The GT BurialDepthObserver is kept only as the evaluation truth channel;
+        # the published estimate now comes from the inverter (or None when it is
+        # disabled / not yet warmed up / lateral unknown).
+        estimated_burial_depth_m: Optional[float] = None
+        burial_inversion_uncertainty_m: Optional[float] = None
+        if self.burial_inverter is not None:
+            lateral_offset_m = self._burial_lateral_offset_m(vehicle_position_xy_m, sonar_reading, fit_result)
+            if lateral_offset_m is not None:
+                burial_estimate = self.burial_inverter.update(tracking_strength_nt, lateral_offset_m, snr_db)
+                if burial_estimate is not None:
+                    estimated_burial_depth_m = burial_estimate.depth_m
+                    burial_inversion_uncertainty_m = burial_estimate.sigma_m
+
         return PerceptionState(
             time_s=reading.time_s,
             sensor_field_nt=reading.sensor_field_nt,
@@ -665,7 +723,7 @@ class MagneticCablePerception:
             estimated_path_points_xy_m=estimated_path_points_xy_m,
             estimated_path_covariance_xy_m2=estimated_path_covariance_xy_m2,
             fit_update_rejected=fit_update_rejected,
-            estimated_burial_depth_m=burial_measurement.depth_m,
+            estimated_burial_depth_m=estimated_burial_depth_m,
             true_burial_depth_m=true_burial_depth_m,
             burial_measurement_valid=burial_measurement.valid,
             last_detection_age_s=detection_age_s,
@@ -699,4 +757,5 @@ class MagneticCablePerception:
             displacement_since_last_peak_m=self.displacement_since_last_peak_m,
             magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
             magnetic_cross_track_quality=float(self.cross_track_estimator.quality),
+            burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
         )

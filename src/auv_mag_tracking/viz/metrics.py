@@ -144,7 +144,8 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     valid_vec = vec[~np.isnan(vec)]
     mean_vec = float(np.mean(valid_vec)) if valid_vec.size else 0.0
 
-    # Burial inversion error: only meaningful once a real estimate exists.
+    # Burial inversion error: only over frames that carry an estimate (the
+    # inverter emits NaN until it has warmed up on near-crossing samples).
     est_burial = record["estimated_burial_depth_m"]
     true_burial = record["true_burial_depth_m"]
     burial_valid = ~np.isnan(est_burial)

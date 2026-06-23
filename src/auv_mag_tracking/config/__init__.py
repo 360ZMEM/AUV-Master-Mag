@@ -495,6 +495,33 @@ class SurveyConfig:
 
 
 @dataclass
+class BurialInversionConfig:
+    """标定幅度法磁埋深反演参数。
+
+    反演把仿真几何与处理链衰减折叠进单个离线标定常数 ``K``（nT·m/A_rms），
+    按 ``d3d = K·I_rms / B``、``burial = sqrt(d3d² - lateral²) - altitude`` 推算
+    埋深。``K`` 依赖信号模式与整条滤波链，是【按部署】的常数，故默认关闭，仅
+    在已完成标定的场景显式启用并填入对应 ``K``，避免在未标定场景输出错误埋深。
+
+    Attributes:
+        enabled: 是否启用磁法埋深反演输出（关闭时 estimated_burial 为空）。
+        coupling_constant_nt_m_per_a_rms: 离线标定耦合常数 ``K``，单位 nT·m/A_rms。
+        snr_gate_db: 单帧入样所需的最低信噪比，低于此值的帧不参与累积。
+        min_strength_nt: 单帧入样所需的最低跟踪强度，过滤近零场导致的发散反演。
+        min_samples: 输出前所需的最小累积样本数（暖机门控）。
+        max_lateral_offset_m: 入样所需的最大横距；仅在近过线（横距小）处反演，
+            因 burial 对横距误差在 lateral→0 处一阶不敏感且此处场强最高。
+    """
+
+    enabled: bool = False
+    coupling_constant_nt_m_per_a_rms: float = 0.0
+    snr_gate_db: float = 6.0
+    min_strength_nt: float = 1.0
+    min_samples: int = 20
+    max_lateral_offset_m: float = 1.0
+
+
+@dataclass
 class VisualizationConfig:
     """可视化刷新与历史显示参数。
 
@@ -554,6 +581,7 @@ class ScenarioConfig:
     vehicle: VehicleConfig = field(default_factory=VehicleConfig)
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     survey: SurveyConfig = field(default_factory=SurveyConfig)
+    burial_inversion: BurialInversionConfig = field(default_factory=BurialInversionConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
 
 
@@ -605,6 +633,10 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             cable_route_mode="spline",
             nominal_route_heading_deg=0.0,
             burial_depth_m=1.5,
+        ),
+        burial_inversion=BurialInversionConfig(
+            enabled=True,
+            coupling_constant_nt_m_per_a_rms=11.4329,  # offline-calibrated on case1 geometry+chain
         ),
     )
 
