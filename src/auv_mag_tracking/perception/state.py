@@ -127,3 +127,9 @@ class PerceptionState:
     magnetic_cross_track_quality: float = 0.0
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
+    # --- Local path estimator side-channel diagnostics ---
+    local_path_model_code: float = 0.0
+    local_path_heading_deg: Optional[float] = None
+    local_path_confidence: float = 0.0
+    local_path_residual_m: float = float("inf")
+    local_path_radius_m: float = float("inf")

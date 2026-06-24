@@ -90,6 +90,38 @@ class LocalCableStateEstimatorTest(unittest.TestCase):
         self.assertLess(abs(smallest_angle_error_deg(state.heading_deg, expected_heading)), 3.0)
         self.assertGreater(state.curvature_1pm, 0.0)
 
+    def test_local_line_heading_updates_along_curve_when_arc_is_disabled(self) -> None:
+        estimator = LocalCableStateEstimator(
+            capacity=10,
+            local_line_window=5,
+            min_arc_radius_m=30.0,
+            min_arc_angle_span_deg=180.0,
+            heading_blend=0.50,
+        )
+        points, angles_deg = _arc_points(
+            np.array([0.0, 0.0], dtype=float),
+            radius_m=40.0,
+            start_deg=-70.0,
+            sweep_deg=120.0,
+            count=15,
+            noise_scale_m=0.04,
+        )
+        sampled_headings = []
+        expected_headings = []
+        for index, (point, angle_deg) in enumerate(zip(points, angles_deg)):
+            heading_deg = _expected_tangent_heading_deg(angle_deg, 120.0)
+            estimator.add_observation(point, time_s=float(index), confidence=0.9, heading_deg=heading_deg)
+            if index >= 5:
+                state = estimator.estimate()
+                self.assertIsNotNone(state)
+                self.assertEqual(state.model, "local_line")
+                sampled_headings.append(state.heading_deg)
+                expected_headings.append(heading_deg)
+
+        self.assertGreater(abs(smallest_angle_error_deg(sampled_headings[-1], sampled_headings[0])), 55.0)
+        self.assertLess(abs(smallest_angle_error_deg(sampled_headings[-1], expected_headings[-1])), 8.0)
+        self.assertLess(abs(smallest_angle_error_deg(sampled_headings[0], expected_headings[0])), 12.0)
+
     def test_clockwise_arc_reports_negative_curvature(self) -> None:
         estimator = LocalCableStateEstimator(capacity=18, min_arc_radius_m=30.0)
         points, angles_deg = _arc_points(

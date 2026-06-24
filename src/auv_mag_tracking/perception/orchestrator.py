@@ -25,6 +25,7 @@ from .confidence import ConfidenceEstimator
 from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
+from .local_path import LocalCableStateEstimator
 from .peaks import PeakDetector
 from .state import FitResult, PerceptionState
 from .vector import EnvelopeGradientTracker, MagneticVectorAnalyzer
@@ -67,6 +68,7 @@ class MagneticCablePerception:
             washout_snr_linear_threshold=scenario.tracking.deployment_washout_snr_linear_threshold,
             washout_retention_count=scenario.tracking.deployment_washout_retention_count,
         )
+        self.local_path_estimator = LocalCableStateEstimator()
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
         self.last_confirmed_peak_strength_nt = 0.0
@@ -466,7 +468,19 @@ class MagneticCablePerception:
                 confidence=max(sonar_reading.confidence, 0.05),
                 time_s=reading.time_s,
             )
+            self.local_path_estimator.add_observation(
+                np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2],
+                time_s=reading.time_s,
+                confidence=max(sonar_reading.confidence, 0.05),
+                heading_deg=sonar_reading.estimated_heading_ned_deg,
+            )
             detection_age_s = reading.time_s - self.fitter.last_detection_time_s
+        elif detected_peak_xy_m is not None:
+            self.local_path_estimator.add_observation(
+                detected_peak_xy_m,
+                time_s=reading.time_s,
+                confidence=max(self.last_output_confidence, 0.05),
+            )
 
         # --- Magnetic cross-track steering signal (peak-free) ---
         # The ratio ``B_down / B_perp == y / d`` yields a signed cross-track offset
@@ -486,6 +500,7 @@ class MagneticCablePerception:
             self.safe_lock_until_s = -1e9
             self.last_confirmed_peak_strength_nt = 0.0
 
+        local_path_state = self.local_path_estimator.estimate()
         fit_result_candidate = self.fitter.fit()
         fit_update_rejected = False
         bootstrap_fit_ready = self._bootstrap_fit_ready(fit_result_candidate)
@@ -691,6 +706,19 @@ class MagneticCablePerception:
                     estimated_burial_depth_m = burial_estimate.depth_m
                     burial_inversion_uncertainty_m = burial_estimate.sigma_m
 
+        local_path_model_codes = {"line": 1.0, "local_line": 2.0, "arc": 3.0}
+        local_path_model_code = 0.0
+        local_path_heading_deg = None
+        local_path_confidence = 0.0
+        local_path_residual_m = float("inf")
+        local_path_radius_m = float("inf")
+        if local_path_state is not None:
+            local_path_model_code = local_path_model_codes.get(local_path_state.model, 0.0)
+            local_path_heading_deg = local_path_state.heading_deg
+            local_path_confidence = local_path_state.confidence
+            local_path_residual_m = local_path_state.residual_m
+            local_path_radius_m = local_path_state.radius_m
+
         return PerceptionState(
             time_s=reading.time_s,
             sensor_field_nt=reading.sensor_field_nt,
@@ -761,4 +789,9 @@ class MagneticCablePerception:
             magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
             magnetic_cross_track_quality=float(self.cross_track_estimator.quality),
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
+            local_path_model_code=local_path_model_code,
+            local_path_heading_deg=local_path_heading_deg,
+            local_path_confidence=local_path_confidence,
+            local_path_residual_m=local_path_residual_m,
+            local_path_radius_m=local_path_radius_m,
         )

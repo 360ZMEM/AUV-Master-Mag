@@ -69,11 +69,15 @@ class LocalCableStateEstimator:
         min_arc_radius_m: float = 30.0,
         min_arc_angle_span_deg: float = 35.0,
         arc_residual_ratio: float = 0.85,
+        local_line_window: int = 6,
+        heading_blend: float = 0.50,
     ) -> None:
         self.capacity = max(3, int(capacity))
         self.min_arc_radius_m = max(1e-6, float(min_arc_radius_m))
         self.min_arc_angle_span_deg = max(0.0, float(min_arc_angle_span_deg))
         self.arc_residual_ratio = float(np.clip(arc_residual_ratio, 0.2, 1.5))
+        self.local_line_window = max(3, int(local_line_window))
+        self.heading_blend = float(np.clip(heading_blend, 0.0, 0.9))
         self.observations: Deque[LocalPathObservation] = deque(maxlen=self.capacity)
 
     def reset(self) -> None:
@@ -104,10 +108,11 @@ class LocalCableStateEstimator:
         weights = np.maximum(weights, 1e-3)
         weights = weights / np.sum(weights)
 
-        line_state = self._fit_line(points, weights)
+        line_state = self._fit_line(points, weights, model_name="line")
+        local_line_state = self._fit_local_line()
         circle_state = self._fit_circle(points, weights)
         if circle_state is None:
-            return line_state
+            return self._select_line_fallback(line_state, local_line_state)
 
         arc_is_valid = (
             circle_state.radius_m >= self.min_arc_radius_m
@@ -115,11 +120,17 @@ class LocalCableStateEstimator:
             and circle_state.residual_m <= max(line_state.residual_m * self.arc_residual_ratio, 0.25)
         )
         if not arc_is_valid:
-            return line_state
+            return self._select_line_fallback(line_state, local_line_state)
 
         return self._apply_heading_observations(circle_state)
 
-    def _fit_line(self, points: np.ndarray, weights: np.ndarray) -> LocalCableState:
+    @staticmethod
+    def _select_line_fallback(line_state: LocalCableState, local_line_state: LocalCableState) -> LocalCableState:
+        if line_state.residual_m <= max(local_line_state.residual_m * 1.25, 0.10):
+            return line_state
+        return local_line_state
+
+    def _fit_line(self, points: np.ndarray, weights: np.ndarray, model_name: str = "line") -> LocalCableState:
         centroid = np.sum(points * weights[:, None], axis=0)
         centered = points - centroid
         covariance = np.zeros((2, 2), dtype=float)
@@ -138,14 +149,27 @@ class LocalCableStateEstimator:
         anchor = points[-1].copy()
         confidence = self._state_confidence(residual, len(points))
         state = LocalCableState(
-            model="line",
+            model=model_name,
             anchor_xy_m=anchor,
             tangent_xy=direction,
             heading_deg=heading_from_direction_xy(direction),
             residual_m=residual,
             confidence=confidence,
         )
-        return self._apply_heading_observations(state)
+        return self._apply_heading_observations(state, blend_heading=True)
+
+    def _fit_local_line(self) -> LocalCableState:
+        recent_observations = list(self.observations)[-self.local_line_window :]
+        points = np.vstack([observation.position_xy_m for observation in recent_observations])
+        weights = np.asarray([observation.confidence for observation in recent_observations], dtype=float)
+
+        # Favor the newest samples so a curved cable produces a moving local
+        # tangent instead of a stale global chord.
+        age_index = np.arange(points.shape[0], dtype=float)
+        recency = np.exp(-(points.shape[0] - 1.0 - age_index) / max(points.shape[0] * 0.45, 1.0))
+        weights = np.maximum(weights * recency, 1e-3)
+        weights = weights / np.sum(weights)
+        return self._fit_line(points, weights, model_name="local_line")
 
     def _fit_circle(self, points: np.ndarray, weights: np.ndarray) -> Optional[LocalCableState]:
         if points.shape[0] < 3:
@@ -204,13 +228,23 @@ class LocalCableStateEstimator:
             arc_angle_span_deg=arc_span_deg,
         )
 
-    def _apply_heading_observations(self, state: LocalCableState) -> LocalCableState:
+    def _apply_heading_observations(self, state: LocalCableState, blend_heading: bool = False) -> LocalCableState:
         headings = [observation.heading_deg for observation in self.observations if observation.heading_deg is not None]
         if not headings:
             return state
 
         latest_heading_deg = float(headings[-1])
         heading_error_deg = abs(smallest_angle_error_deg(state.heading_deg, latest_heading_deg))
+        if blend_heading and heading_error_deg <= 90.0 and self.heading_blend > 0.0:
+            heading_rad = np.deg2rad(latest_heading_deg)
+            heading_vector = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+            if np.dot(heading_vector, state.tangent_xy) < 0.0:
+                heading_vector = -heading_vector
+            tangent = unit((1.0 - self.heading_blend) * state.tangent_xy + self.heading_blend * heading_vector)
+            if np.linalg.norm(tangent) > 0.0:
+                state.tangent_xy = tangent
+                state.heading_deg = heading_from_direction_xy(tangent)
+                heading_error_deg = abs(smallest_angle_error_deg(state.heading_deg, latest_heading_deg))
         if heading_error_deg <= 90.0:
             state.confidence *= float(np.exp(-heading_error_deg / 45.0))
         else:
