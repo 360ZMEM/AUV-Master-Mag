@@ -778,8 +778,14 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         environment=EnvironmentConfig(
             cable_waypoints_xy_m=((-200.0, 0.0), (-60.0, 14.0), (60.0, -12.0), (200.0, 6.0)),
             cable_route_mode="sine",
+            # 放宽正弦波长（55→62、140→150），使最小曲率半径从 22.4m 提升到 ~31m，
+            # 满足"环境设计最小曲率半径 ≥25m"的硬约束并消除构建期曲率告警。
+            sine_amplitudes_m=(6.0, 2.5),
+            sine_wavelengths_m=(150.0, 62.0),
             nominal_route_heading_deg=0.0,
             burial_depth_m=1.4,
+            min_cable_curvature_radius_m=25.0,
+            validate_curvature_on_build=True,
         ),
     )
 
