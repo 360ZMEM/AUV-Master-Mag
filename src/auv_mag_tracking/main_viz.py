@@ -2,7 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Dict, List, Optional
+from typing import Deque, Dict, List, Optional, Protocol
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse
@@ -16,7 +16,17 @@ from .environment import CableEnvironment
 from .math_utils import Pose, smallest_angle_error_deg, wrap_angle_deg
 from .perception import MagneticCablePerception, PerceptionState
 from .perception_driver import PerceptionDriver, PerceptionDriverFrame
-from .sensor_model import BurialDepthObserver, HighFidelityMagnetometer, IMUSimulator, MagnetometerModel, SonarModel
+from .sensor_model import (
+    BurialDepthMeasurement,
+    BurialDepthObserver,
+    HighFidelityMagnetometer,
+    IMUSimulator,
+    MagnetometerModel,
+    MagnetometerReading,
+    PoseMeasurement,
+    SonarModel,
+    SonarReading,
+)
 
 
 @dataclass
@@ -124,6 +134,56 @@ class DeploymentPerformanceEvaluator:
             result["cable_heading_error_deg"] = float(np.mean(valid_errors))
             result["final_heading_error_deg"] = valid_errors[-1]
         return result
+
+
+@dataclass
+class SensorFrame:
+    """单步传感器输入帧：仿真与实机 SensorSource 的统一输出。"""
+
+    magnetometer_reading: MagnetometerReading
+    pose_measurement: PoseMeasurement
+    vehicle_position_xy_m: np.ndarray
+    burial_measurement: BurialDepthMeasurement
+    sonar_reading: Optional[SonarReading]
+    true_burial_depth_m: Optional[float] = None
+    true_cable_heading_deg: Optional[float] = None
+
+
+class SensorSource(Protocol):
+    """向主循环提供一帧真实或仿真的传感器输入。"""
+
+    def poll(self, time_s: float, pose: Pose) -> SensorFrame:
+        """返回当前时刻的传感器输入帧。"""
+        ...
+
+
+class VehicleBackend(Protocol):
+    """消费控制指令并返回下一帧载体位姿。"""
+
+    def advance(
+        self,
+        pose: Pose,
+        command: GuidanceCommand,
+        scenario: ScenarioConfig,
+        seabed_depth_m: float,
+        dt_s: float,
+    ) -> Pose:
+        """推进或读取下一帧载体位姿。"""
+        ...
+
+
+class KinematicVehicleBackend:
+    """默认仿真运动学后端。"""
+
+    def advance(
+        self,
+        pose: Pose,
+        command: GuidanceCommand,
+        scenario: ScenarioConfig,
+        seabed_depth_m: float,
+        dt_s: float,
+    ) -> Pose:
+        return propagate_vehicle(pose, command, scenario, seabed_depth_m, dt_s)
 
 
 def _initial_vehicle_position_ned_m(scenario: ScenarioConfig, environment: CableEnvironment) -> np.ndarray:
@@ -426,6 +486,9 @@ class SimulationVisualizer:
         burial_estimate = "N/A"
         if perception.estimated_burial_depth_m is not None:
             burial_estimate = f"{perception.estimated_burial_depth_m:.2f} m"
+        burial_truth = "N/A"
+        if perception.true_burial_depth_m is not None and np.isfinite(perception.true_burial_depth_m):
+            burial_truth = f"{perception.true_burial_depth_m:.2f} m"
         hf_summary = f"{perception.signal_reliable} | {perception.is_ac_detected} | {perception.dominant_frequency_hz:.1f} Hz"
         if signal_frame is not None:
             hf_summary = (
@@ -453,7 +516,7 @@ class SimulationVisualizer:
                 f"EnvGrad: {fmt_optional(perception.envelope_gradient_nT_per_m, '.2f', ' nT/m')} | GradHdg: {fmt_optional(perception.envelope_gradient_heading_deg, '.1f', '°')} | VecHdg: {fmt_optional(perception.magnetic_vector_heading_deg, '.1f', '°')} | VecCableHdg: {fmt_optional(perception.vector_cable_heading_deg, '.1f', '°')}",
                 f"VecConsist: {perception.vector_consistency_score:.2f} | LeakRisk: {perception.attitude_leakage_risk} | VecHdg: {fmt_optional(perception.magnetic_vector_heading_deg, '.1f', '°')}",
                 f"Turn radius limit: {self.scenario.vehicle.min_turning_radius_m:.2f} m | Commanded radius: {command.commanded_turn_radius_m if np.isfinite(command.commanded_turn_radius_m) else 'N/A'}",
-                f"Burial true: {perception.true_burial_depth_m:.2f} m | Burial est: {burial_estimate}",
+                f"Burial true: {burial_truth} | Burial est: {burial_estimate}",
                 f"Peak detected: {perception.peak_detected} | Detection age: {perception.last_detection_age_s:.2f} s",
                 f"Fit residual: {perception.fit_result.residual_m:.2f} m | Fit rejected: {perception.fit_update_rejected} | Burial valid: {perception.burial_measurement_valid}",
             ]
@@ -465,8 +528,15 @@ class SimulationVisualizer:
 
 
 class AuvCableTrackingSimulation:
-    def __init__(self, scenario: ScenarioConfig) -> None:
+    def __init__(
+        self,
+        scenario: ScenarioConfig,
+        sensor_source: Optional[SensorSource] = None,
+        vehicle_backend: Optional[VehicleBackend] = None,
+    ) -> None:
         self.scenario = scenario
+        self.sensor_source = sensor_source
+        self.vehicle_backend = vehicle_backend or KinematicVehicleBackend()
         self.environment = CableEnvironment(scenario)
         initial_position_ned_m = _initial_vehicle_position_ned_m(scenario, self.environment)
         initial_xy = np.asarray(initial_position_ned_m[:2], dtype=float)
@@ -521,6 +591,35 @@ class AuvCableTrackingSimulation:
         if not scenario.tracking.use_nominal_route_prior:
             self.performance_evaluator = DeploymentPerformanceEvaluator(self.environment)
 
+    def _sample_synthetic_sensor_frame(self, time_s: float) -> SensorFrame:
+        """用内置仿真模型生成一帧传感器输入。"""
+        active_sample_rate_hz = 1.0 / max(self.magnetometer.sample_period_s, 1e-9)
+        sample_count = max(1, int(round(self.scenario.dt_s * active_sample_rate_hz)))
+        sample_times_s = time_s + (np.arange(sample_count, dtype=float) + 1.0) * self.magnetometer.sample_period_s
+        current_block_a = self.scenario.signal.current_for_times(sample_times_s)
+        cable_field_gain_ned_nt = self.environment.field_model.cable_field_gain_ned_nt(self.pose.position_ned_m)
+        cable_field_block_ned_nt = current_block_a[:, None] * cable_field_gain_ned_nt[None, :]
+        true_field_block_ned_nt = cable_field_block_ned_nt + self.environment.background_field_ned_nt
+        magnetometer_reading = self.magnetometer.sample_block(
+            true_field_block_ned_nt,
+            self.pose,
+            sample_times_s,
+            cable_fields_ned_nt=cable_field_block_ned_nt,
+        )
+        pose_measurement = self.imu.observe(self.pose, time_s)
+        cable_truth = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2])
+        sonar_reading = self.sonar.sample(self.pose, cable_truth, time_s)
+        burial_measurement = self.burial_observer.observe(cable_truth.burial_depth_m, time_s)
+        return SensorFrame(
+            magnetometer_reading=magnetometer_reading,
+            pose_measurement=pose_measurement,
+            vehicle_position_xy_m=self.pose.position_ned_m[:2].copy(),
+            burial_measurement=burial_measurement,
+            sonar_reading=sonar_reading,
+            true_burial_depth_m=cable_truth.burial_depth_m,
+            true_cable_heading_deg=cable_truth.heading_deg,
+        )
+
     def _build_trend_history(self) -> SignalTrendHistory:
         return SignalTrendHistory(
             time_s=list(self.trend_time_s),
@@ -568,6 +667,7 @@ class AuvCableTrackingSimulation:
         previous_position = self.pose.position_ned_m.copy()
         total_steps = int(np.ceil(self.scenario.duration_s / self.scenario.dt_s))
         vector_consistency_history: List[float] = []
+        track_entry_time_s: Optional[float] = None
         progress = tqdm(
             range(total_steps),
             desc=f"{self.scenario.name} simulation",
@@ -578,39 +678,48 @@ class AuvCableTrackingSimulation:
 
         for step_index in progress:
             time_s = step_index * self.scenario.dt_s
-            apply_attitude_profile(self.pose, self.scenario, time_s)
+            if self.sensor_source is None:
+                apply_attitude_profile(self.pose, self.scenario, time_s)
+                sensor_frame = self._sample_synthetic_sensor_frame(time_s)
+                sonar_failure_active = (
+                    self.scenario.sonar.fail_after_track_active
+                    and track_entry_time_s is not None
+                    and time_s >= track_entry_time_s + self.scenario.sonar.fail_after_track_delay_s
+                )
+                if sonar_failure_active:
+                    truth = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2])
+                    sensor_frame.sonar_reading = self.sonar.force_offline(
+                        self.pose,
+                        truth,
+                        time_s,
+                        status="FORCED_OFFLINE",
+                    )
+            else:
+                sensor_frame = self.sensor_source.poll(time_s, self.pose)
 
-            active_sample_rate_hz = 1.0 / max(self.magnetometer.sample_period_s, 1e-9)
-            sample_count = max(1, int(round(self.scenario.dt_s * active_sample_rate_hz)))
-            sample_times_s = time_s + (np.arange(sample_count, dtype=float) + 1.0) * self.magnetometer.sample_period_s
-            current_block_a = self.scenario.signal.current_for_times(sample_times_s)
-            cable_field_gain_ned_nt = self.environment.field_model.cable_field_gain_ned_nt(self.pose.position_ned_m)
-            cable_field_block_ned_nt = current_block_a[:, None] * cable_field_gain_ned_nt[None, :]
-            true_field_block_ned_nt = cable_field_block_ned_nt + self.environment.background_field_ned_nt
-            magnetometer_reading = self.magnetometer.sample_block(
-                true_field_block_ned_nt,
-                self.pose,
-                sample_times_s,
-                cable_fields_ned_nt=cable_field_block_ned_nt,
-            )
+            magnetometer_reading = sensor_frame.magnetometer_reading
             signal_frame = self.signal_driver.update(magnetometer_reading)
-            pose_measurement = self.imu.observe(self.pose, time_s)
-            cable_truth = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2])
-            sonar_reading = self.sonar.sample(self.pose, cable_truth, time_s)
-            burial_measurement = self.burial_observer.observe(cable_truth.burial_depth_m, time_s)
             perception_state = self.perception.update(
                 reading=magnetometer_reading,
-                pose_measurement=pose_measurement,
-                vehicle_position_xy_m=self.pose.position_ned_m[:2],
-                burial_measurement=burial_measurement,
-                true_burial_depth_m=cable_truth.burial_depth_m,
-                sonar_reading=sonar_reading,
+                pose_measurement=sensor_frame.pose_measurement,
+                vehicle_position_xy_m=sensor_frame.vehicle_position_xy_m,
+                burial_measurement=sensor_frame.burial_measurement,
+                true_burial_depth_m=sensor_frame.true_burial_depth_m,
+                sonar_reading=sensor_frame.sonar_reading,
                 signal_features=signal_frame.features,
             )
             command = self.controller.update(self.pose, perception_state)
+            if command.mode == MissionState.TRACK_ACTIVE and track_entry_time_s is None:
+                track_entry_time_s = time_s
 
             seabed_depth_m = self.environment.seabed_depth_m(self.pose.position_ned_m[:2])
-            self.pose = propagate_vehicle(self.pose, command, self.scenario, seabed_depth_m, self.scenario.dt_s)
+            self.pose = self.vehicle_backend.advance(
+                self.pose,
+                command,
+                self.scenario,
+                seabed_depth_m,
+                self.scenario.dt_s,
+            )
 
             tracked_distance_m += float(np.linalg.norm(self.pose.position_ned_m[:2] - previous_position[:2]))
             previous_position = self.pose.position_ned_m.copy()
@@ -620,7 +729,7 @@ class AuvCableTrackingSimulation:
                     hold_entry_estimated_heading_deg = perception_state.deployment_estimated_cable_heading_deg
                     if hold_entry_estimated_heading_deg is None:
                         hold_entry_estimated_heading_deg = perception_state.line_heading_deg
-                    hold_entry_true_heading_deg = cable_truth.heading_deg
+                    hold_entry_true_heading_deg = sensor_frame.true_cable_heading_deg
                 hold_steps += 1
 
             self.time_history_s.append(magnetometer_reading.time_s)

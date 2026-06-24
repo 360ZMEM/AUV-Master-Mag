@@ -32,7 +32,12 @@ _NUMERIC_CHANNELS = (
     "true_nearest_x_m",
     "true_nearest_y_m",
     "true_burial_depth_m",
+    "route_progress_m",
+    "route_distance_m",
+    "estimated_cable_x_m",
+    "estimated_cable_y_m",
     "confidence",
+    "sonar_confidence",
     "snr_db",
     "tracking_strength_nt",
     "fused_heading_deg",
@@ -136,6 +141,7 @@ def simulate_run(
     scenario: ScenarioConfig,
     deployment_mode: bool = False,
     max_steps: Optional[int] = None,
+    duration_override_s: Optional[float] = None,
 ) -> RunRecord:
     """运行一次确定性仿真，返回逐帧 :class:`RunRecord`。
 
@@ -145,15 +151,20 @@ def simulate_run(
     scenario = copy.deepcopy(scenario)
     if deployment_mode:
         scenario.tracking.use_nominal_route_prior = False
+    if duration_override_s is not None:
+        scenario.duration_s = float(duration_override_s)
 
     sim = AuvCableTrackingSimulation(scenario)
     route_xy_m = sim.environment.sampled_cable_route_ned_m()[:, :2]
+    route_length_m = sim.environment.route.total_length_m
     recorder = RunRecorder(scenario.name, deployment_mode, scenario.dt_s, route_xy_m)
 
     total_steps = int(np.ceil(scenario.duration_s / scenario.dt_s))
     if max_steps is not None:
         total_steps = min(total_steps, max_steps)
 
+    track_entry_time_s: Optional[float] = None
+    endpoint_completed = False
     for step_index in range(total_steps):
         time_s = step_index * scenario.dt_s
         apply_attitude_profile(sim.pose, scenario, time_s)
@@ -171,7 +182,15 @@ def simulate_run(
         signal_frame = sim.signal_driver.update(reading)
         pose_measurement = sim.imu.observe(sim.pose, time_s)
         truth = sim.environment.cable_truth_at_xy(sim.pose.position_ned_m[:2])
-        sonar_reading = sim.sonar.sample(sim.pose, truth, time_s)
+        sonar_failure_active = (
+            scenario.sonar.fail_after_track_active
+            and track_entry_time_s is not None
+            and time_s >= track_entry_time_s + scenario.sonar.fail_after_track_delay_s
+        )
+        if sonar_failure_active:
+            sonar_reading = sim.sonar.force_offline(sim.pose, truth, time_s, status="FORCED_OFFLINE")
+        else:
+            sonar_reading = sim.sonar.sample(sim.pose, truth, time_s)
         burial_measurement = sim.burial_observer.observe(truth.burial_depth_m, time_s)
         perception = sim.perception.update(
             reading=reading,
@@ -183,8 +202,11 @@ def simulate_run(
             signal_features=signal_frame.features,
         )
         command = sim.controller.update(sim.pose, perception)
+        if command.mode.value == "track" and track_entry_time_s is None:
+            track_entry_time_s = time_s
 
-        nearest_xy, _, _ = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
+        nearest_xy, _, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
+        estimated_cable_xy = perception.estimated_cable_point_xy_m
         recorder.append(
             time_s=time_s,
             pos_x_m=sim.pose.position_ned_m[0],
@@ -195,7 +217,12 @@ def simulate_run(
             true_nearest_x_m=nearest_xy[0],
             true_nearest_y_m=nearest_xy[1],
             true_burial_depth_m=truth.burial_depth_m,
+            route_progress_m=truth.progress_m,
+            route_distance_m=route_distance_m,
+            estimated_cable_x_m=np.nan if estimated_cable_xy is None else estimated_cable_xy[0],
+            estimated_cable_y_m=np.nan if estimated_cable_xy is None else estimated_cable_xy[1],
             confidence=perception.confidence,
+            sonar_confidence=perception.sonar_confidence,
             snr_db=perception.snr_db,
             tracking_strength_nt=perception.tracking_strength_nt,
             fused_heading_deg=_optional(perception.fused_heading_deg),
@@ -215,14 +242,41 @@ def simulate_run(
             source=command.guidance_source,
         )
 
+        if (
+            scenario.stop_at_cable_endpoint
+            and truth.progress_m >= route_length_m - scenario.endpoint_progress_margin_m
+            and route_distance_m <= scenario.endpoint_lateral_tolerance_m
+        ):
+            endpoint_completed = True
+            break
+
         seabed_depth_m = sim.environment.seabed_depth_m(sim.pose.position_ned_m[:2])
         sim.pose = propagate_vehicle(sim.pose, command, scenario, seabed_depth_m, scenario.dt_s)
 
-    return recorder.finalize()
+    record = recorder.finalize()
+    final_progress_m = float(record["route_progress_m"][-1]) if record.n_steps else 0.0
+    final_distance_m = float(record["route_distance_m"][-1]) if record.n_steps else float("nan")
+    record.metadata.update(
+        {
+            "route_length_m": float(route_length_m),
+            "final_route_progress_m": final_progress_m,
+            "final_route_distance_m": final_distance_m,
+            "route_completion_ratio": final_progress_m / max(float(route_length_m), 1e-9),
+            "endpoint_completed": float(endpoint_completed),
+            "stop_reason": "endpoint" if endpoint_completed else "duration",
+        }
+    )
+    return record
 
 
 def simulate_case(case_name: str, deployment_mode: bool = False,
-                  max_steps: Optional[int] = None) -> RunRecord:
+                  max_steps: Optional[int] = None,
+                  duration_override_s: Optional[float] = None) -> RunRecord:
     """按场景名运行仿真的便捷封装。"""
     scenario = build_default_scenarios()[case_name]
-    return simulate_run(scenario, deployment_mode=deployment_mode, max_steps=max_steps)
+    return simulate_run(
+        scenario,
+        deployment_mode=deployment_mode,
+        max_steps=max_steps,
+        duration_override_s=duration_override_s,
+    )

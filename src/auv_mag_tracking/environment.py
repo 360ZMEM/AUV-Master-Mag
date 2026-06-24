@@ -13,6 +13,7 @@ from .math_utils import (
     finite_wire_field_nT,
     nearest_point_on_polyline,
     polyline_length,
+    sample_serpentine_path,
     sample_sine_overlay_path,
     sample_spline_path,
 )
@@ -68,6 +69,14 @@ class CableRoute:
 
         if self.config.cable_route_mode == "spline":
             sampled = sample_spline_path(self.waypoints_xy_m, step_m)
+        elif self.config.cable_route_mode == "serpentine":
+            sampled = sample_serpentine_path(
+                turn_count=self.config.maze_turn_count,
+                straight_length_m=self.config.maze_straight_length_m,
+                lane_spacing_m=self.config.maze_lane_spacing_m,
+                turn_radius_m=self.config.maze_turn_radius_m,
+                step_m=step_m,
+            )
         elif self.config.cable_route_mode == "sine":
             sampled = sample_sine_overlay_path(
                 self.waypoints_xy_m,
@@ -121,7 +130,7 @@ class CableRoute:
             curvature_1pm = estimate_polyline_curvature(sampled, i)
             if abs(curvature_1pm) > 1e-9:
                 radius_m = 1.0 / abs(curvature_1pm)
-                if radius_m < min_radius_m:
+                if radius_m < min_radius_m - 1e-6:
                     violations.append((i, radius_m))
         if violations:
             worst_idx, worst_radius = min(violations, key=lambda v: v[1])
@@ -137,7 +146,7 @@ class CableRoute:
     @property
     def total_length_m(self) -> float:
         """返回电缆路线总长度。"""
-        return polyline_length(self.waypoints_xy_m)
+        return polyline_length(self.sample_xy(step_m=max(self.config.field_segment_length_m * 0.5, 1.0)))
 
 
 class MagneticFieldModel:

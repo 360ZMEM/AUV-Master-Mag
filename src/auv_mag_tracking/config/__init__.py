@@ -204,6 +204,8 @@ class SonarConfig:
         advantage_position_noise_scale: 优势观测时的位置噪声缩放系数。
         advantage_heading_noise_scale: 优势观测时的航向噪声缩放系数。
         advantage_confidence_floor: 优势观测的最低置信度下限。
+        fail_after_track_active: 进入 TRACK_ACTIVE 后是否强制声呐失效。
+        fail_after_track_delay_s: 进入 TRACK_ACTIVE 后延迟多少秒开始失效。
     """
 
     mode: str = "degraded"
@@ -219,6 +221,8 @@ class SonarConfig:
     advantage_position_noise_scale: float = 0.25
     advantage_heading_noise_scale: float = 0.35
     advantage_confidence_floor: float = 0.90
+    fail_after_track_active: bool = False
+    fail_after_track_delay_s: float = 0.0
 
 
 @dataclass
@@ -291,6 +295,7 @@ class TrackingConfig:
         mag_cross_track_stabilized_cov_m2: 拟合稳定判据（垂直散布上限），稳定后才采信磁偏移。
         track_cross_track_gain_deg_per_m: TRACK_ACTIVE 压线时每米横偏对应的航向修正增益。
         track_cross_track_max_correction_deg: 压线航向修正的饱和上限。
+        track_active_zigzag_angle_deg: TRACK_ACTIVE 继续执行低幅 zig-zag 的穿越角；0 表示中心线压线。
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
@@ -308,6 +313,8 @@ class TrackingConfig:
         lookahead_min_distance_m: 交叉角前视距离的下限。
         crossing_width_periods: 一次电缆穿越对应的沿缆宽度数（用于扫描周期与看门狗翻腿时限）。
         watchdog_min_cross_time_s: 看门狗翻腿时限的下限，避免冷启动无电缆点时无法翻腿。
+        fsm_cov_perp_converged_m2: LOCK->TRACK 的 PCA 垂直散布门限。
+        fsm_yaw_err_converged_deg: LOCK->TRACK 的航向误差门限。
     """
 
     approach_angle_deg: float = 45.0
@@ -374,6 +381,7 @@ class TrackingConfig:
     # --- TRACK_ACTIVE centerline hold (drives cross-track offset to zero) ---
     track_cross_track_gain_deg_per_m: float = 2.0
     track_cross_track_max_correction_deg: float = 20.0
+    track_active_zigzag_angle_deg: float = 0.0
     # --- Robust peak finding parameters ---
     parabolic_interpolation_enabled: bool = True
     peak_position_delay_s: float = 0.04
@@ -396,6 +404,8 @@ class TrackingConfig:
     lookahead_min_distance_m: float = 10.0
     crossing_width_periods: float = 2.5
     watchdog_min_cross_time_s: float = 10.0
+    fsm_cov_perp_converged_m2: float = 1.0
+    fsm_yaw_err_converged_deg: float = 5.0
 
 
 @dataclass
@@ -443,10 +453,14 @@ class EnvironmentConfig:
 
     Attributes:
         cable_waypoints_xy_m: 电缆路径控制点，单位为米。
-        cable_route_mode: 路径生成方式，例如 spline 或 sine。
+        cable_route_mode: 路径生成方式，例如 spline、sine 或 serpentine。
         spline_tension: 样条张力参数，影响曲线光滑程度。
         sine_amplitudes_m: 正弦形路径振幅序列。
         sine_wavelengths_m: 正弦形路径波长序列。
+        maze_turn_count: serpentine 模式下的折返次数。
+        maze_straight_length_m: serpentine 模式下每条来/去长边的长度。
+        maze_lane_spacing_m: serpentine 模式下相邻来/去电缆的间距。
+        maze_turn_radius_m: serpentine 模式下 U 型折返半径。
         seabed_depth_m: 海床深度。
         seabed_undulation_m: 海床起伏幅度。
         seabed_wavelength_m: 海床起伏波长。
@@ -464,6 +478,10 @@ class EnvironmentConfig:
     spline_tension: float = 0.0
     sine_amplitudes_m: Tuple[float, ...] = (6.0, 2.5)
     sine_wavelengths_m: Tuple[float, ...] = (140.0, 55.0)
+    maze_turn_count: int = 4
+    maze_straight_length_m: float = 220.0
+    maze_lane_spacing_m: float = 60.0
+    maze_turn_radius_m: float = 30.0
     seabed_depth_m: float = 30.0
     seabed_undulation_m: float = 0.8
     seabed_wavelength_m: float = 220.0
@@ -567,6 +585,9 @@ class ScenarioConfig:
         environment: 电缆与环境配置。
         survey: 埋深观测配置。
         visualization: 可视化配置。
+        stop_at_cable_endpoint: 是否在 AUV 到达/越过电缆终点时停止仿真。
+        endpoint_progress_margin_m: 距离电缆总进度多少米内视为进入终点区。
+        endpoint_lateral_tolerance_m: 终点区允许的横向偏离。
     """
 
     name: str
@@ -583,6 +604,9 @@ class ScenarioConfig:
     survey: SurveyConfig = field(default_factory=SurveyConfig)
     burial_inversion: BurialInversionConfig = field(default_factory=BurialInversionConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
+    stop_at_cable_endpoint: bool = False
+    endpoint_progress_margin_m: float = 8.0
+    endpoint_lateral_tolerance_m: float = 15.0
 
 
 def build_default_scenarios() -> Dict[str, ScenarioConfig]:
@@ -595,6 +619,9 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     - case4: 大姿态扰动补偿
     - case5: 低频演示模式对比
     - case6: 声呐与磁感知融合
+    - case1v..case6v: case1..case6 的后续转弯变种
+    - case_maze_sonar/case_maze_no_sonar: 光滑迷宫往返长电缆压力测试
+    - case7: 初始定位后声呐失效 + TRACK zig-zag 保持
     - case_hf_phone: 手机级高保真噪声
     - case_hf_industrial: 工业级高保真噪声
     - case8: 小曲率半径边界验证
@@ -826,6 +853,187 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         ),
     )
 
+    # 国标式跟踪变种：声呐仅用于初始定位，进入 TRACK 后失效；TRACK_ACTIVE 保持低幅 zig-zag。
+    sonar_dropout_zigzag = copy.deepcopy(standard)
+    sonar_dropout_zigzag.name = "case7"
+    sonar_dropout_zigzag.description = (
+        "Post-lock sonar dropout with GB-style low-amplitude zig-zag tracking in TRACK_ACTIVE."
+    )
+    sonar_dropout_zigzag.sonar.prob_detection = 0.85
+    sonar_dropout_zigzag.sonar.position_noise_std_m = 0.25
+    sonar_dropout_zigzag.sonar.heading_noise_deg = 3.0
+    sonar_dropout_zigzag.sonar.fail_after_track_active = True
+    sonar_dropout_zigzag.sonar.fail_after_track_delay_s = 0.0
+    sonar_dropout_zigzag.tracking.track_active_zigzag_angle_deg = 10.0
+    sonar_dropout_zigzag.tracking.track_cross_track_gain_deg_per_m = 2.2
+    sonar_dropout_zigzag.tracking.track_cross_track_max_correction_deg = 18.0
+    sonar_dropout_zigzag.tracking.guidance_memory_timeout_s = 10.0
+
+    def _downstream_turn_variant(
+        base: ScenarioConfig,
+        name: str,
+        description: str,
+        waypoints: Tuple[Vector2Tuple, ...],
+        *,
+        duration_s: float = 300.0,
+        min_curvature_radius_m: float = 25.0,
+    ) -> ScenarioConfig:
+        """复制基线参数族，只替换为含后续转弯的下游几何。"""
+        variant = copy.deepcopy(base)
+        variant.name = name
+        variant.description = description
+        variant.duration_s = duration_s
+        variant.environment.cable_waypoints_xy_m = waypoints
+        variant.environment.cable_route_mode = "spline"
+        variant.environment.spline_tension = 0.0
+        variant.environment.nominal_route_heading_deg = 0.0
+        variant.environment.min_cable_curvature_radius_m = min_curvature_radius_m
+        variant.environment.validate_curvature_on_build = True
+        return variant
+
+    downstream_turn_waypoints: Tuple[Vector2Tuple, ...] = (
+        (-320.0, 0.0),
+        (-80.0, 0.0),
+        (80.0, 0.0),
+        (200.0, 30.0),
+        (340.0, 95.0),
+        (480.0, 150.0),
+    )
+    case1v = _downstream_turn_variant(
+        standard,
+        "case1v",
+        "case1 variant with a downstream turn after initial straight-cable lock.",
+        downstream_turn_waypoints,
+    )
+    case2v = _downstream_turn_variant(
+        turning,
+        "case2v",
+        "case2 variant extending the turn farther downstream to stress later bend following.",
+        (
+            (-320.0, 0.0),
+            (-40.0, 0.0),
+            (120.0, 26.0),
+            (260.0, 96.0),
+            (420.0, 168.0),
+            (560.0, 210.0),
+            (700.0, 205.0),
+        ),
+    )
+    case3v = _downstream_turn_variant(
+        noisy,
+        "case3v",
+        "case3 high-noise variant with a downstream turn after initial lock.",
+        downstream_turn_waypoints,
+    )
+    case4v = _downstream_turn_variant(
+        tilt,
+        "case4v",
+        "case4 attitude-disturbance variant with a downstream turn after initial lock.",
+        downstream_turn_waypoints,
+    )
+    case5v = _downstream_turn_variant(
+        demo,
+        "case5v",
+        "case5 low-frequency variant with an explicit downstream spline turn.",
+        (
+            (-220.0, 0.0),
+            (-80.0, 10.0),
+            (60.0, -10.0),
+            (180.0, 10.0),
+            (310.0, 70.0),
+            (440.0, 130.0),
+        ),
+        min_curvature_radius_m=25.0,
+    )
+    case6v = _downstream_turn_variant(
+        fusion,
+        "case6v",
+        "case6 fusion variant with an additional downstream S-turn segment.",
+        (
+            (-240.0, -4.0),
+            (-140.0, 22.0),
+            (-20.0, -18.0),
+            (100.0, 28.0),
+            (220.0, -2.0),
+            (360.0, -55.0),
+            (500.0, -112.0),
+        ),
+    )
+
+    def _build_maze_case(name: str, sonar_enabled: bool) -> ScenarioConfig:
+        """构建光滑迷宫往返电缆压力场景。
+
+        几何按 2× 等比放大（相对早期 100m 间距/30m 半径 prototype）：
+        lane 长 600m、间距 200m、U-turn 半径 60m，minR=60m 远大于
+        25m 环境硬约束。该场景固定作为后续迷宫压力基准，不再继续
+        通过 4×/8× 等比放大来回避算法问题。
+
+        逐帧诊断显示当前失锁首先发生在 lane1 直线段：早期高 SNR 观测
+        污染线性 PCA，使 TRACK 初始 fused_heading 偏约 17°，车辆在尚未
+        到达 U-turn 前即漂出声呐量程。最小修正（观测年龄窗、延迟 TRACK、
+        放大声呐量程）均未触发 endpoint 验收，后续需在算法分支处理曲率
+        拟合、时序状态估计与方向消歧。
+        """
+        scenario = copy.deepcopy(standard)
+        scenario.name = name
+        scenario.description = (
+            "Smooth serpentine maze cable stress test (2x scaled) with endpoint completion "
+            f"({'sonar enabled' if sonar_enabled else 'sonar disabled'})."
+        )
+        scenario.duration_s = 4400.0
+        scenario.stop_at_cable_endpoint = True
+        scenario.endpoint_progress_margin_m = 20.0
+        scenario.endpoint_lateral_tolerance_m = 36.0
+        scenario.environment = EnvironmentConfig(
+            cable_waypoints_xy_m=((-300.0, 0.0), (300.0, 0.0)),
+            cable_route_mode="serpentine",
+            maze_turn_count=4,
+            maze_straight_length_m=600.0,
+            maze_lane_spacing_m=200.0,
+            maze_turn_radius_m=60.0,
+            nominal_route_heading_deg=0.0,
+            burial_depth_m=1.5,
+            min_cable_curvature_radius_m=60.0,
+            validate_curvature_on_build=True,
+            field_segment_length_m=4.0,
+        )
+        scenario.vehicle = VehicleConfig(
+            cruise_speed_mps=1.0,
+            search_speed_mps=1.0,
+            max_yaw_rate_deg_s=36.0,
+            min_turning_radius_m=2.5,
+            altitude_above_seabed_m=6.0,
+            initial_position_ned_m=(-315.0, -4.0, 0.0),
+            initial_heading_deg=10.0,
+        )
+        scenario.tracking.use_nominal_route_prior = False
+        scenario.tracking.track_active_zigzag_angle_deg = 10.0
+        scenario.tracking.guidance_memory_timeout_s = 14.0
+        scenario.tracking.weighted_fitter_capacity = 12
+        scenario.tracking.fit_history_size = 10
+        scenario.tracking.forgetting_factor = 0.70
+        scenario.tracking.fit_acceptance_residual_m = 12.0
+        scenario.tracking.lost_timeout_s = 8.0
+        scenario.tracking.sonar_preferred_distance_m = 8.0
+        scenario.tracking.fsm_cov_perp_converged_m2 = 20.0
+        scenario.tracking.fsm_yaw_err_converged_deg = 25.0
+        if sonar_enabled:
+            scenario.sonar = SonarConfig(
+                mode="degraded",
+                prob_detection=0.92,
+                position_noise_std_m=0.24,
+                heading_noise_deg=2.5,
+                update_rate_hz=10.0,
+                max_range_m=24.0,
+                horizontal_fov_deg=160.0,
+            )
+        else:
+            scenario.sonar = SonarConfig(mode="off")
+        return scenario
+
+    maze_sonar = _build_maze_case("case_maze_sonar", sonar_enabled=True)
+    maze_no_sonar = _build_maze_case("case_maze_no_sonar", sonar_enabled=False)
+
     # 手机级高保真场景：保留基线结构，仅增强硬件噪声与较低采样率。
     hf_phone = copy.deepcopy(standard)
     hf_phone.name = "case_hf_phone"
@@ -947,6 +1155,15 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         tilt.name: tilt,
         demo.name: demo,
         fusion.name: fusion,
+        case1v.name: case1v,
+        case2v.name: case2v,
+        case3v.name: case3v,
+        case4v.name: case4v,
+        case5v.name: case5v,
+        case6v.name: case6v,
+        maze_sonar.name: maze_sonar,
+        maze_no_sonar.name: maze_no_sonar,
+        sonar_dropout_zigzag.name: sonar_dropout_zigzag,
         hf_phone.name: hf_phone,
         hf_industrial.name: hf_industrial,
         tight_bend.name: tight_bend,

@@ -14,11 +14,15 @@ if str(SRC_ROOT) not in sys.path:
 from auv_mag_tracking.config import SonarConfig, build_default_scenarios
 from auv_mag_tracking.controller import GuidanceCommand, propagate_vehicle
 from auv_mag_tracking.environment import CableEnvironment, CableFitTruth, CableRoute
+from auv_mag_tracking.experimental.deployment_sensor_source import DeploymentSensorSource
+from auv_mag_tracking.experimental.simulator_connector import HoloOceanConnectorMock, NullHoloOceanConnector, RawSensorBundle
 from auv_mag_tracking.math_utils import Pose, project_point_to_line, smallest_angle_error_deg
 from auv_mag_tracking.main_viz import _initial_vehicle_position_ned_m
 from auv_mag_tracking.mission_manager import MissionInput, MissionManager, MissionState, MissionThresholds
 from auv_mag_tracking.perception import ConfidenceEstimator, MagneticCablePerception, PeakDetector, PerceptionState, WeightedSlidingWindowFitter, FitResult, MagneticVectorAnalyzer, StreamingVectorPCAFitter
-from auv_mag_tracking.sensor_model import MagnetometerModel, PoseMeasurement, SonarModel
+from auv_mag_tracking.perception_driver import ProcessedSignalFeatures
+from auv_mag_tracking.sensor_model import BurialDepthMeasurement, MagnetometerModel, MagnetometerReading, PoseMeasurement, SonarModel
+from auv_mag_tracking.viz import simulate_case
 
 
 class FusionFeatureTest(unittest.TestCase):
@@ -55,11 +59,142 @@ class FusionFeatureTest(unittest.TestCase):
         self.assertGreater(reading.cable_strength_nt, 60.0)
         self.assertFalse(reading.weak_signal_flag)
 
+    def test_perception_weak_signal_uses_processed_features_not_truth_strength(self) -> None:
+        scenario = copy.deepcopy(build_default_scenarios()["case1"])
+        perception = MagneticCablePerception(scenario)
+        reading = MagnetometerReading(
+            time_s=1.0,
+            sensor_field_nt=np.zeros(3, dtype=float),
+            sample_times_s=np.array([1.0], dtype=float),
+            sample_block_sensor_nt=np.zeros((1, 3), dtype=float),
+            cable_strength_nt=1e6,
+            weak_signal_flag=False,
+            sample_rate_hz=scenario.sensor.magnetometer_sample_rate_hz,
+            bit_depth=0,
+        )
+        features = ProcessedSignalFeatures(
+            time_s=1.0,
+            processed_intensity_nt=0.1,
+            filtered_intensity_nt=0.1,
+            target_magnitude_nt=0.1,
+            noise_floor_nt=1.0,
+            snr_linear=0.1,
+            snr_db=-20.0,
+            is_ac_detected=False,
+            dominant_frequency_hz=0.0,
+            target_frequency_hz=scenario.signal.frequency_hz,
+            reliability_flag=False,
+            weak_signal_flag=True,
+            frequency_error_hz=0.0,
+            peak_prominence_db=-120.0,
+            sample_rate_hz=scenario.sensor.magnetometer_sample_rate_hz,
+            bit_depth=0,
+            clipping_ratio=0.0,
+            representative_field_nt=np.zeros(3, dtype=float),
+            processing_sample_rate_hz=scenario.sensor.magnetometer_sample_rate_hz,
+            signal_method="test",
+        )
+        state = perception.update(
+            reading=reading,
+            pose_measurement=PoseMeasurement(time_s=1.0, heading_deg=0.0, pitch_deg=0.0, roll_deg=0.0, speed_mps=1.0),
+            vehicle_position_xy_m=np.zeros(2, dtype=float),
+            burial_measurement=BurialDepthMeasurement(time_s=1.0, depth_m=None, valid=False),
+            true_burial_depth_m=None,
+            sonar_reading=None,
+            signal_features=features,
+        )
+        self.assertTrue(state.weak_signal_flag)
+        self.assertIsNone(state.true_burial_depth_m)
+
+    def test_connector_returns_raw_sensor_bundle(self) -> None:
+        bundle = RawSensorBundle(
+            time_s=2.0,
+            magnetometer_block_nt=np.ones((2, 3), dtype=float),
+            sonar_relative_position_body_m=np.array([3.0, 4.0], dtype=float),
+            imu_heading_deg=15.0,
+            vehicle_position_ned_m=np.array([10.0, 20.0, 30.0], dtype=float),
+        )
+        connector = HoloOceanConnectorMock(last_bundle=bundle)
+        connector.connect()
+        received = connector.recv_sensor_updates()
+        self.assertIsInstance(received, RawSensorBundle)
+        np.testing.assert_allclose(received.magnetometer_block_nt, bundle.magnetometer_block_nt)
+        np.testing.assert_allclose(received.vehicle_position_ned_m, bundle.vehicle_position_ned_m)
+        self.assertIsInstance(NullHoloOceanConnector().recv_sensor_updates(), RawSensorBundle)
+
+    def test_deployment_sensor_source_adapts_raw_bundle(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        connector = HoloOceanConnectorMock(
+            connected=True,
+            last_bundle=RawSensorBundle(
+                time_s=3.0,
+                magnetometer_block_nt=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=float),
+                sonar_relative_position_body_m=np.array([2.0, 1.0], dtype=float),
+                sonar_heading_deg=20.0,
+                sonar_confidence=0.8,
+                imu_heading_deg=10.0,
+                imu_pitch_deg=1.0,
+                imu_roll_deg=-2.0,
+                vehicle_position_ned_m=np.array([100.0, 50.0, 30.0], dtype=float),
+                vehicle_speed_mps=1.2,
+                burial_depth_m=1.4,
+            ),
+        )
+        source = DeploymentSensorSource(connector, scenario)
+        frame = source.poll(3.0, Pose(position_ned_m=np.zeros(3, dtype=float), heading_deg=10.0, pitch_deg=0.0, roll_deg=0.0))
+        np.testing.assert_allclose(frame.magnetometer_reading.sensor_field_nt, np.array([4.0, 5.0, 6.0]))
+        np.testing.assert_allclose(frame.vehicle_position_xy_m, np.array([100.0, 50.0]))
+        self.assertAlmostEqual(frame.pose_measurement.heading_deg, 10.0)
+        self.assertTrue(frame.burial_measurement.valid)
+        self.assertIsNotNone(frame.sonar_reading)
+        self.assertAlmostEqual(frame.sonar_reading.confidence, 0.8)
+
     def test_spline_route_has_nonzero_curvature(self) -> None:
         scenario = build_default_scenarios()["case6"]
         route = CableRoute(scenario.environment)
         curvature = route.curvature_at_xy(np.array([0.0, 0.0], dtype=float))
         self.assertGreater(curvature, 0.0)
+
+    def test_case7_models_post_track_sonar_dropout_zigzag(self) -> None:
+        scenario = build_default_scenarios()["case7"]
+        self.assertTrue(scenario.sonar.fail_after_track_active)
+        self.assertEqual(scenario.sonar.fail_after_track_delay_s, 0.0)
+        self.assertGreater(scenario.tracking.track_active_zigzag_angle_deg, 0.0)
+
+    def test_case_variants_are_registered_as_downstream_turns(self) -> None:
+        scenarios = build_default_scenarios()
+        for idx in range(1, 7):
+            name = f"case{idx}v"
+            self.assertIn(name, scenarios)
+            scenario = scenarios[name]
+            self.assertEqual(scenario.environment.cable_route_mode, "spline")
+            self.assertGreaterEqual(len(scenario.environment.cable_waypoints_xy_m), 6)
+            self.assertGreater(scenario.duration_s, scenarios[f"case{idx}"].duration_s)
+
+    def test_maze_cases_use_smooth_serpentine_geometry(self) -> None:
+        scenarios = build_default_scenarios()
+        for name in ("case_maze_sonar", "case_maze_no_sonar"):
+            scenario = scenarios[name]
+            self.assertEqual(scenario.environment.cable_route_mode, "serpentine")
+            self.assertFalse(scenario.tracking.use_nominal_route_prior)
+            self.assertTrue(scenario.stop_at_cable_endpoint)
+            self.assertGreaterEqual(scenario.environment.maze_lane_spacing_m, 60.0)
+            self.assertGreaterEqual(scenario.environment.maze_turn_radius_m, 30.0)
+
+            environment = CableEnvironment(scenario)
+            sampled = environment.route.sample_xy(step_m=1.0)
+            curvatures = np.array([environment.route.curvature_at_xy(point) for point in sampled[::5]])
+            finite = curvatures[np.isfinite(curvatures) & (np.abs(curvatures) > 1e-9)]
+            min_radius_m = float(np.min(1.0 / np.abs(finite)))
+            self.assertGreaterEqual(min_radius_m, 30.0 - 1e-6)
+
+    def test_simulate_case_accepts_duration_override(self) -> None:
+        record = simulate_case("case1", duration_override_s=1.0)
+        self.assertEqual(record.n_steps, 20)
+
+    def test_endpoint_stop_records_completion_metadata(self) -> None:
+        record = simulate_case("case1", max_steps=1)
+        self.assertIn("route_completion_ratio", record.metadata)
 
     def test_sonar_dropouts_when_probability_zero(self) -> None:
         sonar = SonarModel(SonarConfig(prob_detection=0.0, max_range_m=15.0, horizontal_fov_deg=120.0))

@@ -7,6 +7,8 @@ Examples
 --------
     python tools/visualize.py --case case1            # one full report
     python tools/visualize.py --all                   # case1..5 + showcase
+    python tools/visualize.py --variants              # case1v..6v + showcase
+    python tools/visualize.py --maze                  # maze stress cases + showcase
     python tools/visualize.py --all --deployment      # deployment mode
     python tools/visualize.py --live --case case1     # real-time dashboard
 """
@@ -38,13 +40,21 @@ from auv_mag_tracking.viz import (  # noqa: E402
 )
 
 DEFAULT_CASES = ["case1", "case2", "case3", "case4", "case5"]
+VARIANT_CASES = ["case1v", "case2v", "case3v", "case4v", "case5v", "case6v"]
+MAZE_CASES = ["case_maze_sonar", "case_maze_no_sonar"]
 RESULTS_ROOT = WORKSPACE_ROOT / "results"
+_DURATION_OVERRIDE_S = None
 
 
 def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
     """跑一例仿真，落盘 record/figures/report，返回其健康指标。"""
     print(f"[viz] simulating {case_name} ({'deployment' if deployment else 'nominal'}) ...")
-    record = simulate_case(case_name, deployment_mode=deployment, max_steps=max_steps)
+    record = simulate_case(
+        case_name,
+        deployment_mode=deployment,
+        max_steps=max_steps,
+        duration_override_s=_DURATION_OVERRIDE_S,
+    )
     metrics = compute_health_metrics(record)
 
     case_dir = run_dir / case_name
@@ -57,6 +67,11 @@ def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
           f"mean_err {metrics.mean_heading_error_deg:.1f}deg  "
           f"TRACK {metrics.track_active_fraction*100:.0f}%  "
           f"switches {metrics.mode_switches}")
+    if record.metadata:
+        completion = record.metadata.get("route_completion_ratio")
+        stop_reason = record.metadata.get("stop_reason")
+        if completion is not None and stop_reason is not None:
+            print(f"       route {completion*100:.1f}%  stop={stop_reason}")
     return metrics
 
 
@@ -64,13 +79,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Unified AUV cable-tracking visualization")
     parser.add_argument("--case", default="case1", help="scenario name (default: case1)")
     parser.add_argument("--all", action="store_true", help="run case1..5 + showcase")
+    parser.add_argument("--variants", action="store_true", help="run case1v..6v downstream-turn variants + showcase")
+    parser.add_argument("--maze", action="store_true", help="run smooth serpentine maze stress cases + showcase")
     parser.add_argument("--progress", action="store_true",
                         help="run case1..5 + before/after progress report vs committed baseline")
     parser.add_argument("--deployment", action="store_true", help="disable nominal route prior")
     parser.add_argument("--live", action="store_true", help="real-time dashboard via main_viz")
     parser.add_argument("--max-steps", type=int, default=None, help="cap simulation steps")
+    parser.add_argument("--duration-s", type=float, default=None, help="override scenario duration for stress tests")
     parser.add_argument("--outdir", default=None, help="override results directory")
     args = parser.parse_args()
+    global _DURATION_OVERRIDE_S
+    _DURATION_OVERRIDE_S = args.duration_s
 
     if args.live:
         from auv_mag_tracking.config import build_default_scenarios
@@ -78,6 +98,8 @@ def main() -> None:
         scenario = build_default_scenarios()[args.case]
         if args.deployment:
             scenario.tracking.use_nominal_route_prior = False
+        if args.duration_s is not None:
+            scenario.duration_s = float(args.duration_s)
         AuvCableTrackingSimulation(scenario).run(enable_visualization=True)
         return
 
@@ -85,10 +107,17 @@ def main() -> None:
     run_dir = Path(args.outdir) if args.outdir else RESULTS_ROOT / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    cases = DEFAULT_CASES if (args.all or args.progress) else [args.case]
+    if args.variants:
+        cases = VARIANT_CASES
+    elif args.maze:
+        cases = MAZE_CASES
+    elif args.all or args.progress:
+        cases = DEFAULT_CASES
+    else:
+        cases = [args.case]
     metrics_list = [_process_case(c, run_dir, args.deployment, args.max_steps) for c in cases]
 
-    if args.all:
+    if args.all or args.variants or args.maze:
         showcase_fig = render_showcase(metrics_list, run_dir / "showcase.png")
         save_showcase_report(metrics_list, showcase_fig, run_dir / "showcase.md")
         print(f"[viz] showcase written to {run_dir / 'showcase.png'}")

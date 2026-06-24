@@ -100,7 +100,7 @@ class PerceptionState:
     estimated_path_covariance_xy_m2: Optional[np.ndarray]
     fit_update_rejected: bool
     estimated_burial_depth_m: Optional[float]
-    true_burial_depth_m: float
+    true_burial_depth_m: Optional[float]
     burial_measurement_valid: bool
     last_detection_age_s: float
     detected_peak_xy_m: Optional[np.ndarray] = None

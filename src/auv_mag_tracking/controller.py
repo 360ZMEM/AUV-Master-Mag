@@ -61,6 +61,8 @@ class ZigZagController:
         return MissionThresholds(
             track_confidence_required=tracking.high_confidence_threshold,
             signal_hold_s=max(tracking.lost_timeout_s, sweep_period_s),
+            cov_perp_converged_m2=tracking.fsm_cov_perp_converged_m2,
+            yaw_err_converged_deg=tracking.fsm_yaw_err_converged_deg,
         )
 
     def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
@@ -110,7 +112,10 @@ class ZigZagController:
             perception.fused_heading_deg is not None
             and perception.confidence >= self.scenario.tracking.low_confidence_threshold
         ):
-            along_cable_heading_deg = perception.fused_heading_deg
+            candidate_heading_deg = perception.fused_heading_deg
+            if abs(smallest_angle_error_deg(candidate_heading_deg, pose.heading_deg)) > 90.0:
+                candidate_heading_deg = wrap_angle_deg(candidate_heading_deg + 180.0)
+            along_cable_heading_deg = candidate_heading_deg
         return along_cable_heading_deg
 
     def _cross_track_offset_m(self, pose: Pose, perception: PerceptionState, base_heading_deg: float) -> Optional[float]:
@@ -170,14 +175,17 @@ class ZigZagController:
         """按任务状态决定本步穿越角。
 
         SEARCH 与 LOCK_ALIGN 都需主动横摆穿越电缆以持续产生磁峰值（拟合收敛的前提）；
-        二者唯一区别是 LOCK_ALIGN 降速取更密采样。TRACK_ACTIVE / EMERGENCY 压线（角=0）。
+        二者唯一区别是 LOCK_ALIGN 降速取更密采样。TRACK_ACTIVE 默认压线；
+        若场景显式配置 ``track_active_zigzag_angle_deg``，则按国标/测线需求保留低幅 zig-zag。
         """
         if state in (MissionState.SEARCH_ZIGZAG, MissionState.LOCK_ALIGN):
             angle_deg = self._crossing_angle_deg(zigzag_width_m)
             if not magnetic_fit_ready:
                 angle_deg = max(angle_deg, self.scenario.tracking.probing_crossing_angle_deg)
             return angle_deg
-        return 0.0  # TRACK_ACTIVE / EMERGENCY_SURFACE: hold centerline
+        if state == MissionState.TRACK_ACTIVE:
+            return max(0.0, self.scenario.tracking.track_active_zigzag_angle_deg)
+        return 0.0  # EMERGENCY_SURFACE: hold centerline
 
     def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
         """结合感知状态与任务 FSM 输出当前控制指令。"""

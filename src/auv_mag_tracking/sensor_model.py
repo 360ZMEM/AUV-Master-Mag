@@ -472,3 +472,21 @@ class SonarModel:
             distance_m=float(np.linalg.norm(noisy_body_xy_m)),
         )
         return self.last_reading
+
+    def force_offline(self, pose: Pose, cable_truth: CableFitTruth, time_s: float, status: str = "OFFLINE") -> SonarReading:
+        """强制声呐离线，用于部署故障注入场景。"""
+        relative_ned_xy_m = cable_truth.nearest_point_xy_m - pose.position_ned_m[:2]
+        distance_m = float(np.linalg.norm(ned_xy_to_body(relative_ned_xy_m, pose.heading_deg)))
+        self.last_sample_time_s = time_s
+        self.last_reading = SonarReading(
+            time_s=time_s,
+            valid=False,
+            status=status,
+            relative_position_body_m=None,
+            relative_heading_body_deg=None,
+            estimated_position_ned_m=None,
+            estimated_heading_ned_deg=None,
+            confidence=0.0,
+            distance_m=distance_m,
+        )
+        return self.last_reading

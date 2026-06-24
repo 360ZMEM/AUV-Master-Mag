@@ -309,6 +309,83 @@ def sample_spline_path(waypoints_xy: np.ndarray, step_m: float) -> np.ndarray:
     return np.column_stack((spline_x(sample_s), spline_y(sample_s)))
 
 
+def sample_serpentine_path(
+    turn_count: int,
+    straight_length_m: float,
+    lane_spacing_m: float,
+    turn_radius_m: float,
+    step_m: float,
+) -> np.ndarray:
+    """Sample a smooth back-and-forth cable with constant-radius U-turns.
+
+    When lane spacing exceeds ``2 * turn_radius_m``, each turnaround is built
+    from two quarter-circle arcs and one straight connector.  This preserves C1
+    continuity and keeps the minimum curvature radius equal to ``turn_radius_m``
+    instead of introducing a hidden corner between lanes.
+    """
+    turn_count = max(1, int(turn_count))
+    straight_length_m = max(float(straight_length_m), 2.0 * float(turn_radius_m))
+    lane_spacing_m = max(float(lane_spacing_m), 2.0 * float(turn_radius_m))
+    turn_radius_m = max(float(turn_radius_m), EPSILON)
+    step_m = max(float(step_m), 0.5)
+    half_length_m = 0.5 * straight_length_m
+
+    points = []
+
+    def append_line(start_xy: np.ndarray, end_xy: np.ndarray) -> None:
+        distance_m = float(np.linalg.norm(end_xy - start_xy))
+        count = max(2, int(np.ceil(distance_m / step_m)) + 1)
+        for idx, alpha in enumerate(np.linspace(0.0, 1.0, count)):
+            if points and idx == 0:
+                continue
+            points.append(start_xy + alpha * (end_xy - start_xy))
+
+    def append_arc(center_xy: np.ndarray, start_rad: float, end_rad: float) -> None:
+        arc_length_m = abs(end_rad - start_rad) * turn_radius_m
+        count = max(8, int(np.ceil(arc_length_m / step_m)) + 1)
+        for idx, theta in enumerate(np.linspace(start_rad, end_rad, count)):
+            if points and idx == 0:
+                continue
+            points.append(center_xy + turn_radius_m * np.array([np.cos(theta), np.sin(theta)], dtype=float))
+
+    lane_count = turn_count + 1
+    for lane_idx in range(lane_count):
+        lane_y_m = -lane_idx * lane_spacing_m
+        if lane_idx % 2 == 0:
+            line_start = np.array([-half_length_m, lane_y_m], dtype=float)
+            line_end = np.array([half_length_m, lane_y_m], dtype=float)
+        else:
+            line_start = np.array([half_length_m, lane_y_m], dtype=float)
+            line_end = np.array([-half_length_m, lane_y_m], dtype=float)
+        append_line(line_start, line_end)
+
+        if lane_idx == turn_count:
+            break
+        connector_m = max(0.0, lane_spacing_m - 2.0 * turn_radius_m)
+        if lane_idx % 2 == 0:
+            upper_center = np.array([half_length_m, lane_y_m - turn_radius_m], dtype=float)
+            lower_center = np.array([half_length_m, lane_y_m - lane_spacing_m + turn_radius_m], dtype=float)
+            append_arc(upper_center, 0.5 * np.pi, 0.0)
+            if connector_m > EPSILON:
+                append_line(
+                    np.array([half_length_m + turn_radius_m, lane_y_m - turn_radius_m], dtype=float),
+                    np.array([half_length_m + turn_radius_m, lane_y_m - lane_spacing_m + turn_radius_m], dtype=float),
+                )
+            append_arc(lower_center, 0.0, -0.5 * np.pi)
+        else:
+            upper_center = np.array([-half_length_m, lane_y_m - turn_radius_m], dtype=float)
+            lower_center = np.array([-half_length_m, lane_y_m - lane_spacing_m + turn_radius_m], dtype=float)
+            append_arc(upper_center, 0.5 * np.pi, np.pi)
+            if connector_m > EPSILON:
+                append_line(
+                    np.array([-half_length_m - turn_radius_m, lane_y_m - turn_radius_m], dtype=float),
+                    np.array([-half_length_m - turn_radius_m, lane_y_m - lane_spacing_m + turn_radius_m], dtype=float),
+                )
+            append_arc(lower_center, np.pi, 1.5 * np.pi)
+
+    return np.asarray(points, dtype=float)
+
+
 def sample_sine_overlay_path(
     waypoints_xy: np.ndarray,
     step_m: float,
@@ -336,13 +413,21 @@ def build_nominal_route_xy(environment_config) -> np.ndarray:
     """按环境配置的路线模式生成名义电缆折线（先验参考的单一来源）。
 
     供 controller 与 perception 共享，避免两处各自复制采样逻辑而漂移。线性模式
-    返回原始 waypoints（与控制器 / 感知历史行为字节一致），spline/sine 模式按
+    返回原始 waypoints（与控制器 / 感知历史行为字节一致），spline/sine/serpentine 模式按
     ``field_segment_length_m`` 半步采样。
     """
     waypoints_xy = np.asarray(environment_config.cable_waypoints_xy_m, dtype=float)
     step_m = max(environment_config.field_segment_length_m * 0.5, 1.0)
     if environment_config.cable_route_mode == "spline":
         return sample_spline_path(waypoints_xy, step_m)
+    if environment_config.cable_route_mode == "serpentine":
+        return sample_serpentine_path(
+            turn_count=environment_config.maze_turn_count,
+            straight_length_m=environment_config.maze_straight_length_m,
+            lane_spacing_m=environment_config.maze_lane_spacing_m,
+            turn_radius_m=environment_config.maze_turn_radius_m,
+            step_m=step_m,
+        )
     if environment_config.cable_route_mode == "sine":
         return sample_sine_overlay_path(
             waypoints_xy,

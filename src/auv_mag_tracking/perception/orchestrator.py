@@ -309,7 +309,7 @@ class MagneticCablePerception:
         pose_measurement: PoseMeasurement,
         vehicle_position_xy_m: np.ndarray,
         burial_measurement: BurialDepthMeasurement,
-        true_burial_depth_m: float,
+        true_burial_depth_m: Optional[float] = None,
         sonar_reading: Optional[SonarReading] = None,
         signal_features: Optional[ProcessedSignalFeatures] = None,
     ) -> PerceptionState:
@@ -374,7 +374,10 @@ class MagneticCablePerception:
             dominant_frequency_hz = self.scenario.signal.frequency_hz if is_ac_detected else 0.0
 
         weak_signal_threshold_nt = self.scenario.sensor.weak_signal_threshold_nt
-        weak_signal_flag = max(reading.cable_strength_nt, tracking_strength_nt) < weak_signal_threshold_nt or not signal_reliable
+        if signal_features is not None:
+            weak_signal_flag = signal_features.weak_signal_flag
+        else:
+            weak_signal_flag = tracking_strength_nt < weak_signal_threshold_nt or not signal_reliable
 
         # --- Signal enhancement layer updates ---
         # 1. Envelope gradient tracking
