@@ -96,6 +96,6 @@ python3 tools/visualize.py --all
 
 如果继续推进到下一轮，优先级建议如下：
 
-1. **曲率感知拟合**：现有 `WeightedSlidingWindowFitter` 为直线模型，在 R < 50m 急弯（如 case5）拟合冻结导致显著航向偏差，需引入圆弧/样条模型。
+1. **磁横偏符号/尺度标定**：`controller.py` 在声呐失效时消费的 `magnetic_cross_track_offset_m` 存在 case 间不一致的符号/尺度偏差，需重新标定其物理模型（独立磁法中心线估计器路线已证伪——埋设缆曲率弧垂低于声呐缆点噪声基底，曲率信号不可观测；case5 弯段已改由环境层波长放宽收口至 9.85°）。
 2. **自动调参**：为高噪声场景（case3）与高保真场景接入 `tools/sweep_tracking_params.py` 系统搜索更优阈值。
 3. **实时集成**：将 `experimental/simulator_connector` 对接 HoloOcean，把"贴缆前行"推向更接近实机的水动力学闭环。

@@ -16,3 +16,4 @@ trae/
 **/.DS_Store
 health*
 results/
+.trae/
