@@ -85,6 +85,7 @@ class LocalCableStateEstimator:
         heading_blend: float = 0.65,
         curve_heading_delta_deg: float = 12.0,
         reacquire_gap_s: float = 8.0,
+        min_observation_spacing_m: float = 1.5,
         state_machine_enabled: bool = True,
     ) -> None:
         self.capacity = max(3, int(capacity))
@@ -95,6 +96,7 @@ class LocalCableStateEstimator:
         self.heading_blend = float(np.clip(heading_blend, 0.0, 0.9))
         self.curve_heading_delta_deg = max(0.0, float(curve_heading_delta_deg))
         self.reacquire_gap_s = max(0.1, float(reacquire_gap_s))
+        self.min_observation_spacing_m = max(0.0, float(min_observation_spacing_m))
         self.state_machine_enabled = bool(state_machine_enabled)
         self.observations: Deque[LocalPathObservation] = deque(maxlen=self.capacity)
         self.tracking_state = LocalPathTrackingState.COLLECTING
@@ -120,14 +122,26 @@ class LocalCableStateEstimator:
             self.tracking_state = LocalPathTrackingState.REACQUIRE
             self.last_state = None
             self.observations.clear()
-        self.observations.append(
-            LocalPathObservation(
-                position_xy_m=np.asarray(position_xy_m, dtype=float),
-                time_s=float(time_s),
-                confidence=float(np.clip(confidence, 1e-3, 1.0)),
-                heading_deg=None if heading_deg is None else float(heading_deg),
-            )
+        position_xy = np.asarray(position_xy_m, dtype=float)
+        observation = LocalPathObservation(
+            position_xy_m=position_xy,
+            time_s=float(time_s),
+            confidence=float(np.clip(confidence, 1e-3, 1.0)),
+            heading_deg=None if heading_deg is None else float(heading_deg),
         )
+        if (
+            self.observations
+            and self.min_observation_spacing_m > 0.0
+            and np.linalg.norm(position_xy - self.observations[-1].position_xy_m) < self.min_observation_spacing_m
+        ):
+            self.observations[-1] = LocalPathObservation(
+                position_xy_m=self.observations[-1].position_xy_m.copy(),
+                time_s=observation.time_s,
+                confidence=max(self.observations[-1].confidence, observation.confidence),
+                heading_deg=observation.heading_deg if observation.heading_deg is not None else self.observations[-1].heading_deg,
+            )
+            return
+        self.observations.append(observation)
 
     def estimate(self) -> Optional[LocalCableState]:
         if len(self.observations) < 2:
@@ -205,11 +219,16 @@ class LocalCableStateEstimator:
 
         candidate_state = self._enforce_heading_continuity(candidate_state)
 
-        curve_signal = (
-            candidate_state.model == "arc"
-            or abs(smallest_angle_error_deg(local_line_state.heading_deg, line_state.heading_deg)) >= self.curve_heading_delta_deg
+        # Heading observations can jump during zig-zag crossings even on a
+        # straight cable.  Treat them as curve evidence only after the global
+        # line fit shows non-trivial geometric residual; otherwise a straight
+        # bootstrap lane is misclassified as CURVE_TRACK and loses search width.
+        geometry_curve_signal = line_state.residual_m >= 0.5
+        heading_curve_signal = (
+            abs(smallest_angle_error_deg(local_line_state.heading_deg, line_state.heading_deg)) >= self.curve_heading_delta_deg
             or self._recent_heading_span_deg() >= self.curve_heading_delta_deg
         )
+        curve_signal = candidate_state.model == "arc" or (geometry_curve_signal and heading_curve_signal)
         if len(self.observations) < max(3, self.local_line_window):
             self.tracking_state = LocalPathTrackingState.COLLECTING
         elif curve_signal:

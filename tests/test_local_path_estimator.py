@@ -298,6 +298,35 @@ class LocalCableStateEstimatorTest(unittest.TestCase):
         self.assertIn(state.tracking_state, {LocalPathTrackingState.COLLECTING, LocalPathTrackingState.LINE_TRACK})
         self.assertLess(abs(smallest_angle_error_deg(state.heading_deg, 0.0)), 5.0)
 
+    def test_state_machine_restores_curve_track_after_reacquire_gap(self) -> None:
+        estimator = LocalCableStateEstimator(
+            capacity=18,
+            local_line_window=5,
+            heading_blend=0.65,
+            curve_heading_delta_deg=10.0,
+            reacquire_gap_s=4.0,
+        )
+        first_points, first_headings = _maze_u_turn_points(radius_m=60.0)
+        for index, (point, heading_deg) in enumerate(zip(first_points[:16], first_headings[:16])):
+            estimator.add_observation(point, time_s=float(index), confidence=0.9, heading_deg=heading_deg)
+            estimator.estimate()
+
+        second_points, second_headings = _maze_u_turn_points(radius_m=60.0)
+        restored_states = []
+        start_time_s = 40.0
+        for index, (point, heading_deg) in enumerate(zip(second_points[16:30], second_headings[16:30])):
+            estimator.add_observation(point, time_s=start_time_s + float(index), confidence=0.9, heading_deg=heading_deg)
+            state = estimator.estimate()
+            if state is not None:
+                restored_states.append((state, heading_deg))
+
+        self.assertGreater(len(restored_states), 4)
+        self.assertEqual(restored_states[-1][0].tracking_state, LocalPathTrackingState.CURVE_TRACK)
+        self.assertLess(
+            abs(smallest_angle_error_deg(restored_states[-1][0].heading_deg, restored_states[-1][1])),
+            12.0,
+        )
+
     def test_clockwise_arc_reports_negative_curvature(self) -> None:
         estimator = LocalCableStateEstimator(capacity=18, min_arc_radius_m=30.0)
         points, angles_deg = _arc_points(

@@ -25,7 +25,7 @@ from .confidence import ConfidenceEstimator
 from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
-from .local_path import LocalCableStateEstimator
+from .local_path import LocalCableStateEstimator, LocalPathTrackingState
 from .peaks import PeakDetector
 from .state import FitResult, PerceptionState
 from .vector import EnvelopeGradientTracker, MagneticVectorAnalyzer
@@ -72,7 +72,18 @@ class MagneticCablePerception:
             capacity=scenario.tracking.local_path_capacity,
             local_line_window=scenario.tracking.local_path_local_line_window,
             heading_blend=scenario.tracking.local_path_heading_blend,
+            min_observation_spacing_m=0.0,
             state_machine_enabled=False,
+        )
+        self.local_path_tracking_estimator = LocalCableStateEstimator(
+            capacity=scenario.tracking.local_path_capacity,
+            local_line_window=scenario.tracking.local_path_local_line_window,
+            heading_blend=scenario.tracking.local_path_heading_blend,
+            min_observation_spacing_m=scenario.tracking.local_path_min_observation_spacing_m,
+            state_machine_enabled=(
+                scenario.tracking.local_path_guidance_enabled
+                and not scenario.tracking.use_nominal_route_prior
+            ),
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
@@ -479,9 +490,20 @@ class MagneticCablePerception:
                 confidence=max(sonar_reading.confidence, 0.05),
                 heading_deg=sonar_reading.estimated_heading_ned_deg,
             )
+            self.local_path_tracking_estimator.add_observation(
+                np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2],
+                time_s=reading.time_s,
+                confidence=max(sonar_reading.confidence, 0.05),
+                heading_deg=sonar_reading.estimated_heading_ned_deg,
+            )
             detection_age_s = reading.time_s - self.fitter.last_detection_time_s
         elif detected_peak_xy_m is not None:
             self.local_path_estimator.add_observation(
+                detected_peak_xy_m,
+                time_s=reading.time_s,
+                confidence=max(self.last_output_confidence, 0.05),
+            )
+            self.local_path_tracking_estimator.add_observation(
                 detected_peak_xy_m,
                 time_s=reading.time_s,
                 confidence=max(self.last_output_confidence, 0.05),
@@ -506,6 +528,7 @@ class MagneticCablePerception:
             self.last_confirmed_peak_strength_nt = 0.0
 
         local_path_state = self.local_path_estimator.estimate()
+        local_path_tracking_state_estimate = self.local_path_tracking_estimator.estimate()
         fit_result_candidate = self.fitter.fit()
         fit_update_rejected = False
         bootstrap_fit_ready = self._bootstrap_fit_ready(fit_result_candidate)
@@ -575,6 +598,23 @@ class MagneticCablePerception:
             if local_path_state is not None
             else float("inf")
         )
+        local_path_tracking_state = (
+            local_path_tracking_state_estimate.tracking_state
+            if local_path_tracking_state_estimate is not None
+            else self.local_path_tracking_estimator.tracking_state
+        )
+        local_path_stale_for_reacquire = (
+            self.scenario.tracking.local_path_guidance_enabled
+            and not self.scenario.tracking.use_nominal_route_prior
+            and local_path_state is not None
+            and local_path_age_s > self.scenario.tracking.reacquire_stale_timeout_s
+            and reading.time_s >= self.scenario.tracking.reacquire_min_elapsed_s
+        )
+        if local_path_stale_for_reacquire:
+            local_path_tracking_state = LocalPathTrackingState.REACQUIRE
+        local_path_max_residual_m = self.scenario.tracking.local_path_max_residual_m
+        if local_path_tracking_state == LocalPathTrackingState.CURVE_TRACK:
+            local_path_max_residual_m *= self.scenario.tracking.local_path_curve_residual_relax
         local_path_guidance_ready = (
             self.scenario.tracking.local_path_guidance_enabled
             and not self.scenario.tracking.use_nominal_route_prior
@@ -582,8 +622,9 @@ class MagneticCablePerception:
             and local_path_state.heading_deg is not None
             and local_path_state.confidence >= self.scenario.tracking.local_path_min_confidence
             and np.isfinite(local_path_state.residual_m)
-            and local_path_state.residual_m <= self.scenario.tracking.local_path_max_residual_m
+            and local_path_state.residual_m <= local_path_max_residual_m
             and local_path_age_s <= self.scenario.tracking.local_path_max_age_s
+            and not local_path_stale_for_reacquire
         )
 
         # --- Task 1: Sonar Seed Injection (Highest Priority) ---
@@ -739,6 +780,7 @@ class MagneticCablePerception:
         local_path_confidence = 0.0
         local_path_residual_m = float("inf")
         local_path_radius_m = float("inf")
+        local_path_tracking_state_value = local_path_tracking_state.value
         if local_path_state is not None:
             local_path_model_code = local_path_model_codes.get(local_path_state.model, 0.0)
             local_path_heading_deg = local_path_state.heading_deg
@@ -788,6 +830,10 @@ class MagneticCablePerception:
             detected_peak_xy_m=detected_peak_xy_m,
             deployment_estimated_cable_heading_deg=self.deployment_estimated_cable_heading_deg,
             deployment_heading_confidence=self.deployment_heading_confidence,
+            deployment_reacquire_required=(
+                local_path_tracking_state == LocalPathTrackingState.REACQUIRE
+                or local_path_stale_for_reacquire
+            ),
             # Signal enhancement outputs
             envelope_gradient_nT_per_m=self.envelope_tracker.gradient_nT_per_m,
             envelope_gradient_heading_deg=self.envelope_tracker.gradient_heading_deg,
@@ -821,4 +867,5 @@ class MagneticCablePerception:
             local_path_confidence=local_path_confidence,
             local_path_residual_m=local_path_residual_m,
             local_path_radius_m=local_path_radius_m,
+            local_path_tracking_state=local_path_tracking_state_value,
         )

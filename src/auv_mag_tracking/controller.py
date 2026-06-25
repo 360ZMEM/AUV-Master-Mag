@@ -50,6 +50,8 @@ class ZigZagController:
         self.nominal_route_xy = build_nominal_route_xy(self.scenario.environment)
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
         self.smoothed_base_heading_deg: Optional[float] = None
+        self.last_trusted_cable_point_xy_m: Optional[np.ndarray] = None
+        self.last_trusted_cable_heading_deg: Optional[float] = None
 
     def _build_mission_thresholds(self) -> MissionThresholds:
         """从场景配置组装任务层阈值（暂用默认 + 复用已有置信度阈值）。"""
@@ -108,6 +110,11 @@ class ZigZagController:
             return heading_from_direction_xy(tangent_xy)
 
         along_cable_heading_deg = pose.heading_deg
+        if (
+            perception.local_path_tracking_state == "curve_track"
+            and perception.fused_heading_deg is not None
+        ):
+            return perception.fused_heading_deg
         if (
             perception.fused_heading_deg is not None
             and perception.confidence >= self.scenario.tracking.low_confidence_threshold
@@ -171,13 +178,21 @@ class ZigZagController:
             peak_detected=perception.peak_detected,
         )
 
-    def _crossing_angle_for_state(self, state: MissionState, zigzag_width_m: float, magnetic_fit_ready: bool) -> float:
+    def _crossing_angle_for_state(
+        self,
+        state: MissionState,
+        zigzag_width_m: float,
+        magnetic_fit_ready: bool,
+        local_path_tracking_state: str = "collecting",
+    ) -> float:
         """按任务状态决定本步穿越角。
 
         SEARCH 与 LOCK_ALIGN 都需主动横摆穿越电缆以持续产生磁峰值（拟合收敛的前提）；
         二者唯一区别是 LOCK_ALIGN 降速取更密采样。TRACK_ACTIVE 默认压线；
         若场景显式配置 ``track_active_zigzag_angle_deg``，则按国标/测线需求保留低幅 zig-zag。
         """
+        if local_path_tracking_state == "curve_track":
+            return max(0.0, self.scenario.tracking.curve_track_crossing_angle_deg)
         if state in (MissionState.SEARCH_ZIGZAG, MissionState.LOCK_ALIGN):
             angle_deg = self._crossing_angle_deg(zigzag_width_m)
             if not magnetic_fit_ready:
@@ -187,6 +202,59 @@ class ZigZagController:
             return max(0.0, self.scenario.tracking.track_active_zigzag_angle_deg)
         return 0.0  # EMERGENCY_SURFACE: hold centerline
 
+    def _remember_trusted_cable_state(self, perception: PerceptionState) -> None:
+        """Store the last usable cable anchor for turn-aware reacquisition."""
+        if perception.deployment_reacquire_required:
+            return
+        if perception.estimated_cable_point_xy_m is None:
+            return
+        heading_deg = (
+            perception.local_path_heading_deg
+            if perception.local_path_heading_deg is not None
+            else perception.fused_heading_deg
+        )
+        if heading_deg is None:
+            return
+        if perception.confidence < self.scenario.tracking.low_confidence_threshold:
+            return
+        self.last_trusted_cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float).copy()
+        self.last_trusted_cable_heading_deg = float(heading_deg)
+
+    def _reacquire_heading_deg(
+        self,
+        pose: Pose,
+        perception: PerceptionState,
+        fallback_heading_deg: float,
+    ) -> Optional[float]:
+        """Search around the last cable anchor instead of sweeping along a stale heading."""
+        anchor_xy = self.last_trusted_cable_point_xy_m
+        heading_deg = self.last_trusted_cable_heading_deg
+        if not perception.deployment_reacquire_required and perception.estimated_cable_point_xy_m is not None:
+            anchor_xy = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
+        if not perception.deployment_reacquire_required and perception.local_path_heading_deg is not None:
+            heading_deg = perception.local_path_heading_deg
+        elif not perception.deployment_reacquire_required and perception.fused_heading_deg is not None:
+            heading_deg = perception.fused_heading_deg
+
+        if anchor_xy is None:
+            return None
+        if heading_deg is None:
+            heading_deg = fallback_heading_deg
+
+        heading_rad = np.deg2rad(heading_deg)
+        tangent_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+        perpendicular_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
+        radius_m = max(self.scenario.tracking.reacquire_search_radius_m, self.scenario.tracking.min_zigzag_half_band_width_m)
+        anchor_delta_xy = anchor_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(anchor_delta_xy) > 1.5 * radius_m:
+            target_xy = anchor_xy
+        else:
+            target_xy = anchor_xy + 0.5 * radius_m * tangent_xy + self.leg_sign * radius_m * perpendicular_xy
+        delta_xy = target_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(delta_xy) < 1e-6:
+            return None
+        return heading_from_direction_xy(delta_xy)
+
     def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
         """结合感知状态与任务 FSM 输出当前控制指令。"""
         decision: MissionDecision = self.mission_manager.update(self._mission_input(pose, perception))
@@ -194,6 +262,7 @@ class ZigZagController:
 
         base_heading_deg = self._base_heading_deg(pose, perception)
         zigzag_width_m = perception.zigzag_width_m
+        self._remember_trusted_cable_state(perception)
 
         # --- Cross-track-band leg flip ---
         # The sweep flips when the vehicle reaches the half-band edge on the side
@@ -223,7 +292,9 @@ class ZigZagController:
             self.last_leg_flip_time_s = perception.time_s
 
         # --- Base-heading low-pass ---
-        if self.smoothed_base_heading_deg is None:
+        if perception.local_path_tracking_state == "curve_track":
+            self.smoothed_base_heading_deg = base_heading_deg
+        elif self.smoothed_base_heading_deg is None:
             self.smoothed_base_heading_deg = base_heading_deg
         else:
             heading_diff = smallest_angle_error_deg(base_heading_deg, self.smoothed_base_heading_deg)
@@ -231,8 +302,17 @@ class ZigZagController:
         effective_base_heading_deg = self.smoothed_base_heading_deg
 
         magnetic_fit_ready = perception.fit_result.origin_xy_m is not None and len(perception.estimated_path_points_xy_m) >= 3
-        crossing_angle_deg = self._crossing_angle_for_state(state, zigzag_width_m, magnetic_fit_ready)
+        crossing_angle_deg = self._crossing_angle_for_state(
+            state,
+            zigzag_width_m,
+            magnetic_fit_ready,
+            perception.local_path_tracking_state,
+        )
         desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
+        if perception.deployment_reacquire_required:
+            reacquire_heading_deg = self._reacquire_heading_deg(pose, perception, effective_base_heading_deg)
+            if reacquire_heading_deg is not None:
+                desired_heading_deg = reacquire_heading_deg
 
         # --- TRACK_ACTIVE centerline hold ---
         # Holding the cable tangent alone lets residual cross-track offset persist
@@ -257,6 +337,8 @@ class ZigZagController:
         speed_factor = decision.speed_factor
         if state == MissionState.LOCK_ALIGN and not magnetic_fit_ready:
             speed_factor = 1.0
+        if perception.local_path_tracking_state == "curve_track":
+            speed_factor = min(speed_factor, self.scenario.tracking.curve_track_speed_factor)
         speed_mps = self.scenario.vehicle.cruise_speed_mps * speed_factor
 
         yaw_rate_deg_s = self._limited_yaw_rate_deg_s(speed_mps, desired_heading_deg, pose.heading_deg)

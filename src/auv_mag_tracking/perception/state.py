@@ -133,3 +133,4 @@ class PerceptionState:
     local_path_confidence: float = 0.0
     local_path_residual_m: float = float("inf")
     local_path_radius_m: float = float("inf")
+    local_path_tracking_state: str = "collecting"

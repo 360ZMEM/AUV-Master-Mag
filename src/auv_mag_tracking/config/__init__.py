@@ -268,6 +268,8 @@ class TrackingConfig:
         local_path_min_confidence: 局部路径参与融合所需最低置信度。
         local_path_max_residual_m: 局部路径参与融合允许的最大残差。
         local_path_max_age_s: 局部路径参与融合允许的最大观测年龄。
+        local_path_curve_residual_relax: 曲线跟踪态下局部路径残差门控的放宽倍数。
+        local_path_min_observation_spacing_m: 局部路径观测进入滑窗的最小空间间隔。
         consecutive_miss_threshold: 连续漏检后触发退化策略的次数阈值。
         spiral_radius_growth_mps: 螺旋搜索半径增长速度。
         spiral_max_radius_m: 螺旋搜索最大半径。
@@ -303,6 +305,11 @@ class TrackingConfig:
         track_cross_track_gain_deg_per_m: TRACK_ACTIVE 压线时每米横偏对应的航向修正增益。
         track_cross_track_max_correction_deg: 压线航向修正的饱和上限。
         track_active_zigzag_angle_deg: TRACK_ACTIVE 继续执行低幅 zig-zag 的穿越角；0 表示中心线压线。
+        curve_track_speed_factor: CURVE_TRACK 时降速保锁比例。
+        curve_track_crossing_angle_deg: CURVE_TRACK 时保留的低幅穿越角。
+        reacquire_search_radius_m: 重捕获搜索以最近可信电缆点为锚的搜索半径。
+        reacquire_stale_timeout_s: 局部路径过时多久后才进入部署重捕获。
+        reacquire_min_elapsed_s: 仿真/任务运行多久后才允许部署重捕获接管。
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
@@ -358,6 +365,8 @@ class TrackingConfig:
     local_path_min_confidence: float = 0.25
     local_path_max_residual_m: float = 3.0
     local_path_max_age_s: float = 20.0
+    local_path_curve_residual_relax: float = 2.0
+    local_path_min_observation_spacing_m: float = 0.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
@@ -396,6 +405,11 @@ class TrackingConfig:
     track_cross_track_gain_deg_per_m: float = 2.0
     track_cross_track_max_correction_deg: float = 20.0
     track_active_zigzag_angle_deg: float = 0.0
+    curve_track_speed_factor: float = 1.0
+    curve_track_crossing_angle_deg: float = 0.0
+    reacquire_search_radius_m: float = 20.0
+    reacquire_stale_timeout_s: float = 16.0
+    reacquire_min_elapsed_s: float = 0.0
     # --- Robust peak finding parameters ---
     parabolic_interpolation_enabled: bool = True
     peak_position_delay_s: float = 0.04
@@ -1034,6 +1048,13 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.local_path_min_confidence = 0.25
         scenario.tracking.local_path_max_residual_m = 3.0
         scenario.tracking.local_path_max_age_s = 120.0
+        scenario.tracking.local_path_curve_residual_relax = 2.0
+        scenario.tracking.local_path_min_observation_spacing_m = 0.0
+        scenario.tracking.curve_track_speed_factor = 0.6
+        scenario.tracking.curve_track_crossing_angle_deg = 6.0
+        scenario.tracking.reacquire_search_radius_m = 24.0
+        scenario.tracking.reacquire_stale_timeout_s = 8.0
+        scenario.tracking.reacquire_min_elapsed_s = 0.0
         scenario.tracking.lost_timeout_s = 8.0
         scenario.tracking.sonar_preferred_distance_m = 8.0
         scenario.tracking.fsm_cov_perp_converged_m2 = 20.0
