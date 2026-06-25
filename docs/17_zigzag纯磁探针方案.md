@@ -217,3 +217,39 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 | `p17_probe10_mag_lookahead_age180` | 20.9 | 21.0m | 26.7° | 7.7% | 55.7m | 44.0% | 15.9° | 18.1m | 50.1s | 延长保持时间提高覆盖和 route，但位置误差退化，不能合入。 |
 
 lookahead 使相位事件从“离散诊断”变成了可被控制器消费的连续局部线，但当前 `case_maze_sonar_dropout` 仍没有达到有效推进：最佳 route 仅 `7.7%`，且依赖更老的外推目标。下一步不应继续延长保持时间，而应提高相位事件频率或让控制律显式追踪 lookahead 前方目标，例如在 `TRACK_ACTIVE` 中加入 lookahead pure-pursuit 航向项，并用相位事件刷新目标。
+
+### 9.5 多路径探索：让 zig-zag 与估计器就绪
+
+本轮继续探索五类方法：
+
+1. `lookahead pure-pursuit`：让 TRACK 航向显式朝前方目标修正。
+2. 更长 lookahead 保持时间：验证连续性是否能换 route。
+3. 更大 zig-zag 幅度：验证主动激励是否不足。
+4. 更低相位阈值：验证相位事件频率是否不足。
+5. lookahead 持续喂 `local_path`：验证是否能把估计器喂到 ready。
+
+新增短测入口：
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p18_probe10_lookahead_pursuit --name p19_probe10_lookahead_pursuit_age180 --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p20_probe14_lookahead_pursuit --name p21_probe10_lookahead_lowphase --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p23_probe10_feedlocal_age45 --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 24000
+```
+
+| variant | max steps | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead coverage | lookahead pos err | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p18_probe10_lookahead_pursuit` | 12000 | 24.3 | 19.7m | 45.5° | 5.9% | 35.1m | 35.0% | 11.2m | pure-pursuit 控制项几乎不改变 p16，说明目标方向与基准航向接近。 |
+| `p19_probe10_lookahead_pursuit_age180` | 12000 | 21.5 | 22.9m | 26.1° | 7.8% | 56.6m | 44.0% | 18.2m | 长保持略增 route，但位置误差退化。 |
+| `p20_probe14_lookahead_pursuit` | 12000 | 24.3 | 19.4m | 45.3° | 5.9% | 34.1m | 35.0% | 11.1m | 14° zig-zag 未提高相位/lookahead 质量。 |
+| `p21_probe10_lookahead_lowphase` | 12000 | 24.3 | 19.7m | 45.5° | 5.9% | 35.1m | 35.0% | 11.2m | 降低相位阈值无收益，事件频率未真正改善。 |
+| `p22_probe10_lookahead_feedlocal` | 12000 | 25.4 | 7.7m | 41.2° | 36.8% | 52.4m | 41.6% | 17.7m | lookahead 持续喂 local path 能短期推进，说明估计器可被喂到 near-ready。 |
+| `p22_probe10_lookahead_feedlocal` | 24000 | 16.8 | 7.7m | 41.2° | 0.0% | 66.2m | 20.8% | 17.7m | 长测回退，旧 lookahead 污染 local path，不可合入。 |
+| `p23_probe10_feedlocal_age45` | 12000 | 36.5 | 6.0m | 36.3° | 0.7% | 0.2m | 11.1% | 7.0m | 更短保持降低污染，但估计器供给不足，route 不推进。 |
+| `p24_probe10_feedlocal_local60` | 12000 | 23.2 | 24.0m | 133.1° | 36.9% | 45.7m | 15.0% | 35.0m | 缩短 local path 记忆也能短期冲 route，但估计明显发散。 |
+| `p24_probe10_feedlocal_local60` | 24000 | 11.9 | 24.0m | 133.1° | 0.0% | 73.5m | 7.5% | 35.0m | 长测同样回退，属于错误估计驱动的短期推进。 |
+
+阶段结论：当前最接近“让估计器就绪”的路径是 `lookahead -> local_path` 持续供给，短测能把 route 推到 `36-37%`；但长测会回退，说明它同时把过期/错误 lookahead 注入了估计器。后续应加入“lookahead 观测进入 local_path 的保鲜门控”：按 age、轴线创新、局部残差和连续相位刷新率控制输入，而不是无条件持续喂入。

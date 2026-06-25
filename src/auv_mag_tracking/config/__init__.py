@@ -398,6 +398,7 @@ class TrackingConfig:
     magnetic_lookahead_distance_m: float = 20.0
     magnetic_lookahead_heading_blend: float = 0.45
     magnetic_lookahead_min_confidence: float = 0.20
+    magnetic_lookahead_feed_local_path: bool = False
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
@@ -435,6 +436,9 @@ class TrackingConfig:
     # --- TRACK_ACTIVE centerline hold (drives cross-track offset to zero) ---
     track_cross_track_gain_deg_per_m: float = 2.0
     track_cross_track_max_correction_deg: float = 20.0
+    magnetic_lookahead_pursuit_enabled: bool = False
+    magnetic_lookahead_pursuit_gain: float = 0.55
+    magnetic_lookahead_pursuit_max_correction_deg: float = 25.0
     track_active_zigzag_angle_deg: float = 0.0
     curve_track_speed_factor: float = 1.0
     curve_track_crossing_angle_deg: float = 0.0

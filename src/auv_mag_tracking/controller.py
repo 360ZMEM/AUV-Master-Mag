@@ -420,6 +420,22 @@ class ZigZagController:
         # vehicle keeps tracking the line from the magnetometer alone when sonar
         # drops out, without the coarse offset ever touching the line fit.
         if state == MissionState.TRACK_ACTIVE:
+            if (
+                self.scenario.tracking.magnetic_lookahead_pursuit_enabled
+                and perception.magnetic_lookahead_valid
+                and perception.magnetic_lookahead_target_xy_m is not None
+            ):
+                target_xy_m = np.asarray(perception.magnetic_lookahead_target_xy_m, dtype=float)
+                to_target_xy = target_xy_m - pose.position_ned_m[:2]
+                target_heading_deg = heading_from_direction_xy(to_target_xy)
+                if target_heading_deg is not None:
+                    pursuit_error_deg = smallest_angle_error_deg(target_heading_deg, desired_heading_deg)
+                    pursuit_correction_deg = float(np.clip(
+                        self.scenario.tracking.magnetic_lookahead_pursuit_gain * pursuit_error_deg,
+                        -self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
+                        self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
+                    ))
+                    desired_heading_deg = wrap_angle_deg(desired_heading_deg + pursuit_correction_deg)
             track_offset_m = self._track_cross_track_offset_m(pose, perception, effective_base_heading_deg)
             if track_offset_m is not None:
                 correction_deg = float(np.clip(

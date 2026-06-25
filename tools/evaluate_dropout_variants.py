@@ -149,6 +149,102 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p18_probe10_lookahead_pursuit", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p19_probe10_lookahead_pursuit_age180", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_max_age_s=180.0,
+            lookahead_pursuit=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p20_probe14_lookahead_pursuit", lambda s: _zigzag_probe(
+            s,
+            angle_deg=14.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p21_probe10_lookahead_lowphase", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.25,
+            lookahead=True,
+            lookahead_pursuit=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p22_probe10_lookahead_feedlocal", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            lookahead_feed_local_path=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p23_probe10_feedlocal_age45", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_max_age_s=45.0,
+            lookahead_pursuit=True,
+            lookahead_feed_local_path=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p24_probe10_feedlocal_local60", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=60.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            lookahead_feed_local_path=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -180,6 +276,8 @@ def _zigzag_probe(
     phase_latch_duration_s: float = 0.0,
     lookahead: bool = False,
     lookahead_max_age_s: float = 90.0,
+    lookahead_pursuit: bool = False,
+    lookahead_feed_local_path: bool = False,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
@@ -210,6 +308,11 @@ def _zigzag_probe(
         scenario.tracking.magnetic_lookahead_distance_m = 20.0
         scenario.tracking.magnetic_lookahead_heading_blend = 0.45
         scenario.tracking.magnetic_lookahead_min_confidence = 0.10
+        scenario.tracking.magnetic_lookahead_feed_local_path = lookahead_feed_local_path
+    if lookahead_pursuit:
+        scenario.tracking.magnetic_lookahead_pursuit_enabled = True
+        scenario.tracking.magnetic_lookahead_pursuit_gain = 0.45
+        scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg = 18.0
     if local_path_guidance is not None:
         scenario.tracking.local_path_guidance_enabled = local_path_guidance
 
@@ -263,6 +366,13 @@ def main() -> None:
             "p15_",
             "p16_",
             "p17_",
+            "p18_",
+            "p19_",
+            "p20_",
+            "p21_",
+            "p22_",
+            "p23_",
+            "p24_",
         )):
             continue
         scenario = build(base)

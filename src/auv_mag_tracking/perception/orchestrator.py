@@ -635,6 +635,23 @@ class MagneticCablePerception:
                 time_s=reading.time_s,
                 phase_observation=magnetic_phase_observation,
             )
+            if (
+                magnetic_lookahead_target is not None
+                and self.scenario.tracking.magnetic_lookahead_feed_local_path
+                and magnetic_lookahead_target.confidence >= self.scenario.tracking.magnetic_lookahead_min_confidence
+            ):
+                self.local_path_estimator.add_observation(
+                    magnetic_lookahead_target.cable_point_xy_m,
+                    time_s=reading.time_s,
+                    confidence=magnetic_lookahead_target.confidence,
+                    heading_deg=magnetic_lookahead_target.heading_deg,
+                )
+                self.local_path_tracking_estimator.add_observation(
+                    magnetic_lookahead_target.cable_point_xy_m,
+                    time_s=reading.time_s,
+                    confidence=magnetic_lookahead_target.confidence,
+                    heading_deg=magnetic_lookahead_target.heading_deg,
+                )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
