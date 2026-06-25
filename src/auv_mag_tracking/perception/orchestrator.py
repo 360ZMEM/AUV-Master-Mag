@@ -68,7 +68,11 @@ class MagneticCablePerception:
             washout_snr_linear_threshold=scenario.tracking.deployment_washout_snr_linear_threshold,
             washout_retention_count=scenario.tracking.deployment_washout_retention_count,
         )
-        self.local_path_estimator = LocalCableStateEstimator()
+        self.local_path_estimator = LocalCableStateEstimator(
+            capacity=scenario.tracking.local_path_capacity,
+            local_line_window=scenario.tracking.local_path_local_line_window,
+            heading_blend=scenario.tracking.local_path_heading_blend,
+        )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
         self.last_confirmed_peak_strength_nt = 0.0
@@ -565,6 +569,21 @@ class MagneticCablePerception:
 
         guidance_source = "SEARCH"
         fused_heading_deg = None
+        local_path_age_s = (
+            reading.time_s - local_path_state.latest_time_s
+            if local_path_state is not None
+            else float("inf")
+        )
+        local_path_guidance_ready = (
+            self.scenario.tracking.local_path_guidance_enabled
+            and not self.scenario.tracking.use_nominal_route_prior
+            and local_path_state is not None
+            and local_path_state.heading_deg is not None
+            and local_path_state.confidence >= self.scenario.tracking.local_path_min_confidence
+            and np.isfinite(local_path_state.residual_m)
+            and local_path_state.residual_m <= self.scenario.tracking.local_path_max_residual_m
+            and local_path_age_s <= self.scenario.tracking.local_path_max_age_s
+        )
 
         # --- Task 1: Sonar Seed Injection (Highest Priority) ---
         # When sonar is online and valid, and magnetic fit is not yet mature,
@@ -587,6 +606,10 @@ class MagneticCablePerception:
             if sonar_reading.estimated_position_ned_m is not None:
                 estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
             guidance_source = "SONAR"
+        elif local_path_guidance_ready:
+            fused_heading_deg = local_path_state.heading_deg
+            estimated_cable_point_xy_m = local_path_state.anchor_xy_m.copy()
+            guidance_source = "LOCAL_PATH"
         elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready:
             fused_heading_deg = line_heading_deg
             guidance_source = "MAGNETIC"
@@ -638,11 +661,12 @@ class MagneticCablePerception:
         self.safe_lock_criterion_a_active = False
         self.safe_lock_criterion_b_active = False
 
+        confidence_fit_residual_m = local_path_state.residual_m if guidance_source == "LOCAL_PATH" and local_path_state is not None else fit_result.residual_m
         confidence = self.confidence_estimator.fused_confidence(
             magnetic_confidence,
             sonar_confidence,
             guidance_source,
-            fit_result.residual_m,
+            confidence_fit_residual_m,
             fit_result.covariance_xy_m2,
         )
         if guidance_source == "SEARCH":
@@ -653,6 +677,8 @@ class MagneticCablePerception:
             # Cap SONAR_SEED confidence at 0.6 to prevent premature HOLD entry
             # before magnetic peaks are captured
             confidence = max(min(confidence, 0.6), max(_sonar_seed_confidence, 0.4))
+        elif guidance_source == "LOCAL_PATH" and local_path_state is not None:
+            confidence = max(confidence, min(0.82, local_path_state.confidence))
         self.last_output_confidence = confidence
 
         # --- Task 3: Inverse Confidence Zigzag Width Mapping ---

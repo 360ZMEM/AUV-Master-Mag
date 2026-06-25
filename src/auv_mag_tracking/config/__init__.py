@@ -261,6 +261,13 @@ class TrackingConfig:
         weighted_fitter_snr_floor: 加权拟合的最低 SNR 门限。
         fit_reject_heading_delta_deg: 与历史航向偏差过大时的拟合拒绝阈值。
         fit_reject_confidence_threshold: 低于该置信度时拒绝拟合结果。
+        local_path_guidance_enabled: 是否允许局部路径估计器参与无先验航向融合。
+        local_path_capacity: 局部路径估计器观测容量。
+        local_path_local_line_window: 曲线局部直线拟合使用的最近观测窗口。
+        local_path_heading_blend: 局部直线切向与声呐航向观测的融合比例。
+        local_path_min_confidence: 局部路径参与融合所需最低置信度。
+        local_path_max_residual_m: 局部路径参与融合允许的最大残差。
+        local_path_max_age_s: 局部路径参与融合允许的最大观测年龄。
         consecutive_miss_threshold: 连续漏检后触发退化策略的次数阈值。
         spiral_radius_growth_mps: 螺旋搜索半径增长速度。
         spiral_max_radius_m: 螺旋搜索最大半径。
@@ -344,6 +351,13 @@ class TrackingConfig:
     weighted_fitter_snr_floor: float = 1.05
     fit_reject_heading_delta_deg: float = 30.0
     fit_reject_confidence_threshold: float = 0.60
+    local_path_guidance_enabled: bool = False
+    local_path_capacity: int = 24
+    local_path_local_line_window: int = 5
+    local_path_heading_blend: float = 0.65
+    local_path_min_confidence: float = 0.25
+    local_path_max_residual_m: float = 3.0
+    local_path_max_age_s: float = 20.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
@@ -1013,6 +1027,13 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.fit_history_size = 10
         scenario.tracking.forgetting_factor = 0.70
         scenario.tracking.fit_acceptance_residual_m = 12.0
+        scenario.tracking.local_path_guidance_enabled = sonar_enabled
+        scenario.tracking.local_path_capacity = 24
+        scenario.tracking.local_path_local_line_window = 5
+        scenario.tracking.local_path_heading_blend = 0.65
+        scenario.tracking.local_path_min_confidence = 0.25
+        scenario.tracking.local_path_max_residual_m = 3.0
+        scenario.tracking.local_path_max_age_s = 120.0
         scenario.tracking.lost_timeout_s = 8.0
         scenario.tracking.sonar_preferred_distance_m = 8.0
         scenario.tracking.fsm_cov_perp_converged_m2 = 20.0

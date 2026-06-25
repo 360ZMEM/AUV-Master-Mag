@@ -96,7 +96,7 @@ class LocalCableStateEstimatorTest(unittest.TestCase):
             local_line_window=5,
             min_arc_radius_m=30.0,
             min_arc_angle_span_deg=180.0,
-            heading_blend=0.50,
+            heading_blend=0.65,
         )
         points, angles_deg = _arc_points(
             np.array([0.0, 0.0], dtype=float),
@@ -121,6 +121,38 @@ class LocalCableStateEstimatorTest(unittest.TestCase):
         self.assertGreater(abs(smallest_angle_error_deg(sampled_headings[-1], sampled_headings[0])), 55.0)
         self.assertLess(abs(smallest_angle_error_deg(sampled_headings[-1], expected_headings[-1])), 8.0)
         self.assertLess(abs(smallest_angle_error_deg(sampled_headings[0], expected_headings[0])), 12.0)
+
+    def test_noisy_local_line_remains_usable_when_arc_is_disabled(self) -> None:
+        rng = np.random.default_rng(20260624)
+        estimator = LocalCableStateEstimator(
+            capacity=14,
+            local_line_window=5,
+            min_arc_radius_m=30.0,
+            min_arc_angle_span_deg=180.0,
+            heading_blend=0.65,
+        )
+        radius_m = 40.0
+        points, angles_deg = _arc_points(
+            np.array([5.0, -3.0], dtype=float),
+            radius_m=radius_m,
+            start_deg=-70.0,
+            sweep_deg=120.0,
+            count=18,
+        )
+        heading_errors = []
+        for index, (point, angle_deg) in enumerate(zip(points, angles_deg)):
+            noisy_point = point + rng.normal(0.0, 0.45, size=2)
+            true_heading_deg = _expected_tangent_heading_deg(angle_deg, 120.0)
+            noisy_heading_deg = true_heading_deg + rng.normal(0.0, 5.0)
+            estimator.add_observation(noisy_point, time_s=float(index), confidence=0.85, heading_deg=noisy_heading_deg)
+            if index >= 6:
+                state = estimator.estimate()
+                self.assertIsNotNone(state)
+                self.assertEqual(state.model, "local_line")
+                heading_errors.append(abs(smallest_angle_error_deg(state.heading_deg, true_heading_deg)))
+
+        self.assertLess(float(np.mean(heading_errors)), 7.0)
+        self.assertLess(float(np.percentile(heading_errors, 90.0)), 11.0)
 
     def test_clockwise_arc_reports_negative_curvature(self) -> None:
         estimator = LocalCableStateEstimator(capacity=18, min_arc_radius_m=30.0)

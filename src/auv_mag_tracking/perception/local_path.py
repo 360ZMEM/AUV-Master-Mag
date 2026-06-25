@@ -38,6 +38,7 @@ class LocalCableState:
     heading_deg: float
     residual_m: float
     confidence: float
+    latest_time_s: float
     curvature_1pm: float = 0.0
     radius_m: float = float("inf")
     center_xy_m: Optional[np.ndarray] = None
@@ -69,8 +70,8 @@ class LocalCableStateEstimator:
         min_arc_radius_m: float = 30.0,
         min_arc_angle_span_deg: float = 35.0,
         arc_residual_ratio: float = 0.85,
-        local_line_window: int = 6,
-        heading_blend: float = 0.50,
+        local_line_window: int = 5,
+        heading_blend: float = 0.65,
     ) -> None:
         self.capacity = max(3, int(capacity))
         self.min_arc_radius_m = max(1e-6, float(min_arc_radius_m))
@@ -155,6 +156,7 @@ class LocalCableStateEstimator:
             heading_deg=heading_from_direction_xy(direction),
             residual_m=residual,
             confidence=confidence,
+            latest_time_s=self.observations[-1].time_s,
         )
         return self._apply_heading_observations(state, blend_heading=True)
 
@@ -222,6 +224,7 @@ class LocalCableStateEstimator:
             heading_deg=heading_from_direction_xy(tangent),
             residual_m=residual,
             confidence=confidence,
+            latest_time_s=self.observations[-1].time_s,
             curvature_1pm=turn_sign / radius,
             radius_m=radius,
             center_xy_m=center,
