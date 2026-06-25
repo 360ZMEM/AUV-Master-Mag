@@ -77,6 +77,11 @@ class HealthMetrics:
     final_route_distance_m: float = float("nan")
     endpoint_goal_enabled: float = 0.0
     endpoint_completed: float = 0.0
+    magnetic_path_observation_fraction: float = 0.0
+    magnetic_path_mean_axis_error_deg: float = float("nan")
+    magnetic_path_mean_position_error_m: float = float("nan")
+    magnetic_path_mean_cross_track_offset_m: float = float("nan")
+    burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
 
@@ -194,6 +199,27 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         if np.any(burial_valid)
         else float("nan")
     )
+    burial_coverage = float(np.mean(burial_valid)) if est_burial.size else 0.0
+
+    magnetic_path_valid = record["magnetic_path_observation_valid"] > 0.5
+    magnetic_path_fraction = float(np.mean(magnetic_path_valid)) if n else 0.0
+    magnetic_path_heading = record["magnetic_path_heading_deg"]
+    magnetic_path_axis_errors = []
+    for estimated_heading, true_heading in zip(magnetic_path_heading[magnetic_path_valid], record["true_heading_deg"][magnetic_path_valid]):
+        directional_error = abs(smallest_angle_error_deg(estimated_heading, true_heading))
+        magnetic_path_axis_errors.append(min(directional_error, abs(180.0 - directional_error)))
+    magnetic_path_mean_axis_error = (
+        float(np.mean(magnetic_path_axis_errors)) if magnetic_path_axis_errors else float("nan")
+    )
+    magnetic_path_position_error = np.hypot(
+        record["magnetic_path_x_m"][magnetic_path_valid] - record["true_nearest_x_m"][magnetic_path_valid],
+        record["magnetic_path_y_m"][magnetic_path_valid] - record["true_nearest_y_m"][magnetic_path_valid],
+    )
+    magnetic_path_mean_position_error = (
+        float(np.mean(magnetic_path_position_error)) if magnetic_path_position_error.size else float("nan")
+    )
+    magnetic_path_offsets = np.abs(record["magnetic_path_cross_track_offset_m"][magnetic_path_valid])
+    magnetic_path_mean_offset = float(np.mean(magnetic_path_offsets)) if magnetic_path_offsets.size else float("nan")
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -236,6 +262,11 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         final_route_distance_m=float(record.metadata.get("final_route_distance_m", float("nan"))),
         endpoint_goal_enabled=float(record.metadata.get("endpoint_goal_enabled", 0.0)),
         endpoint_completed=float(record.metadata.get("endpoint_completed", 0.0)),
+        magnetic_path_observation_fraction=magnetic_path_fraction,
+        magnetic_path_mean_axis_error_deg=magnetic_path_mean_axis_error,
+        magnetic_path_mean_position_error_m=magnetic_path_mean_position_error,
+        magnetic_path_mean_cross_track_offset_m=magnetic_path_mean_offset,
+        burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )
 

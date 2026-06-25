@@ -125,6 +125,13 @@ class PerceptionState:
     # --- Magnetic cross-track steering signal (peak-free ratio estimator) ---
     magnetic_cross_track_offset_m: Optional[float] = None
     magnetic_cross_track_quality: float = 0.0
+    # --- Pure-magnetic implicit path observation diagnostics ---
+    magnetic_path_observation_valid: bool = False
+    magnetic_path_x_m: Optional[float] = None
+    magnetic_path_y_m: Optional[float] = None
+    magnetic_path_heading_deg: Optional[float] = None
+    magnetic_path_cross_track_offset_m: Optional[float] = None
+    magnetic_path_confidence: float = 0.0
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

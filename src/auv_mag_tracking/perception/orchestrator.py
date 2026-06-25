@@ -543,6 +543,7 @@ class MagneticCablePerception:
                 burial_measurement=burial_measurement,
             )
 
+        magnetic_path_observation = None
         if (
             self.magnetic_path_builder is not None
             and (sonar_reading is None or not sonar_reading.valid)
@@ -550,23 +551,23 @@ class MagneticCablePerception:
             and self.last_accepted_fit_result.direction_xy is not None
             and self.last_output_confidence >= self.scenario.tracking.low_confidence_threshold
         ):
-            magnetic_observation = self.magnetic_path_builder.build(
+            magnetic_path_observation = self.magnetic_path_builder.build(
                 vehicle_position_xy_m=np.asarray(vehicle_position_xy_m, dtype=float),
                 anomaly_ned_nt=anomaly_ned_nt,
                 movement_heading_deg=pose_measurement.heading_deg,
             )
-            if magnetic_observation is not None:
+            if magnetic_path_observation is not None:
                 self.local_path_estimator.add_observation(
-                    magnetic_observation.position_xy_m,
+                    magnetic_path_observation.position_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_observation.confidence,
-                    heading_deg=magnetic_observation.heading_deg,
+                    confidence=magnetic_path_observation.confidence,
+                    heading_deg=magnetic_path_observation.heading_deg,
                 )
                 self.local_path_tracking_estimator.add_observation(
-                    magnetic_observation.position_xy_m,
+                    magnetic_path_observation.position_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_observation.confidence,
-                    heading_deg=magnetic_observation.heading_deg,
+                    confidence=magnetic_path_observation.confidence,
+                    heading_deg=magnetic_path_observation.heading_deg,
                 )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
@@ -928,6 +929,14 @@ class MagneticCablePerception:
             displacement_since_last_peak_m=self.displacement_since_last_peak_m,
             magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
             magnetic_cross_track_quality=float(self.cross_track_estimator.quality),
+            magnetic_path_observation_valid=magnetic_path_observation is not None,
+            magnetic_path_x_m=None if magnetic_path_observation is None else float(magnetic_path_observation.position_xy_m[0]),
+            magnetic_path_y_m=None if magnetic_path_observation is None else float(magnetic_path_observation.position_xy_m[1]),
+            magnetic_path_heading_deg=None if magnetic_path_observation is None else magnetic_path_observation.heading_deg,
+            magnetic_path_cross_track_offset_m=(
+                None if magnetic_path_observation is None else magnetic_path_observation.cross_track_offset_m
+            ),
+            magnetic_path_confidence=0.0 if magnetic_path_observation is None else magnetic_path_observation.confidence,
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,

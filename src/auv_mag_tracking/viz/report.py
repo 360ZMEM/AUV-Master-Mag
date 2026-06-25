@@ -66,6 +66,12 @@ def _auto_analysis(metrics: HealthMetrics) -> List[str]:
         f"magnetic {metrics.magnetic_contribution*100:.0f}% "
         f"(peaks={metrics.total_peaks}, rate={metrics.peak_rate_hz:.2f}/s)."
     )
+    if metrics.magnetic_path_observation_fraction > 0.0:
+        lines.append(
+            f"- Magnetic probe: observations {metrics.magnetic_path_observation_fraction*100:.0f}% of frames, "
+            f"axis error {metrics.magnetic_path_mean_axis_error_deg:.1f} deg, "
+            f"position error {metrics.magnetic_path_mean_position_error_m:.1f} m."
+        )
     lines.append("")
     return lines
 
@@ -126,6 +132,12 @@ def save_run_report(metrics: HealthMetrics, fig_paths: Dict[str, Path], out_path
         f"| Mean confidence | {metrics.mean_confidence:.2f} |",
         f"| Sonar contribution | {metrics.sonar_contribution*100:.0f}% |",
         f"| Magnetic contribution | {metrics.magnetic_contribution*100:.0f}% |",
+        f"| Magnetic path observation fraction | {metrics.magnetic_path_observation_fraction*100:.0f}% |",
+        f"| Magnetic path axis error | {metrics.magnetic_path_mean_axis_error_deg:.1f} deg |",
+        f"| Magnetic path position error | {metrics.magnetic_path_mean_position_error_m:.1f} m |",
+        f"| Magnetic path mean abs offset | {metrics.magnetic_path_mean_cross_track_offset_m:.1f} m |",
+        f"| Burial inversion coverage | {metrics.burial_inversion_coverage*100:.0f}% |",
+        f"| Burial inversion MAE | {metrics.burial_inversion_mae_m:.3f} m |",
         "",
         "---",
         "",

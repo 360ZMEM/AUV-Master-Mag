@@ -37,7 +37,9 @@ from auv_mag_tracking.viz import (  # noqa: E402
     save_run_report,
     save_showcase_report,
     simulate_case,
+    simulate_run,
 )
+from auv_mag_tracking.config import ScenarioConfig, build_default_scenarios  # noqa: E402
 
 DEFAULT_CASES = ["case1", "case2", "case3", "case4", "case5", "case6"]
 VARIANT_CASES = ["case1v", "case2v", "case3v", "case4v", "case5v", "case6v"]
@@ -46,15 +48,46 @@ RESULTS_ROOT = WORKSPACE_ROOT / "results"
 _DURATION_OVERRIDE_S = None
 
 
-def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
-    """跑一例仿真，落盘 record/figures/report，返回其健康指标。"""
-    print(f"[viz] simulating {case_name} ({'deployment' if deployment else 'nominal'}) ...")
-    record = simulate_case(
-        case_name,
-        deployment_mode=deployment,
-        max_steps=max_steps,
-        duration_override_s=_DURATION_OVERRIDE_S,
+def _apply_zigzag_probe(scenario: ScenarioConfig) -> None:
+    """Enable the small-amplitude TRACK zig-zag magnetic probe."""
+    scenario.name = f"{scenario.name}_zigzag_probe"
+    scenario.tracking.track_active_zigzag_angle_deg = max(
+        scenario.tracking.track_active_zigzag_angle_deg,
+        3.0,
     )
+    scenario.tracking.curve_track_crossing_angle_deg = max(
+        scenario.tracking.curve_track_crossing_angle_deg,
+        3.0,
+    )
+    scenario.tracking.magnetic_path_observation_enabled = scenario.tracking.use_nominal_route_prior
+    scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
+    scenario.tracking.magnetic_path_max_cross_track_m = 25.0
+
+
+def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps, zigzag_probe: bool = False):
+    """跑一例仿真，落盘 record/figures/report，返回其健康指标。"""
+    mode_name = "deployment" if deployment else "nominal"
+    if zigzag_probe:
+        mode_name += "+zigzag_probe"
+    print(f"[viz] simulating {case_name} ({mode_name}) ...")
+    if zigzag_probe:
+        scenario = build_default_scenarios()[case_name]
+        _apply_zigzag_probe(scenario)
+        if deployment:
+            scenario.tracking.use_nominal_route_prior = False
+        record = simulate_run(
+            scenario,
+            deployment_mode=deployment,
+            max_steps=max_steps,
+            duration_override_s=_DURATION_OVERRIDE_S,
+        )
+    else:
+        record = simulate_case(
+            case_name,
+            deployment_mode=deployment,
+            max_steps=max_steps,
+            duration_override_s=_DURATION_OVERRIDE_S,
+        )
     metrics = compute_health_metrics(record)
 
     case_dir = run_dir / case_name
@@ -70,6 +103,10 @@ def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
     print(f"       track_xt {metrics.track_mean_cross_track_m:.1f}m  "
           f"track_vehicle_err {metrics.track_mean_vehicle_heading_error_deg:.1f}deg  "
           f"final_xt {metrics.final_cross_track_m:.1f}m")
+    if metrics.magnetic_path_observation_fraction > 0.0:
+        print(f"       mag_probe {metrics.magnetic_path_observation_fraction*100:.0f}%  "
+              f"axis_err {metrics.magnetic_path_mean_axis_error_deg:.1f}deg  "
+              f"pos_err {metrics.magnetic_path_mean_position_error_m:.1f}m")
     if record.metadata:
         completion = record.metadata.get("route_completion_ratio")
         stop_reason = record.metadata.get("stop_reason")
@@ -87,6 +124,7 @@ def main() -> None:
     parser.add_argument("--progress", action="store_true",
                         help="run case1..5 + before/after progress report vs committed baseline")
     parser.add_argument("--deployment", action="store_true", help="disable nominal route prior")
+    parser.add_argument("--zigzag-probe", action="store_true", help="enable small TRACK zig-zag magnetic probe")
     parser.add_argument("--live", action="store_true", help="real-time dashboard via main_viz")
     parser.add_argument("--max-steps", type=int, default=None, help="cap simulation steps")
     parser.add_argument("--duration-s", type=float, default=None, help="override scenario duration for stress tests")
@@ -96,9 +134,10 @@ def main() -> None:
     _DURATION_OVERRIDE_S = args.duration_s
 
     if args.live:
-        from auv_mag_tracking.config import build_default_scenarios
         from auv_mag_tracking.main_viz import AuvCableTrackingSimulation
         scenario = build_default_scenarios()[args.case]
+        if args.zigzag_probe:
+            _apply_zigzag_probe(scenario)
         if args.deployment:
             scenario.tracking.use_nominal_route_prior = False
         if args.duration_s is not None:
@@ -118,7 +157,7 @@ def main() -> None:
         cases = DEFAULT_CASES
     else:
         cases = [args.case]
-    metrics_list = [_process_case(c, run_dir, args.deployment, args.max_steps) for c in cases]
+    metrics_list = [_process_case(c, run_dir, args.deployment, args.max_steps, args.zigzag_probe) for c in cases]
 
     if args.all or args.variants or args.maze:
         showcase_fig = render_showcase(metrics_list, run_dir / "showcase.png")
