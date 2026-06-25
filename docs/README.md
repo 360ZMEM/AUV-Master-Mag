@@ -110,6 +110,11 @@
    - 分层调优策略
    - 信号处理层调优
    - 峰值检测层调优
+
+10. **[场景调参小白指南](15_场景调参小白指南.md)**
+   - 按场景类型说明先调哪些参数
+   - 区分 route progress 与 endpoint 验收
+   - 给出 case6 / maze 的当前稳定边界与禁忌项
    - 拟合与估计层调优
    - 控制决策层调优
    - 常见问题诊断
@@ -265,6 +270,7 @@ python -m unittest discover -s tests
 | 坐标验证 | case4 | 强姿态扰动（±18° roll） |
 | 缓弯 / 低频兼容 | case5 | 正弦缓弯 + 15Hz demo（航向误差 9.85°） |
 | 强弯融合压力 | case6 | 连续 S 弯（已知未收口，27.58°） |
+| 迷宫有声呐 | case_maze_sonar | 1× serpentine，Phase D 区域重捕获，当前 endpoint |
 | 紧曲率边界 | case8 | minR≈50m，曲率约束与安全锁恢复 |
 | 高性能验证 | case_hf_industrial | 高采样率（1000Hz）、低噪声 |
 

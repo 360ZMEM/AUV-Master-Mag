@@ -63,6 +63,9 @@ class ConfidenceEstimator:
             confidence = min(0.4, 0.6 * magnetic_confidence + 0.4 * sonar_confidence)
         elif guidance_source == "SONAR_SEED":
             confidence = min(0.6, max(sonar_confidence * 0.8, magnetic_confidence))
+        elif guidance_source == "LOCAL_PATH":
+            confidence = 0.28 + 0.42 * fit_quality + 0.20 * sonar_confidence + 0.10 * magnetic_confidence
+            confidence = min(0.82, confidence)
         else:
             confidence = max(magnetic_confidence, sonar_confidence * 0.75)
         return float(np.clip(confidence, 0.0, 1.0))

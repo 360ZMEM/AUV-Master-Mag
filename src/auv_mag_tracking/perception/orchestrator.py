@@ -25,7 +25,9 @@ from .confidence import ConfidenceEstimator
 from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
+from .local_path import LocalCableStateEstimator, LocalPathTrackingState
 from .peaks import PeakDetector
+from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
 from .vector import EnvelopeGradientTracker, MagneticVectorAnalyzer
 
@@ -66,6 +68,30 @@ class MagneticCablePerception:
             washout_residual_m=scenario.tracking.deployment_washout_residual_m,
             washout_snr_linear_threshold=scenario.tracking.deployment_washout_snr_linear_threshold,
             washout_retention_count=scenario.tracking.deployment_washout_retention_count,
+        )
+        self.local_path_estimator = LocalCableStateEstimator(
+            capacity=scenario.tracking.local_path_capacity,
+            local_line_window=scenario.tracking.local_path_local_line_window,
+            heading_blend=scenario.tracking.local_path_heading_blend,
+            min_observation_spacing_m=0.0,
+            state_machine_enabled=False,
+        )
+        self.local_path_tracking_estimator = LocalCableStateEstimator(
+            capacity=scenario.tracking.local_path_capacity,
+            local_line_window=scenario.tracking.local_path_local_line_window,
+            heading_blend=scenario.tracking.local_path_heading_blend,
+            min_observation_spacing_m=scenario.tracking.local_path_min_observation_spacing_m,
+            state_machine_enabled=(
+                scenario.tracking.local_path_guidance_enabled
+                and not scenario.tracking.use_nominal_route_prior
+            ),
+        )
+        self.reacquire_region_selector = ObservableRegionSelector(
+            forward_distance_m=scenario.tracking.reacquire_region_forward_distance_m,
+            turn_lateral_offset_m=scenario.tracking.reacquire_region_turn_lateral_offset_m,
+            half_length_m=scenario.tracking.reacquire_region_half_length_m,
+            half_width_m=scenario.tracking.reacquire_region_half_width_m,
+            max_anchor_age_s=scenario.tracking.local_path_max_age_s,
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
@@ -466,7 +492,30 @@ class MagneticCablePerception:
                 confidence=max(sonar_reading.confidence, 0.05),
                 time_s=reading.time_s,
             )
+            self.local_path_estimator.add_observation(
+                np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2],
+                time_s=reading.time_s,
+                confidence=max(sonar_reading.confidence, 0.05),
+                heading_deg=sonar_reading.estimated_heading_ned_deg,
+            )
+            self.local_path_tracking_estimator.add_observation(
+                np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2],
+                time_s=reading.time_s,
+                confidence=max(sonar_reading.confidence, 0.05),
+                heading_deg=sonar_reading.estimated_heading_ned_deg,
+            )
             detection_age_s = reading.time_s - self.fitter.last_detection_time_s
+        elif detected_peak_xy_m is not None:
+            self.local_path_estimator.add_observation(
+                detected_peak_xy_m,
+                time_s=reading.time_s,
+                confidence=max(self.last_output_confidence, 0.05),
+            )
+            self.local_path_tracking_estimator.add_observation(
+                detected_peak_xy_m,
+                time_s=reading.time_s,
+                confidence=max(self.last_output_confidence, 0.05),
+            )
 
         # --- Magnetic cross-track steering signal (peak-free) ---
         # The ratio ``B_down / B_perp == y / d`` yields a signed cross-track offset
@@ -486,6 +535,8 @@ class MagneticCablePerception:
             self.safe_lock_until_s = -1e9
             self.last_confirmed_peak_strength_nt = 0.0
 
+        local_path_state = self.local_path_estimator.estimate()
+        local_path_tracking_state_estimate = self.local_path_tracking_estimator.estimate()
         fit_result_candidate = self.fitter.fit()
         fit_update_rejected = False
         bootstrap_fit_ready = self._bootstrap_fit_ready(fit_result_candidate)
@@ -550,6 +601,63 @@ class MagneticCablePerception:
 
         guidance_source = "SEARCH"
         fused_heading_deg = None
+        local_path_age_s = (
+            reading.time_s - local_path_state.latest_time_s
+            if local_path_state is not None
+            else float("inf")
+        )
+        local_path_tracking_state = (
+            local_path_tracking_state_estimate.tracking_state
+            if local_path_tracking_state_estimate is not None
+            else self.local_path_tracking_estimator.tracking_state
+        )
+        local_path_stale_for_reacquire = (
+            self.scenario.tracking.local_path_guidance_enabled
+            and not self.scenario.tracking.use_nominal_route_prior
+            and local_path_state is not None
+            and local_path_age_s > self.scenario.tracking.reacquire_stale_timeout_s
+            and reading.time_s >= self.scenario.tracking.reacquire_min_elapsed_s
+        )
+        if local_path_stale_for_reacquire:
+            local_path_tracking_state = LocalPathTrackingState.REACQUIRE
+        local_path_max_residual_m = self.scenario.tracking.local_path_max_residual_m
+        if local_path_tracking_state == LocalPathTrackingState.CURVE_TRACK:
+            local_path_max_residual_m *= self.scenario.tracking.local_path_curve_residual_relax
+        local_path_guidance_ready = (
+            self.scenario.tracking.local_path_guidance_enabled
+            and not self.scenario.tracking.use_nominal_route_prior
+            and local_path_state is not None
+            and local_path_state.heading_deg is not None
+            and local_path_state.confidence >= self.scenario.tracking.local_path_min_confidence
+            and np.isfinite(local_path_state.residual_m)
+            and local_path_state.residual_m <= local_path_max_residual_m
+            and local_path_age_s <= self.scenario.tracking.local_path_max_age_s
+            and not local_path_stale_for_reacquire
+        )
+        deployment_reacquire_required = (
+            local_path_tracking_state == LocalPathTrackingState.REACQUIRE
+            or local_path_stale_for_reacquire
+        )
+        if (
+            self.scenario.tracking.reacquire_region_enabled
+            and local_path_state is not None
+            and not deployment_reacquire_required
+            and local_path_state.confidence >= self.scenario.tracking.local_path_min_confidence
+        ):
+            self.reacquire_region_selector.update_trusted_state(
+                anchor_xy_m=local_path_state.anchor_xy_m,
+                heading_deg=local_path_state.heading_deg,
+                confidence=local_path_state.confidence,
+                time_s=local_path_state.latest_time_s,
+                curvature_1pm=local_path_state.curvature_1pm,
+            )
+        reacquire_region = None
+        if self.scenario.tracking.reacquire_region_enabled:
+            reacquire_region = self.reacquire_region_selector.select(
+                time_s=reading.time_s,
+                vehicle_position_xy_m=vehicle_position_xy_m,
+                reacquire_required=deployment_reacquire_required,
+            )
 
         # --- Task 1: Sonar Seed Injection (Highest Priority) ---
         # When sonar is online and valid, and magnetic fit is not yet mature,
@@ -572,6 +680,10 @@ class MagneticCablePerception:
             if sonar_reading.estimated_position_ned_m is not None:
                 estimated_cable_point_xy_m = sonar_reading.estimated_position_ned_m.copy()
             guidance_source = "SONAR"
+        elif local_path_guidance_ready:
+            fused_heading_deg = local_path_state.heading_deg
+            estimated_cable_point_xy_m = local_path_state.anchor_xy_m.copy()
+            guidance_source = "LOCAL_PATH"
         elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready:
             fused_heading_deg = line_heading_deg
             guidance_source = "MAGNETIC"
@@ -623,11 +735,12 @@ class MagneticCablePerception:
         self.safe_lock_criterion_a_active = False
         self.safe_lock_criterion_b_active = False
 
+        confidence_fit_residual_m = local_path_state.residual_m if guidance_source == "LOCAL_PATH" and local_path_state is not None else fit_result.residual_m
         confidence = self.confidence_estimator.fused_confidence(
             magnetic_confidence,
             sonar_confidence,
             guidance_source,
-            fit_result.residual_m,
+            confidence_fit_residual_m,
             fit_result.covariance_xy_m2,
         )
         if guidance_source == "SEARCH":
@@ -638,6 +751,8 @@ class MagneticCablePerception:
             # Cap SONAR_SEED confidence at 0.6 to prevent premature HOLD entry
             # before magnetic peaks are captured
             confidence = max(min(confidence, 0.6), max(_sonar_seed_confidence, 0.4))
+        elif guidance_source == "LOCAL_PATH" and local_path_state is not None:
+            confidence = max(confidence, min(0.82, local_path_state.confidence))
         self.last_output_confidence = confidence
 
         # --- Task 3: Inverse Confidence Zigzag Width Mapping ---
@@ -691,6 +806,20 @@ class MagneticCablePerception:
                     estimated_burial_depth_m = burial_estimate.depth_m
                     burial_inversion_uncertainty_m = burial_estimate.sigma_m
 
+        local_path_model_codes = {"line": 1.0, "local_line": 2.0, "arc": 3.0}
+        local_path_model_code = 0.0
+        local_path_heading_deg = None
+        local_path_confidence = 0.0
+        local_path_residual_m = float("inf")
+        local_path_radius_m = float("inf")
+        local_path_tracking_state_value = local_path_tracking_state.value
+        if local_path_state is not None:
+            local_path_model_code = local_path_model_codes.get(local_path_state.model, 0.0)
+            local_path_heading_deg = local_path_state.heading_deg
+            local_path_confidence = local_path_state.confidence
+            local_path_residual_m = local_path_state.residual_m
+            local_path_radius_m = local_path_state.radius_m
+
         return PerceptionState(
             time_s=reading.time_s,
             sensor_field_nt=reading.sensor_field_nt,
@@ -733,6 +862,7 @@ class MagneticCablePerception:
             detected_peak_xy_m=detected_peak_xy_m,
             deployment_estimated_cable_heading_deg=self.deployment_estimated_cable_heading_deg,
             deployment_heading_confidence=self.deployment_heading_confidence,
+            deployment_reacquire_required=deployment_reacquire_required,
             # Signal enhancement outputs
             envelope_gradient_nT_per_m=self.envelope_tracker.gradient_nT_per_m,
             envelope_gradient_heading_deg=self.envelope_tracker.gradient_heading_deg,
@@ -761,4 +891,17 @@ class MagneticCablePerception:
             magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
             magnetic_cross_track_quality=float(self.cross_track_estimator.quality),
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
+            local_path_model_code=local_path_model_code,
+            local_path_heading_deg=local_path_heading_deg,
+            local_path_confidence=local_path_confidence,
+            local_path_residual_m=local_path_residual_m,
+            local_path_radius_m=local_path_radius_m,
+            local_path_tracking_state=local_path_tracking_state_value,
+            reacquire_region_center_xy_m=None if reacquire_region is None else reacquire_region.center_xy_m.copy(),
+            reacquire_region_heading_deg=None if reacquire_region is None else reacquire_region.heading_deg,
+            reacquire_region_half_length_m=0.0 if reacquire_region is None else reacquire_region.half_length_m,
+            reacquire_region_half_width_m=0.0 if reacquire_region is None else reacquire_region.half_width_m,
+            reacquire_region_confidence=0.0 if reacquire_region is None else reacquire_region.confidence,
+            reacquire_region_score=0.0 if reacquire_region is None else reacquire_region.score,
+            reacquire_region_reason="none" if reacquire_region is None else reacquire_region.reason,
         )

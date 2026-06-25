@@ -32,6 +32,7 @@ class MissionState(str, Enum):
     SEARCH_ZIGZAG = "search"
     LOCK_ALIGN = "align"
     TRACK_ACTIVE = "track"
+    REACQUIRE_REGION = "reacquire_region"
     EMERGENCY_SURFACE = "emergency"
 
 
@@ -60,6 +61,11 @@ class MissionThresholds:
     track_streak_required: int = 5
     system_confidence_floor: float = 0.1
     emergency_hold_s: float = 5.0
+    reacquire_region_min_confidence: float = 0.20
+    reacquire_region_entry_streak_required: int = 5
+    reacquire_region_recovery_streak_required: int = 8
+    reacquire_region_unavailable_hold_s: float = 3.0
+    reacquire_region_max_duration_s: float = 45.0
 
 
 @dataclass
@@ -74,6 +80,10 @@ class MissionInput:
     yaw_error_deg: Optional[float]
     fit_covariance_xy_m2: Optional[np.ndarray]
     peak_detected: bool
+    reacquire_required: bool = False
+    reacquire_region_available: bool = False
+    reacquire_region_confidence: float = 0.0
+    reacquire_region_control_enabled: bool = False
 
 
 @dataclass
@@ -106,18 +116,26 @@ class MissionManager:
         self.state = MissionState.SEARCH_ZIGZAG
         self._lock_streak = 0
         self._track_streak = 0
+        self._reacquire_entry_streak = 0
+        self._reacquire_lock_streak = 0
         self._signal_latched = False
         self._last_signal_time_s: Optional[float] = None
         self._low_confidence_since_s: Optional[float] = None
+        self._region_unavailable_since_s: Optional[float] = None
+        self._reacquire_entered_time_s: Optional[float] = None
 
     def reset(self) -> None:
         """复位 FSM 到初始搜索态并清空计数器。"""
         self.state = MissionState.SEARCH_ZIGZAG
         self._lock_streak = 0
         self._track_streak = 0
+        self._reacquire_entry_streak = 0
+        self._reacquire_lock_streak = 0
         self._signal_latched = False
         self._last_signal_time_s = None
         self._low_confidence_since_s = None
+        self._region_unavailable_since_s = None
+        self._reacquire_entered_time_s = None
 
     def _signal_present(self, mission_input: MissionInput) -> bool:
         """带迟滞地判断当前是否检测到电缆信号（磁强或声呐任一达标）。
@@ -160,6 +178,15 @@ class MissionManager:
             return False
         return mission_input.confidence >= self.thresholds.track_confidence_required
 
+    def _reacquire_region_ready(self, mission_input: MissionInput) -> bool:
+        thresholds = self.thresholds
+        return (
+            mission_input.reacquire_region_control_enabled
+            and mission_input.reacquire_required
+            and mission_input.reacquire_region_available
+            and mission_input.reacquire_region_confidence >= thresholds.reacquire_region_min_confidence
+        )
+
     def update(self, mission_input: MissionInput) -> MissionDecision:
         """根据感知输入推进 FSM 一步并返回任务决策。"""
         thresholds = self.thresholds
@@ -188,24 +215,60 @@ class MissionManager:
                 self._track_streak = 0
 
         elif self.state == MissionState.TRACK_ACTIVE:
-            if mission_input.confidence < thresholds.system_confidence_floor:
+            if self._reacquire_region_ready(mission_input):
+                self._reacquire_entry_streak += 1
+                if self._reacquire_entry_streak >= thresholds.reacquire_region_entry_streak_required:
+                    self._enter(MissionState.REACQUIRE_REGION, mission_input.time_s)
+            elif mission_input.confidence < thresholds.system_confidence_floor:
+                self._reacquire_entry_streak = 0
                 if self._low_confidence_since_s is None:
                     self._low_confidence_since_s = mission_input.time_s
                 elif mission_input.time_s - self._low_confidence_since_s >= thresholds.emergency_hold_s:
                     self._enter(MissionState.EMERGENCY_SURFACE)
             else:
+                self._reacquire_entry_streak = 0
                 self._low_confidence_since_s = None
                 if signal_lost:
                     self._enter(MissionState.LOCK_ALIGN)
 
+        elif self.state == MissionState.REACQUIRE_REGION:
+            if signal_present and not mission_input.reacquire_required:
+                self._reacquire_lock_streak += 1
+                if self._reacquire_lock_streak >= thresholds.reacquire_region_recovery_streak_required:
+                    self._enter(MissionState.LOCK_ALIGN)
+            elif not mission_input.reacquire_region_available:
+                if self._region_unavailable_since_s is None:
+                    self._region_unavailable_since_s = mission_input.time_s
+                elif mission_input.time_s - self._region_unavailable_since_s >= thresholds.reacquire_region_unavailable_hold_s:
+                    self._enter(MissionState.SEARCH_ZIGZAG)
+            elif (
+                self._reacquire_entered_time_s is not None
+                and mission_input.time_s - self._reacquire_entered_time_s >= thresholds.reacquire_region_max_duration_s
+            ):
+                self._enter(MissionState.SEARCH_ZIGZAG)
+            elif mission_input.confidence < thresholds.system_confidence_floor:
+                self._region_unavailable_since_s = None
+                if self._low_confidence_since_s is None:
+                    self._low_confidence_since_s = mission_input.time_s
+                elif mission_input.time_s - self._low_confidence_since_s >= thresholds.emergency_hold_s:
+                    self._enter(MissionState.EMERGENCY_SURFACE)
+            else:
+                self._region_unavailable_since_s = None
+                self._reacquire_lock_streak = 0
+                self._low_confidence_since_s = None
+
         return self._decision(mission_input)
 
-    def _enter(self, state: MissionState) -> None:
+    def _enter(self, state: MissionState, time_s: Optional[float] = None) -> None:
         """切换到目标状态并清空与转移相关的计数器。"""
         if state == self.state:
             return
         self.state = state
         self._track_streak = 0
+        self._reacquire_entry_streak = 0
+        self._reacquire_lock_streak = 0
+        self._region_unavailable_since_s = None
+        self._reacquire_entered_time_s = time_s if state == MissionState.REACQUIRE_REGION else None
         if state != MissionState.TRACK_ACTIVE:
             self._low_confidence_since_s = None
 
@@ -227,6 +290,8 @@ class MissionManager:
                 self.thresholds.align_speed_factor,
                 "MAGNETIC_PEAK" if peak else "MAGNETIC",
             )
+        if self.state == MissionState.REACQUIRE_REGION:
+            return MissionDecision(self.state, 0.8, "REACQUIRE_REGION")
         # TRACK_ACTIVE
         peak = bool(mission_input and mission_input.peak_detected)
         return MissionDecision(self.state, 1.0, "MAGNETIC_PEAK" if peak else "MAGNETIC")

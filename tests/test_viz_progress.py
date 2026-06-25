@@ -17,6 +17,7 @@ from auv_mag_tracking.viz import (
     health_score,
 )
 from auv_mag_tracking.viz.metrics import HealthMetrics
+from auv_mag_tracking.viz.recorder import simulate_case
 
 
 def _metrics(case_name: str, *, mean_err: float, track: float, switches: int,
@@ -90,6 +91,12 @@ class ProgressComparisonTest(unittest.TestCase):
         current = _metrics("caseX", mean_err=12.0, track=0.5, switches=2)
         delta = compare_to_baseline(current, baseline)
         self.assertFalse(delta.improved("mean_err"))
+
+    def test_local_path_side_channel_is_recorded(self) -> None:
+        record = simulate_case("case1", max_steps=200)
+        self.assertIn("local_path_heading_deg", record.channels)
+        self.assertIn("local_path_model_code", record.channels)
+        self.assertGreater(np.count_nonzero(record["local_path_model_code"] > 0.0), 0)
 
 
 if __name__ == "__main__":
