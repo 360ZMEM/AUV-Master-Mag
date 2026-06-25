@@ -74,10 +74,41 @@ residual are not the main blockers in these representative runs.  Simple heading
 threshold changes do not provide a stable tradeoff: `30deg` blocks useful progress,
 while `35-40deg` preserves progress but allows heading instability.
 
+## Tiered-feed Follow-up
+
+Commands:
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p33_probe10_tiered_anchor_low --name p34_probe10_anchor_only --name p35_probe10_tiered_anchor_mid --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p36_probe10_extrapolated_low --name p37_probe10_extrapolated_mid --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p36_probe10_extrapolated_low
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p39_probe10_extrapolated_low_pursuit
+```
+
+| variant | run | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead pos err | feed allowed | reject heading | conclusion |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p33_probe10_tiered_anchor_low` | 24000 | 7.2 | 23.0m | 70.5deg | 0.0% | 40.5m | 17.3m | 84.8% | 0.0% | High-confidence phase anchors destabilize progress. |
+| `p34_probe10_anchor_only` | 24000 | 16.7 | 7.7m | 41.2deg | 0.0% | 49.0m | 11.0m | 67.1% | 14.9% | Anchors alone are too sparse for route progress. |
+| `p35_probe10_tiered_anchor_mid` | 24000 | 4.1 | 21.8m | 63.2deg | 0.0% | 46.0m | 18.1m | 81.4% | 5.0% | Anchor + mid extrapolation still fails. |
+| `p36_probe10_extrapolated_low` | 24000 | 23.8 | 26.9m | 140.7deg | 40.0% | 0.2m | 13.1m | 25.0% | 56.9% | Low-weight extrapolation improves route without anchors. |
+| `p37_probe10_extrapolated_mid` | 24000 | 14.5 | 27.0m | 138.8deg | 37.6% | 16.2m | 14.1m | 25.0% | 60.1% | Mid weight behaves like p25. |
+| `p36_probe10_extrapolated_low` | full | 15.3 | 30.1m | 115.1deg | 58.9% | 53.8m | 7.4m | 7.5% | 69.4% | Full duration confirms route gain, but heading remains poor. |
+| `p39_probe10_extrapolated_low_pursuit` | full | 15.3 | 30.1m | 115.1deg | 58.9% | 53.8m | 7.4m | 7.5% | 69.4% | Pure-pursuit still has no measurable effect. |
+
+Interpretation:
+
+- High-confidence phase anchors are not a free improvement. They can dominate the
+  local estimator with sparse points and collapse route progress.
+- The most useful direction is low-weight extrapolated lookahead feed without
+  phase anchors.  It improves route completion, but does not yet solve high
+  vehicle heading error.
+- `lookahead_pursuit` does not change the outcome, so the next issue is still
+  estimator-side heading consistency rather than controller pursuit strength.
+
 ## Next Plan
 
-1. Split lookahead feed into high-confidence phase anchors and low-weight extrapolated
-   points, instead of feeding both with the same weight.
+1. Keep low-weight extrapolated feed as the current best candidate, but add a
+   heading-consistency smoother before it reaches `local_path`.
 2. Add synchronized analysis plots:
    route progress vs feed allowed, heading error vs reject heading, and lookahead
    position error vs local residual.

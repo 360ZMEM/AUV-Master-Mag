@@ -645,20 +645,48 @@ class MagneticCablePerception:
                 reading.time_s,
                 self.local_path_estimator.estimate(),
             )
+            phase_anchor_fed = False
+            if (
+                magnetic_phase_observation is not None
+                and self.scenario.tracking.magnetic_lookahead_feed_local_path
+                and self.scenario.tracking.magnetic_lookahead_feed_phase_anchor_enabled
+            ):
+                anchor_observation = magnetic_phase_observation.observation
+                anchor_confidence = max(
+                    anchor_observation.confidence,
+                    self.scenario.tracking.magnetic_lookahead_feed_phase_anchor_confidence,
+                )
+                self.local_path_estimator.add_observation(
+                    anchor_observation.position_xy_m,
+                    time_s=reading.time_s,
+                    confidence=anchor_confidence,
+                    heading_deg=anchor_observation.heading_deg,
+                )
+                self.local_path_tracking_estimator.add_observation(
+                    anchor_observation.position_xy_m,
+                    time_s=reading.time_s,
+                    confidence=anchor_confidence,
+                    heading_deg=anchor_observation.heading_deg,
+                )
+                phase_anchor_fed = True
             if (
                 magnetic_lookahead_target is not None
+                and not phase_anchor_fed
                 and magnetic_lookahead_feed_diag["allowed"] > 0.5
             ):
+                extrapolated_confidence = magnetic_lookahead_target.confidence * (
+                    self.scenario.tracking.magnetic_lookahead_feed_extrapolated_confidence_scale
+                )
                 self.local_path_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_lookahead_target.confidence,
+                    confidence=extrapolated_confidence,
                     heading_deg=magnetic_lookahead_target.heading_deg,
                 )
                 self.local_path_tracking_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_lookahead_target.confidence,
+                    confidence=extrapolated_confidence,
                     heading_deg=magnetic_lookahead_target.heading_deg,
                 )
 
