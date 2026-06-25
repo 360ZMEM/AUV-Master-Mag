@@ -15,7 +15,12 @@ from .filters import (
 )
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
-from .magnetic_path import MagneticPathObservation, MagneticPathObservationBuilder
+from .magnetic_path import (
+    MagneticPathObservation,
+    MagneticPathObservationBuilder,
+    MagneticZigzagPhaseDetector,
+    MagneticZigzagPhaseObservation,
+)
 from .orchestrator import MagneticCablePerception
 from .peaks import PeakDetector
 from .reacquire_region import ObservableRegion, ObservableRegionSelector
@@ -44,6 +49,8 @@ __all__ = [
     "LocalPathTrackingState",
     "MagneticBurialInverter",
     "MagneticCablePerception",
+    "MagneticZigzagPhaseDetector",
+    "MagneticZigzagPhaseObservation",
     "MagneticVectorAnalyzer",
     "MedianWindowFilter",
     "ObservableRegion",

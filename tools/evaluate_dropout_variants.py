@@ -76,6 +76,44 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=10.0,
             feed_max_axis_delta_deg=35.0,
         )),
+        _variant("p11_probe10_mag_phase", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            phase_gate=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p12_probe10_mag_phase_loose", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            feed_max_innovation_m=float("inf"),
+            feed_max_axis_delta_deg=90.0,
+        )),
+        _variant("p13_probe10_mag_phase_lowoffset", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            feed_max_innovation_m=float("inf"),
+            feed_max_axis_delta_deg=90.0,
+        )),
+        _variant("p14_probe10_mag_phase_latch", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            phase_latch_duration_s=20.0,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -102,6 +140,9 @@ def _zigzag_probe(
     min_width_m: float | None = None,
     feed_max_innovation_m: float | None = None,
     feed_max_axis_delta_deg: float | None = None,
+    phase_gate: bool = False,
+    phase_min_offset_m: float = 1.0,
+    phase_latch_duration_s: float = 0.0,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
     scenario.tracking.curve_track_crossing_angle_deg = angle_deg
@@ -118,6 +159,13 @@ def _zigzag_probe(
         scenario.tracking.magnetic_path_feed_max_innovation_m = feed_max_innovation_m
     if feed_max_axis_delta_deg is not None:
         scenario.tracking.magnetic_path_feed_max_heading_delta_deg = feed_max_axis_delta_deg
+    if phase_gate:
+        scenario.tracking.magnetic_path_phase_gate_enabled = True
+        scenario.tracking.magnetic_path_phase_min_offset_m = phase_min_offset_m
+        scenario.tracking.magnetic_path_phase_min_duration_s = 2.0
+        scenario.tracking.magnetic_path_phase_max_duration_s = 45.0
+        scenario.tracking.magnetic_path_phase_max_axis_delta_deg = 35.0
+        scenario.tracking.magnetic_path_phase_latch_duration_s = phase_latch_duration_s
 
 
 def main() -> None:
@@ -140,7 +188,9 @@ def main() -> None:
     base = build_default_scenarios()["case_maze_sonar_dropout"]
     print(
         "name,health,mean_err,track_xt,track_vehicle_err,route,final_dist,"
-        "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,burial_cov,burial_mae,stop",
+        "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
+        "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
+        "burial_cov,burial_mae,stop",
         flush=True,
     )
     for name, build in _variants():
@@ -156,7 +206,14 @@ def main() -> None:
             continue
         if args.phase == "probe" and not name.startswith(("d0_", "p")):
             continue
-        if args.phase == "probe" and not args.name and name.startswith(("p9_", "p10_")):
+        if args.phase == "probe" and not args.name and name.startswith((
+            "p9_",
+            "p10_",
+            "p11_",
+            "p12_",
+            "p13_",
+            "p14_",
+        )):
             continue
         scenario = build(base)
         record = simulate_run(scenario, max_steps=args.max_steps)
@@ -173,6 +230,10 @@ def main() -> None:
             f"{metrics.magnetic_path_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_path_mean_position_error_m:.1f},"
             f"{metrics.magnetic_path_mean_cross_track_offset_m:.1f},"
+            f"{metrics.magnetic_phase_observation_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_phase_mean_axis_error_deg:.1f},"
+            f"{metrics.magnetic_phase_mean_position_error_m:.1f},"
+            f"{metrics.magnetic_phase_mean_amplitude_m:.1f},"
             f"{metrics.burial_inversion_coverage * 100.0:.1f},"
             f"{metrics.burial_inversion_mae_m:.3f},"
             f"{record.metadata.get('stop_reason')}",

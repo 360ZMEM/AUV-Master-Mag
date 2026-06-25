@@ -387,6 +387,12 @@ class TrackingConfig:
     magnetic_path_max_cross_track_m: float = 30.0
     magnetic_path_feed_max_innovation_m: float = float("inf")
     magnetic_path_feed_max_heading_delta_deg: float = 90.0
+    magnetic_path_phase_gate_enabled: bool = False
+    magnetic_path_phase_min_offset_m: float = 1.0
+    magnetic_path_phase_min_duration_s: float = 2.0
+    magnetic_path_phase_max_duration_s: float = 45.0
+    magnetic_path_phase_max_axis_delta_deg: float = 35.0
+    magnetic_path_phase_latch_duration_s: float = 0.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0

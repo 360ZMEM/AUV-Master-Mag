@@ -26,7 +26,7 @@ from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableStateEstimator, LocalPathTrackingState
-from .magnetic_path import MagneticPathObservationBuilder
+from .magnetic_path import MagneticPathObservationBuilder, MagneticZigzagPhaseDetector
 from .peaks import PeakDetector
 from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
@@ -130,6 +130,17 @@ class MagneticCablePerception:
             if scenario.tracking.magnetic_path_observation_enabled
             else None
         )
+        self.magnetic_phase_detector = (
+            MagneticZigzagPhaseDetector(
+                min_offset_m=scenario.tracking.magnetic_path_phase_min_offset_m,
+                min_duration_s=scenario.tracking.magnetic_path_phase_min_duration_s,
+                max_duration_s=scenario.tracking.magnetic_path_phase_max_duration_s,
+                max_axis_delta_deg=scenario.tracking.magnetic_path_phase_max_axis_delta_deg,
+            )
+            if scenario.tracking.magnetic_path_phase_gate_enabled
+            else None
+        )
+        self.last_magnetic_phase_time_s = -1e9
         # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
         burial_cfg = scenario.burial_inversion
         self.burial_inverter = (
@@ -544,6 +555,7 @@ class MagneticCablePerception:
             )
 
         magnetic_path_observation = None
+        magnetic_phase_observation = None
         if (
             self.magnetic_path_builder is not None
             and (sonar_reading is None or not sonar_reading.valid)
@@ -560,26 +572,48 @@ class MagneticCablePerception:
                     else pose_measurement.heading_deg
                 ),
             )
+            if magnetic_path_observation is not None and self.magnetic_phase_detector is not None:
+                magnetic_phase_observation = self.magnetic_phase_detector.update(
+                    magnetic_path_observation,
+                    reading.time_s,
+                )
+                if magnetic_phase_observation is not None:
+                    self.last_magnetic_phase_time_s = reading.time_s
+            phase_latched = (
+                self.scenario.tracking.magnetic_path_phase_gate_enabled
+                and reading.time_s - self.last_magnetic_phase_time_s
+                <= self.scenario.tracking.magnetic_path_phase_latch_duration_s
+            )
+            feed_observation = (
+                magnetic_phase_observation.observation
+                if magnetic_phase_observation is not None
+                else magnetic_path_observation
+            )
             if (
-                magnetic_path_observation is not None
+                feed_observation is not None
                 and self.scenario.tracking.magnetic_path_feed_local_path
+                and (
+                    not self.scenario.tracking.magnetic_path_phase_gate_enabled
+                    or magnetic_phase_observation is not None
+                    or phase_latched
+                )
                 and self._magnetic_path_feed_allowed(
                     vehicle_position_xy_m,
-                    magnetic_path_observation.position_xy_m,
-                    magnetic_path_observation.heading_deg,
+                    feed_observation.position_xy_m,
+                    feed_observation.heading_deg,
                 )
             ):
                 self.local_path_estimator.add_observation(
-                    magnetic_path_observation.position_xy_m,
+                    feed_observation.position_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_path_observation.confidence,
-                    heading_deg=magnetic_path_observation.heading_deg,
+                    confidence=feed_observation.confidence,
+                    heading_deg=feed_observation.heading_deg,
                 )
                 self.local_path_tracking_estimator.add_observation(
-                    magnetic_path_observation.position_xy_m,
+                    feed_observation.position_xy_m,
                     time_s=reading.time_s,
-                    confidence=magnetic_path_observation.confidence,
-                    heading_deg=magnetic_path_observation.heading_deg,
+                    confidence=feed_observation.confidence,
+                    heading_deg=feed_observation.heading_deg,
                 )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
@@ -949,6 +983,21 @@ class MagneticCablePerception:
                 None if magnetic_path_observation is None else magnetic_path_observation.cross_track_offset_m
             ),
             magnetic_path_confidence=0.0 if magnetic_path_observation is None else magnetic_path_observation.confidence,
+            magnetic_phase_observation_valid=magnetic_phase_observation is not None,
+            magnetic_phase_x_m=(
+                None if magnetic_phase_observation is None else float(magnetic_phase_observation.observation.position_xy_m[0])
+            ),
+            magnetic_phase_y_m=(
+                None if magnetic_phase_observation is None else float(magnetic_phase_observation.observation.position_xy_m[1])
+            ),
+            magnetic_phase_heading_deg=(
+                None if magnetic_phase_observation is None else magnetic_phase_observation.observation.heading_deg
+            ),
+            magnetic_phase_amplitude_m=0.0 if magnetic_phase_observation is None else magnetic_phase_observation.amplitude_m,
+            magnetic_phase_duration_s=0.0 if magnetic_phase_observation is None else magnetic_phase_observation.duration_s,
+            magnetic_phase_confidence=(
+                0.0 if magnetic_phase_observation is None else magnetic_phase_observation.observation.confidence
+            ),
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,

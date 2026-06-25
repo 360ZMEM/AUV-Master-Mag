@@ -81,6 +81,10 @@ class HealthMetrics:
     magnetic_path_mean_axis_error_deg: float = float("nan")
     magnetic_path_mean_position_error_m: float = float("nan")
     magnetic_path_mean_cross_track_offset_m: float = float("nan")
+    magnetic_phase_observation_fraction: float = 0.0
+    magnetic_phase_mean_axis_error_deg: float = float("nan")
+    magnetic_phase_mean_position_error_m: float = float("nan")
+    magnetic_phase_mean_amplitude_m: float = float("nan")
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -221,6 +225,28 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     magnetic_path_offsets = np.abs(record["magnetic_path_cross_track_offset_m"][magnetic_path_valid])
     magnetic_path_mean_offset = float(np.mean(magnetic_path_offsets)) if magnetic_path_offsets.size else float("nan")
 
+    magnetic_phase_valid = record["magnetic_phase_observation_valid"] > 0.5
+    magnetic_phase_fraction = float(np.mean(magnetic_phase_valid)) if n else 0.0
+    magnetic_phase_heading = record["magnetic_phase_heading_deg"]
+    magnetic_phase_axis_errors = []
+    for estimated_heading, true_heading in zip(magnetic_phase_heading[magnetic_phase_valid], record["true_heading_deg"][magnetic_phase_valid]):
+        directional_error = abs(smallest_angle_error_deg(estimated_heading, true_heading))
+        magnetic_phase_axis_errors.append(min(directional_error, abs(180.0 - directional_error)))
+    magnetic_phase_mean_axis_error = (
+        float(np.mean(magnetic_phase_axis_errors)) if magnetic_phase_axis_errors else float("nan")
+    )
+    magnetic_phase_position_error = np.hypot(
+        record["magnetic_phase_x_m"][magnetic_phase_valid] - record["true_nearest_x_m"][magnetic_phase_valid],
+        record["magnetic_phase_y_m"][magnetic_phase_valid] - record["true_nearest_y_m"][magnetic_phase_valid],
+    )
+    magnetic_phase_mean_position_error = (
+        float(np.mean(magnetic_phase_position_error)) if magnetic_phase_position_error.size else float("nan")
+    )
+    magnetic_phase_amplitude = record["magnetic_phase_amplitude_m"][magnetic_phase_valid]
+    magnetic_phase_mean_amplitude = (
+        float(np.mean(magnetic_phase_amplitude)) if magnetic_phase_amplitude.size else float("nan")
+    )
+
     return HealthMetrics(
         case_name=record.case_name,
         deployment_mode=record.deployment_mode,
@@ -266,6 +292,10 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_path_mean_axis_error_deg=magnetic_path_mean_axis_error,
         magnetic_path_mean_position_error_m=magnetic_path_mean_position_error,
         magnetic_path_mean_cross_track_offset_m=magnetic_path_mean_offset,
+        magnetic_phase_observation_fraction=magnetic_phase_fraction,
+        magnetic_phase_mean_axis_error_deg=magnetic_phase_mean_axis_error,
+        magnetic_phase_mean_position_error_m=magnetic_phase_mean_position_error,
+        magnetic_phase_mean_amplitude_m=magnetic_phase_mean_amplitude,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )

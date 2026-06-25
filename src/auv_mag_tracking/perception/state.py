@@ -132,6 +132,14 @@ class PerceptionState:
     magnetic_path_heading_deg: Optional[float] = None
     magnetic_path_cross_track_offset_m: Optional[float] = None
     magnetic_path_confidence: float = 0.0
+    # --- Zig-zag phase-confirmed pure-magnetic observation diagnostics ---
+    magnetic_phase_observation_valid: bool = False
+    magnetic_phase_x_m: Optional[float] = None
+    magnetic_phase_y_m: Optional[float] = None
+    magnetic_phase_heading_deg: Optional[float] = None
+    magnetic_phase_amplitude_m: float = 0.0
+    magnetic_phase_duration_s: float = 0.0
+    magnetic_phase_confidence: float = 0.0
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

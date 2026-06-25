@@ -182,3 +182,24 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 5. 本轮没有找到可合入默认 dropout 流程的有效参数，因此不应把 `case1v-6v` 的默认探针策略改为更大幅度。
 
 当前判断：zig-zag 对纯磁估计是必要激励，但 `case_maze_sonar_dropout` 还缺一个“跨线相位 -> 可信观测 -> 预瞄目标”的中间层。下一步应先实现显式 zig-zag 相位识别，只在跨线相位完整、磁横偏符号变化成立、创新距离受控时生成 lookahead，而不是把每帧纯磁投影直接喂给 local path。
+
+### 9.3 跨线相位识别验证
+
+已新增 `MagneticZigzagPhaseDetector`：它不直接接受单帧纯磁投影，而是等待 zig-zag 横偏完成一次符号翻转，并要求两侧横偏幅度、相位时长、轴线稳定性满足门控后，再输出相位确认观测。该机制默认关闭，仅作为 dropout 代表点候选。
+
+新增短测入口：
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p11_probe10_mag_phase --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p12_probe10_mag_phase_loose --name p13_probe10_mag_phase_lowoffset --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p14_probe10_mag_phase_latch --max-steps 12000
+```
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | raw mag pos err | phase pos err | phase amp | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p11_probe10_mag_phase` | 34.7 | 7.7m | 41.2° | 2.1% | 3.6m | 11.4m | 16.1m | 6.8m | 相位事件过稀疏，推进失败。 |
+| `p12_probe10_mag_phase_loose` | 26.1 | 18.0m | 88.2° | 1.7% | 23.5m | 11.8m | — | — | 放宽接入门控仍无有效相位输出。 |
+| `p13_probe10_mag_phase_lowoffset` | 22.1 | 8.6m | 40.1° | 3.2% | 21.7m | 10.2m | 5.5m | 7.3m | 相位位置较准，但事件太少，不能连续预瞄。 |
+| `p14_probe10_mag_phase_latch` | 26.7 | 7.7m | 41.2° | 2.0% | 33.0m | 10.5m | 8.7m | 4.5m | 相位信任窗口仍不能形成持续控制收益。 |
+
+相位识别使纯磁位置误差进入 `5.5-16.1m` 区间，比 `p6_probe10_mag` 的 `120.5m` 明显更可信；但 route 仍停在 `1.7-3.2%`。这说明当前失败点已经从“单帧纯磁观测污染”转移为“相位事件太稀疏，未形成连续 lookahead 目标”。继续推进时应新增独立的 `magnetic lookahead target` 生成器：用相位事件校正局部电缆轴线和横偏符号，再在事件之间用运动学外推保持前视点，而不是继续依赖 `local path` 被动吃稀疏观测。

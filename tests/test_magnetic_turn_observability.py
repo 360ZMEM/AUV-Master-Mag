@@ -13,7 +13,12 @@ if str(SRC_ROOT) not in sys.path:
 from auv_mag_tracking.config import build_default_scenarios
 from auv_mag_tracking.environment import CableEnvironment
 from auv_mag_tracking.math_utils import smallest_angle_error_deg
-from auv_mag_tracking.perception import LocalCableStateEstimator, MagneticPathObservationBuilder
+from auv_mag_tracking.perception import (
+    LocalCableStateEstimator,
+    MagneticPathObservation,
+    MagneticPathObservationBuilder,
+    MagneticZigzagPhaseDetector,
+)
 
 
 class MagneticTurnObservabilityTest(unittest.TestCase):
@@ -104,6 +109,34 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         offsets = np.array([abs(observation.cross_track_offset_m) for observation in observations], dtype=float)
         self.assertGreater(len(observations), 20)
         self.assertLess(float(np.percentile(offsets, 90.0)), 0.5)
+
+    def test_zigzag_phase_detector_requires_both_sides_before_accepting(self) -> None:
+        detector = MagneticZigzagPhaseDetector(
+            min_offset_m=1.0,
+            min_duration_s=1.0,
+            max_duration_s=20.0,
+            max_axis_delta_deg=20.0,
+        )
+
+        def observation(offset_m: float, x_m: float) -> MagneticPathObservation:
+            return MagneticPathObservation(
+                position_xy_m=np.array([x_m, 0.0], dtype=float),
+                heading_deg=0.0,
+                cross_track_offset_m=offset_m,
+                confidence=0.8,
+            )
+
+        self.assertIsNone(detector.update(observation(1.5, 0.0), time_s=0.0))
+        self.assertIsNone(detector.update(observation(2.0, 1.0), time_s=1.0))
+        self.assertIsNone(detector.update(observation(-0.4, 2.0), time_s=2.0))
+
+        phase_observation = detector.update(observation(-1.8, 3.0), time_s=4.0)
+
+        self.assertIsNotNone(phase_observation)
+        assert phase_observation is not None
+        self.assertAlmostEqual(float(phase_observation.observation.position_xy_m[0]), 2.0)
+        self.assertAlmostEqual(phase_observation.amplitude_m, 1.9)
+        self.assertAlmostEqual(phase_observation.duration_s, 3.0)
 
 
 if __name__ == "__main__":
