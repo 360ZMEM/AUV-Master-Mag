@@ -157,13 +157,13 @@ def render_overview(record: RunRecord, metrics: HealthMetrics, out_path: Path) -
 
 
 def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> Path:
-    """渲染 9 面板详细诊断版（工程排障用）。"""
+    """渲染详细诊断版（工程排障用）。"""
     _apply_style()
     t = record["time_s"]
-    fig = plt.figure(figsize=(16, 20))
+    fig = plt.figure(figsize=(16, 24))
     fig.suptitle(f"AUV Cable Tracking Diagnostic — {record.case_name}",
                  fontsize=15, fontweight="bold")
-    gs = fig.add_gridspec(5, 2, hspace=0.45, wspace=0.24,
+    gs = fig.add_gridspec(6, 2, hspace=0.45, wspace=0.24,
                           left=0.07, right=0.97, top=0.95, bottom=0.04)
 
     # 1: heading vs true
@@ -219,12 +219,30 @@ def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> 
     ax.set_yticks(list(mode_num.values())); ax.set_yticklabels(list(mode_num.keys()))
     ax.set_xlabel("Time [s]"); ax.set_title(f"(7) FSM state ({metrics.mode_switches} switches)")
 
-    # 8: trajectory
+    # 8: lookahead feed gate reason
     ax = fig.add_subplot(gs[4, 1])
+    reason_code = record["magnetic_lookahead_feed_reason_code"]
+    ax.plot(t, reason_code, color=_C_WARN, lw=1.0, drawstyle="steps-post")
+    ax.plot(t, record["magnetic_lookahead_feed_allowed"], color=_C_GOOD, lw=0.9, alpha=0.8, label="Allowed")
+    ax.set_yticks([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    ax.set_yticklabels(["ok", "no tgt", "off", "conf", "age", "phase", "resid", "head", "innov"])
+    ax.set_xlabel("Time [s]"); ax.set_title("(8) Lookahead feed gate reason")
+    ax.legend(loc="upper right")
+
+    # 9: lookahead feed gate margins
+    ax = fig.add_subplot(gs[5, 0])
+    ax.plot(t, record["magnetic_lookahead_feed_axis_delta_deg"], color=_C_FIT, lw=1.0, label="Axis delta [deg]")
+    ax.plot(t, record["magnetic_lookahead_feed_innovation_m"], color=_C_MAGNETIC, lw=1.0, label="Innovation [m]")
+    ax.plot(t, record["magnetic_lookahead_feed_phase_age_s"], color=_C_WARN, lw=0.8, alpha=0.7, label="Phase age [s]")
+    ax.set_xlabel("Time [s]"); ax.set_title("(9) Lookahead feed gate margins")
+    ax.legend(loc="upper right")
+
+    # 10: trajectory
+    ax = fig.add_subplot(gs[5, 1])
     ax.plot(record.cable_route_xy_m[:, 0], record.cable_route_xy_m[:, 1], color=_C_TRUTH, lw=2.0, label="True cable")
     ax.plot(record["pos_x_m"], record["pos_y_m"], color=_C_AUV, lw=1.0, label="AUV")
     ax.set_xlabel("North [m]"); ax.set_ylabel("East [m]")
-    ax.set_title("(8) Trajectory"); ax.legend(loc="best"); ax.set_aspect("equal", adjustable="datalim")
+    ax.set_title("(10) Trajectory"); ax.legend(loc="best"); ax.set_aspect("equal", adjustable="datalim")
 
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)

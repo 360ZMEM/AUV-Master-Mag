@@ -89,6 +89,16 @@ class HealthMetrics:
     magnetic_lookahead_mean_axis_error_deg: float = float("nan")
     magnetic_lookahead_mean_position_error_m: float = float("nan")
     magnetic_lookahead_mean_age_s: float = float("nan")
+    magnetic_lookahead_feed_allowed_fraction: float = 0.0
+    magnetic_lookahead_feed_reject_age_fraction: float = 0.0
+    magnetic_lookahead_feed_reject_phase_age_fraction: float = 0.0
+    magnetic_lookahead_feed_reject_residual_fraction: float = 0.0
+    magnetic_lookahead_feed_reject_heading_fraction: float = 0.0
+    magnetic_lookahead_feed_reject_innovation_fraction: float = 0.0
+    magnetic_lookahead_feed_mean_phase_age_s: float = float("nan")
+    magnetic_lookahead_feed_mean_innovation_m: float = float("nan")
+    magnetic_lookahead_feed_mean_axis_delta_deg: float = float("nan")
+    magnetic_lookahead_feed_mean_local_residual_m: float = float("nan")
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -272,6 +282,33 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     magnetic_lookahead_mean_age = (
         float(np.mean(magnetic_lookahead_age)) if magnetic_lookahead_age.size else float("nan")
     )
+    lookahead_feed_reason = record["magnetic_lookahead_feed_reason_code"]
+    lookahead_feed_allowed = record["magnetic_lookahead_feed_allowed"] > 0.5
+    lookahead_feed_denominator = int(np.sum(magnetic_lookahead_valid))
+    if lookahead_feed_denominator:
+        magnetic_lookahead_feed_allowed_fraction = float(np.sum(lookahead_feed_allowed & magnetic_lookahead_valid) / lookahead_feed_denominator)
+        magnetic_lookahead_feed_reject_age_fraction = float(np.sum((lookahead_feed_reason == 5.0) & magnetic_lookahead_valid) / lookahead_feed_denominator)
+        magnetic_lookahead_feed_reject_phase_age_fraction = float(np.sum((lookahead_feed_reason == 6.0) & magnetic_lookahead_valid) / lookahead_feed_denominator)
+        magnetic_lookahead_feed_reject_residual_fraction = float(np.sum((lookahead_feed_reason == 7.0) & magnetic_lookahead_valid) / lookahead_feed_denominator)
+        magnetic_lookahead_feed_reject_heading_fraction = float(np.sum((lookahead_feed_reason == 8.0) & magnetic_lookahead_valid) / lookahead_feed_denominator)
+        magnetic_lookahead_feed_reject_innovation_fraction = float(np.sum((lookahead_feed_reason == 9.0) & magnetic_lookahead_valid) / lookahead_feed_denominator)
+    else:
+        magnetic_lookahead_feed_allowed_fraction = 0.0
+        magnetic_lookahead_feed_reject_age_fraction = 0.0
+        magnetic_lookahead_feed_reject_phase_age_fraction = 0.0
+        magnetic_lookahead_feed_reject_residual_fraction = 0.0
+        magnetic_lookahead_feed_reject_heading_fraction = 0.0
+        magnetic_lookahead_feed_reject_innovation_fraction = 0.0
+
+    def _finite_mean(name: str) -> float:
+        values = record[name][magnetic_lookahead_valid]
+        values = values[np.isfinite(values)]
+        return float(np.mean(values)) if values.size else float("nan")
+
+    magnetic_lookahead_feed_mean_phase_age = _finite_mean("magnetic_lookahead_feed_phase_age_s")
+    magnetic_lookahead_feed_mean_innovation = _finite_mean("magnetic_lookahead_feed_innovation_m")
+    magnetic_lookahead_feed_mean_axis_delta = _finite_mean("magnetic_lookahead_feed_axis_delta_deg")
+    magnetic_lookahead_feed_mean_local_residual = _finite_mean("magnetic_lookahead_feed_local_residual_m")
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -326,6 +363,16 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_lookahead_mean_axis_error_deg=magnetic_lookahead_mean_axis_error,
         magnetic_lookahead_mean_position_error_m=magnetic_lookahead_mean_position_error,
         magnetic_lookahead_mean_age_s=magnetic_lookahead_mean_age,
+        magnetic_lookahead_feed_allowed_fraction=magnetic_lookahead_feed_allowed_fraction,
+        magnetic_lookahead_feed_reject_age_fraction=magnetic_lookahead_feed_reject_age_fraction,
+        magnetic_lookahead_feed_reject_phase_age_fraction=magnetic_lookahead_feed_reject_phase_age_fraction,
+        magnetic_lookahead_feed_reject_residual_fraction=magnetic_lookahead_feed_reject_residual_fraction,
+        magnetic_lookahead_feed_reject_heading_fraction=magnetic_lookahead_feed_reject_heading_fraction,
+        magnetic_lookahead_feed_reject_innovation_fraction=magnetic_lookahead_feed_reject_innovation_fraction,
+        magnetic_lookahead_feed_mean_phase_age_s=magnetic_lookahead_feed_mean_phase_age,
+        magnetic_lookahead_feed_mean_innovation_m=magnetic_lookahead_feed_mean_innovation,
+        magnetic_lookahead_feed_mean_axis_delta_deg=magnetic_lookahead_feed_mean_axis_delta,
+        magnetic_lookahead_feed_mean_local_residual_m=magnetic_lookahead_feed_mean_local_residual,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )

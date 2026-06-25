@@ -147,6 +147,12 @@ class PerceptionState:
     magnetic_lookahead_heading_deg: Optional[float] = None
     magnetic_lookahead_confidence: float = 0.0
     magnetic_lookahead_age_s: float = float("inf")
+    magnetic_lookahead_feed_allowed: bool = False
+    magnetic_lookahead_feed_reason_code: float = 0.0
+    magnetic_lookahead_feed_phase_age_s: float = float("inf")
+    magnetic_lookahead_feed_innovation_m: float = float("nan")
+    magnetic_lookahead_feed_axis_delta_deg: float = float("nan")
+    magnetic_lookahead_feed_local_residual_m: float = float("nan")
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

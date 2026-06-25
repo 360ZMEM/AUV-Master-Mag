@@ -570,6 +570,11 @@ class MagneticCablePerception:
         magnetic_path_observation = None
         magnetic_phase_observation = None
         magnetic_lookahead_target = None
+        magnetic_lookahead_feed_diag = self._magnetic_lookahead_feed_diagnostics(
+            None,
+            reading.time_s,
+            None,
+        )
         if (
             self.magnetic_path_builder is not None
             and (sonar_reading is None or not sonar_reading.valid)
@@ -635,15 +640,14 @@ class MagneticCablePerception:
                 time_s=reading.time_s,
                 phase_observation=magnetic_phase_observation,
             )
+            magnetic_lookahead_feed_diag = self._magnetic_lookahead_feed_diagnostics(
+                magnetic_lookahead_target,
+                reading.time_s,
+                self.local_path_estimator.estimate(),
+            )
             if (
                 magnetic_lookahead_target is not None
-                and self.scenario.tracking.magnetic_lookahead_feed_local_path
-                and magnetic_lookahead_target.confidence >= self.scenario.tracking.magnetic_lookahead_min_confidence
-                and self._magnetic_lookahead_feed_allowed(
-                    magnetic_lookahead_target,
-                    reading.time_s,
-                    self.local_path_estimator.estimate(),
-                )
+                and magnetic_lookahead_feed_diag["allowed"] > 0.5
             ):
                 self.local_path_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
@@ -1068,6 +1072,12 @@ class MagneticCablePerception:
                 0.0 if magnetic_lookahead_target is None else magnetic_lookahead_target.confidence
             ),
             magnetic_lookahead_age_s=float("inf") if magnetic_lookahead_target is None else magnetic_lookahead_target.age_s,
+            magnetic_lookahead_feed_allowed=magnetic_lookahead_feed_diag["allowed"] > 0.5,
+            magnetic_lookahead_feed_reason_code=magnetic_lookahead_feed_diag["reason_code"],
+            magnetic_lookahead_feed_phase_age_s=magnetic_lookahead_feed_diag["phase_age_s"],
+            magnetic_lookahead_feed_innovation_m=magnetic_lookahead_feed_diag["innovation_m"],
+            magnetic_lookahead_feed_axis_delta_deg=magnetic_lookahead_feed_diag["axis_delta_deg"],
+            magnetic_lookahead_feed_local_residual_m=magnetic_lookahead_feed_diag["local_residual_m"],
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,
@@ -1106,33 +1116,60 @@ class MagneticCablePerception:
         axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
         return axis_error_deg <= self.scenario.tracking.magnetic_path_feed_max_heading_delta_deg
 
-    def _magnetic_lookahead_feed_allowed(
+    def _magnetic_lookahead_feed_diagnostics(
         self,
         magnetic_lookahead_target,
         time_s: float,
         local_path_state,
-    ) -> bool:
-        """Gate lookahead-derived observations before feeding local path."""
+    ) -> dict:
+        """Diagnose and gate lookahead-derived observations before local path feed."""
+        diagnostics = {
+            "allowed": 0.0,
+            "reason_code": 0.0,  # 0 none, 1 allowed, 2 no target, 3 disabled, 4 low confidence
+            "phase_age_s": float("inf"),
+            "innovation_m": float("nan"),
+            "axis_delta_deg": float("nan"),
+            "local_residual_m": float("nan"),
+        }
+        if magnetic_lookahead_target is None:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if not self.scenario.tracking.magnetic_lookahead_feed_local_path:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        if magnetic_lookahead_target.confidence < self.scenario.tracking.magnetic_lookahead_min_confidence:
+            diagnostics["reason_code"] = 4.0
+            return diagnostics
         if magnetic_lookahead_target.age_s > self.scenario.tracking.magnetic_lookahead_feed_max_age_s:
-            return False
+            diagnostics["reason_code"] = 5.0
+            return diagnostics
         phase_age_s = float(time_s) - self.last_magnetic_phase_time_s
+        diagnostics["phase_age_s"] = phase_age_s
         if phase_age_s > self.scenario.tracking.magnetic_lookahead_feed_max_phase_age_s:
-            return False
+            diagnostics["reason_code"] = 6.0
+            return diagnostics
 
         if local_path_state is None:
-            return True
+            diagnostics["allowed"] = 1.0
+            diagnostics["reason_code"] = 1.0
+            return diagnostics
+
+        diagnostics["local_residual_m"] = float(local_path_state.residual_m)
 
         if (
             np.isfinite(local_path_state.residual_m)
             and local_path_state.residual_m > self.scenario.tracking.magnetic_lookahead_feed_max_local_residual_m
         ):
-            return False
+            diagnostics["reason_code"] = 7.0
+            return diagnostics
 
         reference_heading_deg = local_path_state.heading_deg
         axis_error_deg = abs(smallest_angle_error_deg(magnetic_lookahead_target.heading_deg, reference_heading_deg))
         axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
+        diagnostics["axis_delta_deg"] = axis_error_deg
         if axis_error_deg > self.scenario.tracking.magnetic_lookahead_feed_max_heading_delta_deg:
-            return False
+            diagnostics["reason_code"] = 8.0
+            return diagnostics
 
         projected_xy = project_point_to_line(
             magnetic_lookahead_target.cable_point_xy_m,
@@ -1140,4 +1177,10 @@ class MagneticCablePerception:
             local_path_state.tangent_xy,
         )
         innovation_m = float(np.linalg.norm(magnetic_lookahead_target.cable_point_xy_m - projected_xy))
-        return innovation_m <= self.scenario.tracking.magnetic_lookahead_feed_max_innovation_m
+        diagnostics["innovation_m"] = innovation_m
+        if innovation_m > self.scenario.tracking.magnetic_lookahead_feed_max_innovation_m:
+            diagnostics["reason_code"] = 9.0
+            return diagnostics
+        diagnostics["allowed"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        return diagnostics

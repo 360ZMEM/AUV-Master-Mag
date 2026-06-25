@@ -355,6 +355,42 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p31_probe10_gate60_heading30", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=30.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p32_probe10_gate60_heading40", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=40.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -465,6 +501,9 @@ def main() -> None:
         "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
         "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
         "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
+        "lookahead_feed_pct,feed_reject_age,feed_reject_phase_age,feed_reject_residual,"
+        "feed_reject_heading,feed_reject_innovation,feed_phase_age,feed_innovation,"
+        "feed_axis_delta,feed_local_residual,"
         "burial_cov,burial_mae,stop",
         flush=True,
     )
@@ -504,6 +543,8 @@ def main() -> None:
             "p28_",
             "p29_",
             "p30_",
+            "p31_",
+            "p32_",
         )):
             continue
         scenario = build(base)
@@ -529,6 +570,16 @@ def main() -> None:
             f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"
             f"{metrics.magnetic_lookahead_mean_age_s:.1f},"
+            f"{metrics.magnetic_lookahead_feed_allowed_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_reject_age_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_reject_phase_age_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_reject_residual_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_reject_heading_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_reject_innovation_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_feed_mean_phase_age_s:.1f},"
+            f"{metrics.magnetic_lookahead_feed_mean_innovation_m:.1f},"
+            f"{metrics.magnetic_lookahead_feed_mean_axis_delta_deg:.1f},"
+            f"{metrics.magnetic_lookahead_feed_mean_local_residual_m:.1f},"
             f"{metrics.burial_inversion_coverage * 100.0:.1f},"
             f"{metrics.burial_inversion_mae_m:.3f},"
             f"{record.metadata.get('stop_reason')}",
