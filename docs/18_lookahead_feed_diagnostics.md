@@ -107,10 +107,47 @@ Interpretation:
 
 ## Next Plan
 
-1. Keep low-weight extrapolated feed as the current best candidate, but add a
-   heading-consistency smoother before it reaches `local_path`.
+1. Keep low-weight extrapolated feed as the current best candidate.
 2. Add synchronized analysis plots:
    route progress vs feed allowed, heading error vs reject heading, and lookahead
    position error vs local residual.
 3. If the strategy stabilizes, use the new channels as paper-facing figures for
    observability, gate rejection causes, estimator readiness, and control benefit.
+
+## Heading-smoothing Follow-up
+
+Implementation:
+
+- Added default-off feed-heading smoothing:
+  - `magnetic_lookahead_feed_heading_smoothing_enabled`
+  - `magnetic_lookahead_feed_heading_max_step_deg`
+- The smoother is applied only to the heading written into `local_path`.
+  Raw `MagneticLookaheadTarget` diagnostics are unchanged.
+- Representative variants:
+  - `p40_probe10_extrapolated_low_smooth12`
+  - `p41_probe10_extrapolated_low_smooth6`
+  - `p42_probe10_extrapolated_low_smooth9`
+
+Commands:
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p40_probe10_extrapolated_low_smooth12 --name p41_probe10_extrapolated_low_smooth6 --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p42_probe10_extrapolated_low_smooth9 --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p40_probe10_extrapolated_low_smooth12
+```
+
+| variant | run | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead pos err | feed allowed | reject heading | conclusion |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p40_probe10_extrapolated_low_smooth12` | 24000 | 23.8 | 26.9m | 140.7deg | 40.0% | 0.2m | 13.1m | 25.0% | 56.9% | Same as p36; 12deg/step is too loose to affect behavior. |
+| `p41_probe10_extrapolated_low_smooth6` | 24000 | 17.2 | 18.5m | 49.7deg | 3.5% | 52.3m | 26.7m | 45.0% | 36.0% | Strong smoothing lowers heading error but removes useful turn information. |
+| `p42_probe10_extrapolated_low_smooth9` | 24000 | 26.3 | 10.0m | 81.2deg | 0.0% | 5.6m | 15.0m | 49.3% | 39.3% | Intermediate smoothing still collapses route progress. |
+| `p40_probe10_extrapolated_low_smooth12` | full | 15.3 | 30.1m | 115.1deg | 58.9% | 53.8m | 7.4m | 7.5% | 69.4% | Full run matches p36: safe but not corrective. |
+
+Interpretation:
+
+- Simple per-feed heading step limiting is not the main missing mechanism.
+- The lookahead heading contains both harmful alias jumps and useful turn updates.
+  Over-smoothing blocks the latter and collapses route progress.
+- Next algorithmic direction should move from scalar heading smoothing to
+  stateful axis selection / multi-hypothesis disambiguation, preferably keyed by
+  phase events and route-progress consistency.

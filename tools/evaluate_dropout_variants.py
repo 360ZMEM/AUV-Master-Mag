@@ -528,6 +528,69 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p40_probe10_extrapolated_low_smooth12", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_heading_smoothing=True,
+            lookahead_feed_heading_max_step_deg=12.0,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p41_probe10_extrapolated_low_smooth6", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_heading_smoothing=True,
+            lookahead_feed_heading_max_step_deg=6.0,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p42_probe10_extrapolated_low_smooth9", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_heading_smoothing=True,
+            lookahead_feed_heading_max_step_deg=9.0,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -568,6 +631,8 @@ def _zigzag_probe(
     lookahead_feed_max_local_residual_m: float | None = None,
     lookahead_feed_phase_anchor: bool = False,
     lookahead_feed_extrapolated_scale: float = 1.0,
+    lookahead_feed_heading_smoothing: bool = False,
+    lookahead_feed_heading_max_step_deg: float = 12.0,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
@@ -601,6 +666,8 @@ def _zigzag_probe(
         scenario.tracking.magnetic_lookahead_feed_local_path = lookahead_feed_local_path
         scenario.tracking.magnetic_lookahead_feed_phase_anchor_enabled = lookahead_feed_phase_anchor
         scenario.tracking.magnetic_lookahead_feed_extrapolated_confidence_scale = lookahead_feed_extrapolated_scale
+        scenario.tracking.magnetic_lookahead_feed_heading_smoothing_enabled = lookahead_feed_heading_smoothing
+        scenario.tracking.magnetic_lookahead_feed_heading_max_step_deg = lookahead_feed_heading_max_step_deg
         if lookahead_feed_max_age_s is not None:
             scenario.tracking.magnetic_lookahead_feed_max_age_s = lookahead_feed_max_age_s
         if lookahead_feed_max_phase_age_s is not None:
@@ -693,6 +760,9 @@ def main() -> None:
             "p37_",
             "p38_",
             "p39_",
+            "p40_",
+            "p41_",
+            "p42_",
         )):
             continue
         scenario = build(base)

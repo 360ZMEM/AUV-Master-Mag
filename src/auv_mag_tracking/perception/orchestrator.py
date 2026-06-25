@@ -17,6 +17,7 @@ from ..math_utils import (
     rotation_matrix_sensor_to_body,
     sensor_to_body,
     smallest_angle_error_deg,
+    wrap_angle_deg,
 )
 from ..perception_driver import ProcessedSignalFeatures
 from ..sensor_model import BurialDepthMeasurement, MagnetometerReading, PoseMeasurement, SonarReading
@@ -154,6 +155,7 @@ class MagneticCablePerception:
             if scenario.tracking.magnetic_lookahead_enabled
             else None
         )
+        self.last_magnetic_lookahead_feed_heading_deg: Optional[float] = None
         # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
         burial_cfg = scenario.burial_inversion
         self.burial_inverter = (
@@ -677,17 +679,20 @@ class MagneticCablePerception:
                 extrapolated_confidence = magnetic_lookahead_target.confidence * (
                     self.scenario.tracking.magnetic_lookahead_feed_extrapolated_confidence_scale
                 )
+                feed_heading_deg = self._smooth_magnetic_lookahead_feed_heading(
+                    magnetic_lookahead_target.heading_deg
+                )
                 self.local_path_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
                     time_s=reading.time_s,
                     confidence=extrapolated_confidence,
-                    heading_deg=magnetic_lookahead_target.heading_deg,
+                    heading_deg=feed_heading_deg,
                 )
                 self.local_path_tracking_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
                     time_s=reading.time_s,
                     confidence=extrapolated_confidence,
-                    heading_deg=magnetic_lookahead_target.heading_deg,
+                    heading_deg=feed_heading_deg,
                 )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
@@ -1143,6 +1148,26 @@ class MagneticCablePerception:
         axis_error_deg = abs(smallest_angle_error_deg(observation_heading_deg, reference_heading_deg))
         axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
         return axis_error_deg <= self.scenario.tracking.magnetic_path_feed_max_heading_delta_deg
+
+    def _smooth_magnetic_lookahead_feed_heading(self, heading_deg: float) -> float:
+        """Limit heading jumps before lookahead observations enter local path."""
+        if not self.scenario.tracking.magnetic_lookahead_feed_heading_smoothing_enabled:
+            self.last_magnetic_lookahead_feed_heading_deg = float(heading_deg)
+            return float(heading_deg)
+        if self.last_magnetic_lookahead_feed_heading_deg is None:
+            self.last_magnetic_lookahead_feed_heading_deg = float(heading_deg)
+            return float(heading_deg)
+        delta_deg = smallest_angle_error_deg(heading_deg, self.last_magnetic_lookahead_feed_heading_deg)
+        limited_delta_deg = float(np.clip(
+            delta_deg,
+            -self.scenario.tracking.magnetic_lookahead_feed_heading_max_step_deg,
+            self.scenario.tracking.magnetic_lookahead_feed_heading_max_step_deg,
+        ))
+        smoothed_heading_deg = wrap_angle_deg(
+            self.last_magnetic_lookahead_feed_heading_deg + limited_delta_deg
+        )
+        self.last_magnetic_lookahead_feed_heading_deg = smoothed_heading_deg
+        return smoothed_heading_deg
 
     def _magnetic_lookahead_feed_diagnostics(
         self,

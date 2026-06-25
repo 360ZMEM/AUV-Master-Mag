@@ -407,6 +407,8 @@ class TrackingConfig:
     magnetic_lookahead_feed_phase_anchor_enabled: bool = False
     magnetic_lookahead_feed_phase_anchor_confidence: float = 0.85
     magnetic_lookahead_feed_extrapolated_confidence_scale: float = 1.0
+    magnetic_lookahead_feed_heading_smoothing_enabled: bool = False
+    magnetic_lookahead_feed_heading_max_step_deg: float = 12.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
