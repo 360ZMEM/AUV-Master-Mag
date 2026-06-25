@@ -99,6 +99,12 @@ class HealthMetrics:
     magnetic_lookahead_feed_mean_innovation_m: float = float("nan")
     magnetic_lookahead_feed_mean_axis_delta_deg: float = float("nan")
     magnetic_lookahead_feed_mean_local_residual_m: float = float("nan")
+    zigzag_probe_active_fraction: float = 0.0
+    zigzag_probe_cycle_count: int = 0
+    zigzag_probe_leg_flip_count: int = 0
+    zigzag_probe_mean_cycle_duration_s: float = float("nan")
+    zigzag_probe_mean_peak_abs_cross_track_m: float = float("nan")
+    zigzag_probe_phase_events_per_cycle: float = 0.0
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -310,6 +316,31 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     magnetic_lookahead_feed_mean_axis_delta = _finite_mean("magnetic_lookahead_feed_axis_delta_deg")
     magnetic_lookahead_feed_mean_local_residual = _finite_mean("magnetic_lookahead_feed_local_residual_m")
 
+    zigzag_probe_active = record["zigzag_probe_active"] > 0.5
+    zigzag_probe_active_fraction = float(np.mean(zigzag_probe_active)) if n else 0.0
+    zigzag_probe_leg_flip_count = int(np.nansum(record["zigzag_probe_leg_flip_event"]))
+    cycle_ids = record["zigzag_probe_cycle_id"][zigzag_probe_active]
+    finite_cycle_ids = cycle_ids[np.isfinite(cycle_ids)]
+    zigzag_probe_cycle_count = int(np.max(finite_cycle_ids) + 1) if finite_cycle_ids.size else 0
+    cycle_duration_at_flip = record["zigzag_probe_last_cycle_duration_s"][
+        record["zigzag_probe_leg_flip_event"] > 0.5
+    ]
+    cycle_duration_at_flip = cycle_duration_at_flip[np.isfinite(cycle_duration_at_flip)]
+    zigzag_probe_mean_cycle_duration = (
+        float(np.mean(cycle_duration_at_flip)) if cycle_duration_at_flip.size else float("nan")
+    )
+    peak_abs_xt = record["zigzag_probe_cycle_peak_abs_cross_track_m"][zigzag_probe_active]
+    peak_abs_xt = peak_abs_xt[np.isfinite(peak_abs_xt)]
+    zigzag_probe_mean_peak_abs_cross_track = (
+        float(np.mean(peak_abs_xt)) if peak_abs_xt.size else float("nan")
+    )
+    phase_events_per_cycle = (
+        float(np.sum(record["magnetic_phase_observation_valid"][zigzag_probe_active] > 0.5)
+              / max(zigzag_probe_cycle_count, 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+
     return HealthMetrics(
         case_name=record.case_name,
         deployment_mode=record.deployment_mode,
@@ -373,6 +404,12 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_lookahead_feed_mean_innovation_m=magnetic_lookahead_feed_mean_innovation,
         magnetic_lookahead_feed_mean_axis_delta_deg=magnetic_lookahead_feed_mean_axis_delta,
         magnetic_lookahead_feed_mean_local_residual_m=magnetic_lookahead_feed_mean_local_residual,
+        zigzag_probe_active_fraction=zigzag_probe_active_fraction,
+        zigzag_probe_cycle_count=zigzag_probe_cycle_count,
+        zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,
+        zigzag_probe_mean_cycle_duration_s=zigzag_probe_mean_cycle_duration,
+        zigzag_probe_mean_peak_abs_cross_track_m=zigzag_probe_mean_peak_abs_cross_track,
+        zigzag_probe_phase_events_per_cycle=phase_events_per_cycle,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )

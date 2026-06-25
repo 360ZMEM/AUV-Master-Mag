@@ -38,6 +38,46 @@ def _variant(name: str, apply: Callable[[ScenarioConfig], None]) -> Tuple[str, V
 def _variants() -> List[Tuple[str, VariantBuilder]]:
     return [
         _variant("d0_baseline", lambda s: None),
+        _variant("d0_p36_route_baseline", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("d0_p44_curveflip_counterexample", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            curve_track_flip_to_vehicle=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("d0_sparse_sonar_anchor", _sparse_sonar),
         _variant("d1_delay60", lambda s: setattr(s.sonar, "fail_after_track_delay_s", 60.0)),
         _variant("d1_delay180", lambda s: setattr(s.sonar, "fail_after_track_delay_s", 180.0)),
         _variant("d1_sparse_sonar", _sparse_sonar),
@@ -763,7 +803,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--phase",
-        choices=("all", "d1", "d2", "d3", "d4", "probe"),
+        choices=("all", "d0", "d1", "d2", "d3", "d4", "probe"),
         default="all",
         help="subset of representative variants to run",
     )
@@ -781,6 +821,7 @@ def main() -> None:
         "name,health,mean_err,track_xt,track_vehicle_err,route,final_dist,"
         "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
         "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
+        "probe_active_pct,probe_cycles,probe_flips,probe_cycle_s,probe_peak_xt,probe_phase_per_cycle,"
         "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
         "lookahead_feed_pct,feed_reject_age,feed_reject_phase_age,feed_reject_residual,"
         "feed_reject_heading,feed_reject_innovation,feed_phase_age,feed_innovation,"
@@ -790,6 +831,8 @@ def main() -> None:
     )
     for name, build in _variants():
         if args.name and name not in set(args.name):
+            continue
+        if args.phase == "d0" and not name.startswith("d0_"):
             continue
         if args.phase == "d1" and not name.startswith(("d0_", "d1_")):
             continue
@@ -860,6 +903,12 @@ def main() -> None:
             f"{metrics.magnetic_phase_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_phase_mean_position_error_m:.1f},"
             f"{metrics.magnetic_phase_mean_amplitude_m:.1f},"
+            f"{metrics.zigzag_probe_active_fraction * 100.0:.1f},"
+            f"{metrics.zigzag_probe_cycle_count},"
+            f"{metrics.zigzag_probe_leg_flip_count},"
+            f"{metrics.zigzag_probe_mean_cycle_duration_s:.1f},"
+            f"{metrics.zigzag_probe_mean_peak_abs_cross_track_m:.1f},"
+            f"{metrics.zigzag_probe_phase_events_per_cycle:.2f},"
             f"{metrics.magnetic_lookahead_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"

@@ -16,8 +16,9 @@ from auv_mag_tracking.viz import (
     compare_to_baseline,
     health_score,
 )
+from auv_mag_tracking.config import build_default_scenarios
 from auv_mag_tracking.viz.metrics import HealthMetrics
-from auv_mag_tracking.viz.recorder import simulate_case
+from auv_mag_tracking.viz.recorder import simulate_case, simulate_run
 
 
 def _metrics(case_name: str, *, mean_err: float, track: float, switches: int,
@@ -138,6 +139,19 @@ class ProgressComparisonTest(unittest.TestCase):
         self.assertIn("local_path_heading_deg", record.channels)
         self.assertIn("local_path_model_code", record.channels)
         self.assertGreater(np.count_nonzero(record["local_path_model_code"] > 0.0), 0)
+
+    def test_zigzag_probe_cycle_channels_are_recorded_when_probe_enabled(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.track_active_zigzag_angle_deg = 10.0
+        scenario.tracking.curve_track_crossing_angle_deg = 10.0
+
+        record = simulate_run(scenario, max_steps=800)
+
+        self.assertIn("zigzag_probe_active", record.channels)
+        self.assertIn("zigzag_probe_cycle_id", record.channels)
+        self.assertIn("zigzag_probe_leg_sign", record.channels)
+        self.assertGreater(np.count_nonzero(record["zigzag_probe_active"] > 0.5), 0)
+        self.assertGreater(np.count_nonzero(np.isfinite(record["zigzag_probe_cycle_age_s"])), 0)
 
 
 if __name__ == "__main__":

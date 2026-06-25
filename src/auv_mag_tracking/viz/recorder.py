@@ -90,6 +90,15 @@ _NUMERIC_CHANNELS = (
     "magnetic_lookahead_feed_innovation_m",
     "magnetic_lookahead_feed_axis_delta_deg",
     "magnetic_lookahead_feed_local_residual_m",
+    "zigzag_probe_active",
+    "zigzag_probe_cycle_id",
+    "zigzag_probe_leg_sign",
+    "zigzag_probe_cycle_age_s",
+    "zigzag_probe_leg_flip_event",
+    "zigzag_probe_signed_cross_track_m",
+    "zigzag_probe_cycle_peak_abs_cross_track_m",
+    "zigzag_probe_phase_count",
+    "zigzag_probe_last_cycle_duration_s",
     "vector_consistency",
     "peak_detected",
     "safe_lock_active",
@@ -207,6 +216,16 @@ def simulate_run(
 
     track_entry_time_s: Optional[float] = None
     endpoint_completed = False
+    probe_configured = (
+        scenario.tracking.track_active_zigzag_angle_deg > 0.0
+        or scenario.tracking.curve_track_crossing_angle_deg > 0.0
+    )
+    probe_cycle_id = 0
+    probe_cycle_start_time_s: Optional[float] = None
+    probe_last_leg_sign: Optional[float] = None
+    probe_cycle_peak_abs_cross_track_m = 0.0
+    probe_cycle_phase_count = 0
+    probe_last_cycle_duration_s = np.nan
     for step_index in range(total_steps):
         time_s = step_index * scenario.dt_s
         apply_attitude_profile(sim.pose, scenario, time_s)
@@ -247,8 +266,45 @@ def simulate_run(
         if command.mode.value == "track" and track_entry_time_s is None:
             track_entry_time_s = time_s
 
-        nearest_xy, _, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
+        nearest_xy, route_tangent_xy, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
         estimated_cable_xy = perception.estimated_cable_point_xy_m
+        route_normal_xy = np.array([-route_tangent_xy[1], route_tangent_xy[0]], dtype=float)
+        signed_route_cross_track_m = float(np.dot(sim.pose.position_ned_m[:2] - nearest_xy, route_normal_xy))
+        probe_active = bool(probe_configured and command.mode.value == "track")
+        probe_leg_flip_event = 0.0
+        probe_leg_sign = float(sim.controller.leg_sign)
+        if probe_active:
+            if probe_cycle_start_time_s is None:
+                probe_cycle_start_time_s = time_s
+                probe_last_leg_sign = probe_leg_sign
+                probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
+                probe_cycle_phase_count = 0
+            elif probe_last_leg_sign is not None and probe_leg_sign != probe_last_leg_sign:
+                probe_leg_flip_event = 1.0
+                probe_last_cycle_duration_s = time_s - probe_cycle_start_time_s
+                probe_cycle_id += 1
+                probe_cycle_start_time_s = time_s
+                probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
+                probe_cycle_phase_count = 0
+                probe_last_leg_sign = probe_leg_sign
+            else:
+                probe_cycle_peak_abs_cross_track_m = max(
+                    probe_cycle_peak_abs_cross_track_m,
+                    abs(signed_route_cross_track_m),
+                )
+                probe_last_leg_sign = probe_leg_sign
+            if perception.magnetic_phase_observation_valid:
+                probe_cycle_phase_count += 1
+        else:
+            probe_cycle_start_time_s = None
+            probe_last_leg_sign = None
+            probe_cycle_peak_abs_cross_track_m = 0.0
+            probe_cycle_phase_count = 0
+        probe_cycle_age_s = (
+            time_s - probe_cycle_start_time_s
+            if probe_active and probe_cycle_start_time_s is not None
+            else np.nan
+        )
         recorder.append(
             time_s=time_s,
             pos_x_m=sim.pose.position_ned_m[0],
@@ -349,6 +405,17 @@ def simulate_run(
             magnetic_lookahead_feed_innovation_m=perception.magnetic_lookahead_feed_innovation_m,
             magnetic_lookahead_feed_axis_delta_deg=perception.magnetic_lookahead_feed_axis_delta_deg,
             magnetic_lookahead_feed_local_residual_m=perception.magnetic_lookahead_feed_local_residual_m,
+            zigzag_probe_active=1.0 if probe_active else 0.0,
+            zigzag_probe_cycle_id=float(probe_cycle_id) if probe_active else np.nan,
+            zigzag_probe_leg_sign=probe_leg_sign if probe_active else np.nan,
+            zigzag_probe_cycle_age_s=probe_cycle_age_s,
+            zigzag_probe_leg_flip_event=probe_leg_flip_event,
+            zigzag_probe_signed_cross_track_m=signed_route_cross_track_m if probe_active else np.nan,
+            zigzag_probe_cycle_peak_abs_cross_track_m=(
+                probe_cycle_peak_abs_cross_track_m if probe_active else np.nan
+            ),
+            zigzag_probe_phase_count=float(probe_cycle_phase_count) if probe_active else np.nan,
+            zigzag_probe_last_cycle_duration_s=probe_last_cycle_duration_s,
             vector_consistency=perception.vector_consistency_score,
             peak_detected=1.0 if perception.peak_detected else 0.0,
             safe_lock_active=1.0 if perception.safe_lock_active else 0.0,

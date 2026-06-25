@@ -160,10 +160,10 @@ def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> 
     """渲染详细诊断版（工程排障用）。"""
     _apply_style()
     t = record["time_s"]
-    fig = plt.figure(figsize=(16, 24))
+    fig = plt.figure(figsize=(16, 28))
     fig.suptitle(f"AUV Cable Tracking Diagnostic — {record.case_name}",
                  fontsize=15, fontweight="bold")
-    gs = fig.add_gridspec(6, 2, hspace=0.45, wspace=0.24,
+    gs = fig.add_gridspec(7, 2, hspace=0.45, wspace=0.24,
                           left=0.07, right=0.97, top=0.95, bottom=0.04)
 
     # 1: heading vs true
@@ -237,12 +237,30 @@ def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> 
     ax.set_xlabel("Time [s]"); ax.set_title("(9) Lookahead feed gate margins")
     ax.legend(loc="upper right")
 
-    # 10: trajectory
+    # 10: zig-zag probe cycle diagnostics
     ax = fig.add_subplot(gs[5, 1])
+    ax.plot(t, record["zigzag_probe_signed_cross_track_m"], color=_C_AUV, lw=0.9, label="Signed XT [m]")
+    ax.plot(t, record["zigzag_probe_leg_sign"], color=_C_WARN, lw=0.9, drawstyle="steps-post", label="Leg sign")
+    flip_idx = np.where(record["zigzag_probe_leg_flip_event"] > 0.5)[0]
+    if flip_idx.size:
+        ax.scatter(t[flip_idx], record["zigzag_probe_signed_cross_track_m"][flip_idx],
+                   color=_C_BAD, s=12, zorder=5, label="Leg flip")
+    ax.set_xlabel("Time [s]"); ax.set_title("(10) Zig-zag probe cycle")
+    ax.legend(loc="upper right")
+
+    # 11: route progress
+    ax = fig.add_subplot(gs[6, 0])
+    ax.plot(t, record["route_progress_m"], color=_C_GOOD, lw=1.2, label="Route progress")
+    ax.plot(t, record["route_distance_m"], color=_C_WARN, lw=0.9, label="Route distance")
+    ax.set_xlabel("Time [s]"); ax.set_title("(11) Route progress and distance")
+    ax.legend(loc="best")
+
+    # 12: trajectory
+    ax = fig.add_subplot(gs[6, 1])
     ax.plot(record.cable_route_xy_m[:, 0], record.cable_route_xy_m[:, 1], color=_C_TRUTH, lw=2.0, label="True cable")
     ax.plot(record["pos_x_m"], record["pos_y_m"], color=_C_AUV, lw=1.0, label="AUV")
     ax.set_xlabel("North [m]"); ax.set_ylabel("East [m]")
-    ax.set_title("(10) Trajectory"); ax.legend(loc="best"); ax.set_aspect("equal", adjustable="datalim")
+    ax.set_title("(12) Trajectory"); ax.legend(loc="best"); ax.set_aspect("equal", adjustable="datalim")
 
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
