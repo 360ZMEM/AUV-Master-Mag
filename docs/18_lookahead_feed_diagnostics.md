@@ -151,3 +151,48 @@ Interpretation:
 - Next algorithmic direction should move from scalar heading smoothing to
   stateful axis selection / multi-hypothesis disambiguation, preferably keyed by
   phase events and route-progress consistency.
+
+## Axis-selection Follow-up
+
+Implementation:
+
+- Added default-off lookahead axis selection:
+  - `magnetic_lookahead_axis_selection_enabled`
+  - `magnetic_lookahead_axis_selection_min_progress_m`
+- The selector chooses the `+axis/-axis` sign from phase-to-phase anchor progress,
+  falling back to phase-to-phase vehicle progress when anchor displacement is too
+  small.
+- Added default-off controller experiment:
+  - `local_path_curve_track_flip_to_vehicle_enabled`
+- The controller experiment flips `curve_track` fused heading by 180deg when it
+  points away from the current vehicle heading, matching the non-curve TRACK
+  behavior.
+- Representative variants:
+  - `p43_probe10_extrapolated_low_axis`
+  - `p44_probe10_extrapolated_low_curveflip`
+
+Commands:
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p43_probe10_extrapolated_low_axis --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p36_probe10_extrapolated_low --name p44_probe10_extrapolated_low_curveflip --max-steps 24000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p44_probe10_extrapolated_low_curveflip
+```
+
+| variant | run | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead pos err | feed allowed | reject heading | conclusion |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p36_probe10_extrapolated_low` | 24000 | 23.8 | 26.9m | 140.7deg | 40.0% | 0.2m | 13.1m | 25.0% | 56.9% | Current route-progress baseline. |
+| `p43_probe10_extrapolated_low_axis` | 24000 | 12.1 | 26.7m | 102.1deg | 1.8% | 42.3m | 21.6m | 43.1% | 36.8% | Phase-anchor progress is too noisy as a direct axis sign selector. |
+| `p44_probe10_extrapolated_low_curveflip` | 24000 | 23.3 | 7.7m | 41.2deg | 38.4% | 66.1m | 23.3m | 43.9% | 16.1% | Reduces heading/cross-track error but sacrifices route progress. |
+| `p44_probe10_extrapolated_low_curveflip` | full | 22.9 | 7.7m | 41.2deg | 40.8% | 127.9m | 40.7m | 31.7% | 11.6% | Confirms curve flip is not a default fix; task progress is worse than old p36 full route 58.9%. |
+
+Interpretation:
+
+- Explicit axis sign selection is still useful as a unit-tested primitive, but
+  using phase-anchor progress directly is not robust enough in dropout maze.
+- Controller-side heading flip proves that part of the high heading error is a
+  directional ambiguity rather than pure tracking failure, but it also changes
+  control behavior and reduces route completion.
+- The next viable path is a true multi-hypothesis selector: keep both axis signs
+  alive, score them by route progress, lookahead innovation, and controller
+  progress over a short window, then only commit after hysteresis.

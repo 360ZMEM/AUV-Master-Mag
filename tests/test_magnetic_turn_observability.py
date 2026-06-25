@@ -179,6 +179,43 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         np.testing.assert_allclose(persisted.cable_point_xy_m, np.array([6.0, 1.0]), atol=1e-6)
         self.assertLess(persisted.confidence, target.confidence)
 
+    def test_magnetic_lookahead_axis_selection_uses_phase_progress(self) -> None:
+        builder = MagneticLookaheadTargetBuilder(
+            max_age_s=10.0,
+            lookahead_distance_m=5.0,
+            heading_blend=1.0,
+            axis_selection_enabled=True,
+            axis_selection_min_progress_m=2.0,
+        )
+
+        def phase(x_m: float, heading_deg: float) -> MagneticZigzagPhaseObservation:
+            return MagneticZigzagPhaseObservation(
+                observation=MagneticPathObservation(
+                    position_xy_m=np.array([x_m, 0.0], dtype=float),
+                    heading_deg=heading_deg,
+                    cross_track_offset_m=0.0,
+                    confidence=0.8,
+                ),
+                amplitude_m=2.0,
+                duration_s=4.0,
+            )
+
+        builder.update(
+            vehicle_position_xy_m=np.array([0.0, 0.0], dtype=float),
+            time_s=0.0,
+            phase_observation=phase(0.0, 0.0),
+        )
+        target = builder.update(
+            vehicle_position_xy_m=np.array([6.0, 1.0], dtype=float),
+            time_s=4.0,
+            phase_observation=phase(5.0, 180.0),
+        )
+
+        self.assertIsNotNone(target)
+        assert target is not None
+        self.assertAlmostEqual(target.heading_deg, 0.0, delta=1e-6)
+        np.testing.assert_allclose(target.lookahead_xy_m, np.array([11.0, 0.0]), atol=1e-6)
+
 
 if __name__ == "__main__":
     unittest.main()

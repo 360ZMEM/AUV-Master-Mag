@@ -122,7 +122,13 @@ class ZigZagController:
             perception.local_path_tracking_state == "curve_track"
             and perception.fused_heading_deg is not None
         ):
-            return perception.fused_heading_deg
+            candidate_heading_deg = perception.fused_heading_deg
+            if (
+                self.scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled
+                and abs(smallest_angle_error_deg(candidate_heading_deg, pose.heading_deg)) > 90.0
+            ):
+                candidate_heading_deg = wrap_angle_deg(candidate_heading_deg + 180.0)
+            return candidate_heading_deg
         if (
             perception.fused_heading_deg is not None
             and perception.confidence >= self.scenario.tracking.low_confidence_threshold

@@ -252,18 +252,24 @@ class MagneticLookaheadTargetBuilder:
         max_age_s: float = 60.0,
         lookahead_distance_m: float = 20.0,
         heading_blend: float = 0.45,
+        axis_selection_enabled: bool = False,
+        axis_selection_min_progress_m: float = 3.0,
     ) -> None:
         self.max_age_s = max(1.0, float(max_age_s))
         self.lookahead_distance_m = max(0.0, float(lookahead_distance_m))
         self.heading_blend = float(np.clip(heading_blend, 0.0, 1.0))
+        self.axis_selection_enabled = bool(axis_selection_enabled)
+        self.axis_selection_min_progress_m = max(0.0, float(axis_selection_min_progress_m))
         self._anchor_xy_m: Optional[np.ndarray] = None
         self._direction_xy: Optional[np.ndarray] = None
+        self._last_phase_vehicle_xy_m: Optional[np.ndarray] = None
         self._confidence: float = 0.0
         self._last_update_time_s: float = -1e9
 
     def reset(self) -> None:
         self._anchor_xy_m = None
         self._direction_xy = None
+        self._last_phase_vehicle_xy_m = None
         self._confidence = 0.0
         self._last_update_time_s = -1e9
 
@@ -273,8 +279,9 @@ class MagneticLookaheadTargetBuilder:
         time_s: float,
         phase_observation: Optional[MagneticZigzagPhaseObservation] = None,
     ) -> Optional[MagneticLookaheadTarget]:
+        vehicle_xy = np.asarray(vehicle_position_xy_m, dtype=float)
         if phase_observation is not None:
-            self._accept_phase_observation(phase_observation, float(time_s))
+            self._accept_phase_observation(phase_observation, vehicle_xy, float(time_s))
 
         if self._anchor_xy_m is None or self._direction_xy is None:
             return None
@@ -282,7 +289,6 @@ class MagneticLookaheadTargetBuilder:
         if age_s < 0.0 or age_s > self.max_age_s:
             return None
 
-        vehicle_xy = np.asarray(vehicle_position_xy_m, dtype=float)
         along_track_m = float(np.dot(vehicle_xy - self._anchor_xy_m, self._direction_xy))
         cable_point_xy = self._anchor_xy_m + along_track_m * self._direction_xy
         lookahead_xy = cable_point_xy + self.lookahead_distance_m * self._direction_xy
@@ -301,11 +307,18 @@ class MagneticLookaheadTargetBuilder:
     def _accept_phase_observation(
         self,
         phase_observation: MagneticZigzagPhaseObservation,
+        vehicle_xy_m: np.ndarray,
         time_s: float,
     ) -> None:
         observation = phase_observation.observation
         new_direction = self._direction_from_heading(observation.heading_deg)
-        if self._direction_xy is not None and float(np.dot(new_direction, self._direction_xy)) < 0.0:
+        if self.axis_selection_enabled:
+            new_direction = self._select_progress_consistent_direction(
+                new_direction,
+                np.asarray(observation.position_xy_m, dtype=float),
+                np.asarray(vehicle_xy_m, dtype=float),
+            )
+        elif self._direction_xy is not None and float(np.dot(new_direction, self._direction_xy)) < 0.0:
             new_direction = -new_direction
         if self._direction_xy is not None:
             blended_direction = unit(
@@ -316,8 +329,34 @@ class MagneticLookaheadTargetBuilder:
                 new_direction = blended_direction
         self._direction_xy = new_direction
         self._anchor_xy_m = np.asarray(observation.position_xy_m, dtype=float).copy()
+        self._last_phase_vehicle_xy_m = np.asarray(vehicle_xy_m, dtype=float).copy()
         self._confidence = float(np.clip(observation.confidence, 0.05, 0.95))
         self._last_update_time_s = float(time_s)
+
+    def _select_progress_consistent_direction(
+        self,
+        direction_xy: np.ndarray,
+        anchor_xy_m: np.ndarray,
+        vehicle_xy_m: np.ndarray,
+    ) -> np.ndarray:
+        """Choose the +/- cable axis that agrees with phase-to-phase progress."""
+        reference_delta = None
+        if self._anchor_xy_m is not None:
+            anchor_delta = anchor_xy_m - self._anchor_xy_m
+            if np.linalg.norm(anchor_delta) >= self.axis_selection_min_progress_m:
+                reference_delta = anchor_delta
+        if reference_delta is None and self._last_phase_vehicle_xy_m is not None:
+            vehicle_delta = vehicle_xy_m - self._last_phase_vehicle_xy_m
+            if np.linalg.norm(vehicle_delta) >= self.axis_selection_min_progress_m:
+                reference_delta = vehicle_delta
+
+        if reference_delta is not None:
+            if float(np.dot(direction_xy, reference_delta)) < 0.0:
+                return -direction_xy
+            return direction_xy
+        if self._direction_xy is not None and float(np.dot(direction_xy, self._direction_xy)) < 0.0:
+            return -direction_xy
+        return direction_xy
 
     @staticmethod
     def _direction_from_heading(heading_deg: float) -> np.ndarray:

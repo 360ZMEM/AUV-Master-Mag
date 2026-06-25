@@ -151,6 +151,8 @@ class MagneticCablePerception:
                 max_age_s=scenario.tracking.magnetic_lookahead_max_age_s,
                 lookahead_distance_m=scenario.tracking.magnetic_lookahead_distance_m,
                 heading_blend=scenario.tracking.magnetic_lookahead_heading_blend,
+                axis_selection_enabled=scenario.tracking.magnetic_lookahead_axis_selection_enabled,
+                axis_selection_min_progress_m=scenario.tracking.magnetic_lookahead_axis_selection_min_progress_m,
             )
             if scenario.tracking.magnetic_lookahead_enabled
             else None

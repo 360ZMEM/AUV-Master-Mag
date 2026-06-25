@@ -373,6 +373,7 @@ class TrackingConfig:
     fit_reject_heading_delta_deg: float = 30.0
     fit_reject_confidence_threshold: float = 0.60
     local_path_guidance_enabled: bool = False
+    local_path_curve_track_flip_to_vehicle_enabled: bool = False
     local_path_capacity: int = 24
     local_path_local_line_window: int = 5
     local_path_heading_blend: float = 0.65
@@ -398,6 +399,8 @@ class TrackingConfig:
     magnetic_lookahead_distance_m: float = 20.0
     magnetic_lookahead_heading_blend: float = 0.45
     magnetic_lookahead_min_confidence: float = 0.20
+    magnetic_lookahead_axis_selection_enabled: bool = False
+    magnetic_lookahead_axis_selection_min_progress_m: float = 3.0
     magnetic_lookahead_feed_local_path: bool = False
     magnetic_lookahead_feed_max_age_s: float = 60.0
     magnetic_lookahead_feed_max_phase_age_s: float = 90.0

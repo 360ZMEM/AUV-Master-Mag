@@ -591,6 +591,46 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p43_probe10_extrapolated_low_axis", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_axis_selection=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p44_probe10_extrapolated_low_curveflip", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            curve_track_flip_to_vehicle=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -622,6 +662,8 @@ def _zigzag_probe(
     phase_latch_duration_s: float = 0.0,
     lookahead: bool = False,
     lookahead_max_age_s: float = 90.0,
+    lookahead_axis_selection: bool = False,
+    lookahead_axis_selection_min_progress_m: float = 3.0,
     lookahead_pursuit: bool = False,
     lookahead_feed_local_path: bool = False,
     lookahead_feed_max_age_s: float | None = None,
@@ -633,10 +675,12 @@ def _zigzag_probe(
     lookahead_feed_extrapolated_scale: float = 1.0,
     lookahead_feed_heading_smoothing: bool = False,
     lookahead_feed_heading_max_step_deg: float = 12.0,
+    curve_track_flip_to_vehicle: bool = False,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
     scenario.tracking.curve_track_crossing_angle_deg = angle_deg
+    scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled = curve_track_flip_to_vehicle
     scenario.tracking.magnetic_path_observation_enabled = magnetic_path
     scenario.tracking.magnetic_path_feed_local_path = feed_local_path
     scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
@@ -663,6 +707,8 @@ def _zigzag_probe(
         scenario.tracking.magnetic_lookahead_distance_m = 20.0
         scenario.tracking.magnetic_lookahead_heading_blend = 0.45
         scenario.tracking.magnetic_lookahead_min_confidence = 0.10
+        scenario.tracking.magnetic_lookahead_axis_selection_enabled = lookahead_axis_selection
+        scenario.tracking.magnetic_lookahead_axis_selection_min_progress_m = lookahead_axis_selection_min_progress_m
         scenario.tracking.magnetic_lookahead_feed_local_path = lookahead_feed_local_path
         scenario.tracking.magnetic_lookahead_feed_phase_anchor_enabled = lookahead_feed_phase_anchor
         scenario.tracking.magnetic_lookahead_feed_extrapolated_confidence_scale = lookahead_feed_extrapolated_scale
@@ -763,6 +809,8 @@ def main() -> None:
             "p40_",
             "p41_",
             "p42_",
+            "p43_",
+            "p44_",
         )):
             continue
         scenario = build(base)
