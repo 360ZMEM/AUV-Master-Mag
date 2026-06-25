@@ -430,6 +430,8 @@ class TrackingConfig:
     reacquire_region_enabled: bool = False
     reacquire_region_control_enabled: bool = False
     reacquire_region_forward_distance_m: float = 48.0
+    reacquire_region_progressive_forward_enabled: bool = False
+    reacquire_region_progressive_margin_m: float = 12.0
     reacquire_region_turn_lateral_offset_m: float = 60.0
     reacquire_region_half_length_m: float = 36.0
     reacquire_region_half_width_m: float = 24.0
@@ -1089,6 +1091,8 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.reacquire_region_enabled = True
         scenario.tracking.reacquire_region_control_enabled = sonar_enabled
         scenario.tracking.reacquire_region_forward_distance_m = 48.0
+        scenario.tracking.reacquire_region_progressive_forward_enabled = False
+        scenario.tracking.reacquire_region_progressive_margin_m = 12.0
         scenario.tracking.reacquire_region_turn_lateral_offset_m = 60.0
         scenario.tracking.reacquire_region_half_length_m = 36.0
         scenario.tracking.reacquire_region_half_width_m = 24.0

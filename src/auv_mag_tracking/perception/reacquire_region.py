@@ -49,6 +49,8 @@ class ObservableRegionSelector:
         half_width_m: float = 24.0,
         max_anchor_age_s: float = 120.0,
         min_turn_curvature_1pm: float = 1.0 / 160.0,
+        progressive_forward_enabled: bool = False,
+        progressive_margin_m: float = 12.0,
     ) -> None:
         self.forward_distance_m = max(1.0, float(forward_distance_m))
         self.turn_lateral_offset_m = max(1.0, float(turn_lateral_offset_m))
@@ -56,6 +58,8 @@ class ObservableRegionSelector:
         self.half_width_m = max(1.0, float(half_width_m))
         self.max_anchor_age_s = max(1.0, float(max_anchor_age_s))
         self.min_turn_curvature_1pm = max(0.0, float(min_turn_curvature_1pm))
+        self.progressive_forward_enabled = bool(progressive_forward_enabled)
+        self.progressive_margin_m = max(0.0, float(progressive_margin_m))
         self._trusted_state: Optional[_TrustedCableState] = None
         self._previous_trusted_state: Optional[_TrustedCableState] = None
 
@@ -119,6 +123,23 @@ class ObservableRegionSelector:
                 vehicle_xy=vehicle_xy,
             )
         ]
+        vehicle_along_m = float(np.dot(vehicle_xy - state.anchor_xy_m, tangent_xy))
+        progressive_along_m = max(
+            self.forward_distance_m,
+            vehicle_along_m + self.progressive_margin_m,
+        )
+        if self.progressive_forward_enabled and progressive_along_m > self.forward_distance_m:
+            candidates.append(
+                self._candidate(
+                    reason="local_tangent_forward_gate",
+                    center_xy_m=state.anchor_xy_m + progressive_along_m * tangent_xy,
+                    heading_deg=state.heading_deg,
+                    base_confidence=state.confidence,
+                    anchor_age_s=anchor_age_s,
+                    vehicle_xy=vehicle_xy,
+                    exploration_bonus=0.08,
+                )
+            )
 
         curvature_1pm = self._effective_curvature_1pm(state)
         curvature_abs = abs(curvature_1pm)

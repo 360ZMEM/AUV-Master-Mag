@@ -276,6 +276,7 @@ def simulate_run(
                 "turn_side_gate": 2.0,
                 "last_crossing_gate": 3.0,
                 "expanding_box": 4.0,
+                "local_tangent_forward_gate": 5.0,
             }.get(perception.reacquire_region_reason, 0.0),
             magnetic_cross_track_offset_m=_optional(perception.magnetic_cross_track_offset_m),
             vector_consistency=perception.vector_consistency_score,

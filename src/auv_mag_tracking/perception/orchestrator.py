@@ -92,6 +92,8 @@ class MagneticCablePerception:
             half_length_m=scenario.tracking.reacquire_region_half_length_m,
             half_width_m=scenario.tracking.reacquire_region_half_width_m,
             max_anchor_age_s=scenario.tracking.local_path_max_age_s,
+            progressive_forward_enabled=scenario.tracking.reacquire_region_progressive_forward_enabled,
+            progressive_margin_m=scenario.tracking.reacquire_region_progressive_margin_m,
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))

@@ -135,3 +135,81 @@
 - 不以全程 `mean_heading_error_deg` 作为 dropout 主要目标。
 - 不把无界 zig-zag 搜索重新打开作为第一选择。
 
+## 6. D0-D4 执行记录
+
+执行入口：
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d1
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d2
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d3 --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d4
+```
+
+### D0：基线诊断
+
+| variant | health | fused err | TRACK XT | TRACK vehicle err | route | final dist | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `d0_baseline` | `27.4` | `3.8deg` | `24.3m` | `89.7deg` | `1.5%` | `21.3m` | 局部角度好但闭环失败。 |
+
+补充诊断：
+
+- `deployment_reacquire_required` 占比约 `97%`。
+- region reason 主要是 `forward_gate`。
+- route progress 最大曾到约 `108.8m`，最终回落到 `30.9m`，说明存在局部循环/回退。
+
+### D1：声呐递减代表点
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `d1_delay60` | `24.7` | `13.3m` | `86.0deg` | `5.2%` | `1.6m` | 延迟 60s 断声呐不够。 |
+| `d1_delay180` | `34.8` | `12.1m` | `84.0deg` | `9.4%` | `1.9m` | 延迟 180s 仍不够。 |
+| `d1_sparse_sonar` | `45.3` | `4.3m` | `14.0deg` | `59.4%` | `26.3m` | 稀疏声呐显著改善，但未 endpoint。 |
+
+结论：dropout 需要低频全局锚点或等价可观测补偿；只靠“晚一点断声呐”不能解决。
+
+### D2：局部路径记忆代表点
+
+| variant | health | TRACK XT | TRACK vehicle err | route | 结论 |
+| --- | --- | --- | --- | --- | --- |
+| `d2_local_age180` | `25.2` | `24.9m` | `89.8deg` | `1.7%` | 无改善。 |
+| `d2_local_capacity36` | `31.3` | `24.4m` | `90.0deg` | `1.3%` | 无改善。 |
+| `d2_spacing2m` | `27.9` | `24.7m` | `90.1deg` | `2.3%` | 轻微但不够。 |
+| `d2_forgetting060` | `27.4` | `24.3m` | `89.7deg` | `1.5%` | 等同基线。 |
+
+结论：纯调 local path 记忆无法替代声呐锚点。
+
+### D3：推进型 region selector
+
+已实现默认关闭的实验开关：
+
+- `reacquire_region_progressive_forward_enabled`
+- `reacquire_region_progressive_margin_m`
+- selector 新候选：`local_tangent_forward_gate`
+
+代表点 `d3_progressive_gate` 在 `12000` 步短测下：
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `d3_progressive_gate` | `26.5` | `18.7m` | `89.5deg` | `1.6%` | `28.4m` | 比短测基线更差，默认保持关闭。 |
+
+结论：只让 region 沿旧切向向前滑动会发散，说明缺少真实锚点时“向前”本身不可靠。
+
+### D4：稀疏声呐锚点强度代表点
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `d4_sparse035` | `44.1` | `4.1m` | `29.9deg` | `55.9%` | `4.7m` | 横偏好，但 route 不如 `0.20`。 |
+| `d4_sparse050` | `41.6` | `4.1m` | `26.1deg` | `35.3%` | `5.2m` | 更频繁观测反而退化。 |
+
+结论：不是声呐概率越高越好；当前 `prob=0.20` 是这组代表点里最有价值的方向，但仍不足以 endpoint。下一步应围绕“稀疏锚点触发何时进入/退出 region”做状态机调度，而不是继续调单个概率。
+
+## 7. 下一步建议
+
+1. 保留 `case_maze_sonar_dropout` 作为强制离线失败基准，不把它伪装成通过。
+2. 新增一个独立目标场景 `case_maze_sparse_sonar`：低频声呐锚点 + 磁跟踪，用于现实可行方案调优。
+3. 对 sparse 场景调状态机，而不是继续调声呐概率：
+   - region entry/recovery streak
+   - `reacquire_region_max_duration_s`
+   - 稀疏声呐命中后的 trusted anchor 更新策略
+4. 如果必须继续强制离线，则需要引入外部全局先验或额外传感器；现有磁 + IMU + 局部记忆不足以通过 1x maze。
