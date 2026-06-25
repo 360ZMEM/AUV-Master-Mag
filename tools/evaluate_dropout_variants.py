@@ -631,6 +631,27 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p45_probe10_extrapolated_low_axis_hyst", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_axis_selection=True,
+            lookahead_axis_hysteresis=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -664,6 +685,9 @@ def _zigzag_probe(
     lookahead_max_age_s: float = 90.0,
     lookahead_axis_selection: bool = False,
     lookahead_axis_selection_min_progress_m: float = 3.0,
+    lookahead_axis_hysteresis: bool = False,
+    lookahead_axis_hysteresis_threshold: float = 2.0,
+    lookahead_axis_score_decay: float = 0.6,
     lookahead_pursuit: bool = False,
     lookahead_feed_local_path: bool = False,
     lookahead_feed_max_age_s: float | None = None,
@@ -709,6 +733,9 @@ def _zigzag_probe(
         scenario.tracking.magnetic_lookahead_min_confidence = 0.10
         scenario.tracking.magnetic_lookahead_axis_selection_enabled = lookahead_axis_selection
         scenario.tracking.magnetic_lookahead_axis_selection_min_progress_m = lookahead_axis_selection_min_progress_m
+        scenario.tracking.magnetic_lookahead_axis_hysteresis_enabled = lookahead_axis_hysteresis
+        scenario.tracking.magnetic_lookahead_axis_hysteresis_threshold = lookahead_axis_hysteresis_threshold
+        scenario.tracking.magnetic_lookahead_axis_score_decay = lookahead_axis_score_decay
         scenario.tracking.magnetic_lookahead_feed_local_path = lookahead_feed_local_path
         scenario.tracking.magnetic_lookahead_feed_phase_anchor_enabled = lookahead_feed_phase_anchor
         scenario.tracking.magnetic_lookahead_feed_extrapolated_confidence_scale = lookahead_feed_extrapolated_scale
@@ -811,6 +838,7 @@ def main() -> None:
             "p42_",
             "p43_",
             "p44_",
+            "p45_",
         )):
             continue
         scenario = build(base)

@@ -153,6 +153,9 @@ class MagneticCablePerception:
                 heading_blend=scenario.tracking.magnetic_lookahead_heading_blend,
                 axis_selection_enabled=scenario.tracking.magnetic_lookahead_axis_selection_enabled,
                 axis_selection_min_progress_m=scenario.tracking.magnetic_lookahead_axis_selection_min_progress_m,
+                axis_hysteresis_enabled=scenario.tracking.magnetic_lookahead_axis_hysteresis_enabled,
+                axis_hysteresis_threshold=scenario.tracking.magnetic_lookahead_axis_hysteresis_threshold,
+                axis_score_decay=scenario.tracking.magnetic_lookahead_axis_score_decay,
             )
             if scenario.tracking.magnetic_lookahead_enabled
             else None

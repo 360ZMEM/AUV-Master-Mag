@@ -254,15 +254,22 @@ class MagneticLookaheadTargetBuilder:
         heading_blend: float = 0.45,
         axis_selection_enabled: bool = False,
         axis_selection_min_progress_m: float = 3.0,
+        axis_hysteresis_enabled: bool = False,
+        axis_hysteresis_threshold: float = 2.0,
+        axis_score_decay: float = 0.6,
     ) -> None:
         self.max_age_s = max(1.0, float(max_age_s))
         self.lookahead_distance_m = max(0.0, float(lookahead_distance_m))
         self.heading_blend = float(np.clip(heading_blend, 0.0, 1.0))
         self.axis_selection_enabled = bool(axis_selection_enabled)
         self.axis_selection_min_progress_m = max(0.0, float(axis_selection_min_progress_m))
+        self.axis_hysteresis_enabled = bool(axis_hysteresis_enabled)
+        self.axis_hysteresis_threshold = max(0.0, float(axis_hysteresis_threshold))
+        self.axis_score_decay = float(np.clip(axis_score_decay, 0.0, 0.99))
         self._anchor_xy_m: Optional[np.ndarray] = None
         self._direction_xy: Optional[np.ndarray] = None
         self._last_phase_vehicle_xy_m: Optional[np.ndarray] = None
+        self._axis_score: float = 0.0
         self._confidence: float = 0.0
         self._last_update_time_s: float = -1e9
 
@@ -270,6 +277,7 @@ class MagneticLookaheadTargetBuilder:
         self._anchor_xy_m = None
         self._direction_xy = None
         self._last_phase_vehicle_xy_m = None
+        self._axis_score = 0.0
         self._confidence = 0.0
         self._last_update_time_s = -1e9
 
@@ -351,9 +359,29 @@ class MagneticLookaheadTargetBuilder:
                 reference_delta = vehicle_delta
 
         if reference_delta is not None:
+            if self.axis_hysteresis_enabled:
+                return self._select_hysteresis_direction(direction_xy, reference_delta)
             if float(np.dot(direction_xy, reference_delta)) < 0.0:
                 return -direction_xy
             return direction_xy
+        if self._direction_xy is not None and float(np.dot(direction_xy, self._direction_xy)) < 0.0:
+            return -direction_xy
+        return direction_xy
+
+    def _select_hysteresis_direction(
+        self,
+        direction_xy: np.ndarray,
+        reference_delta_xy: np.ndarray,
+    ) -> np.ndarray:
+        progress_norm = float(np.linalg.norm(reference_delta_xy))
+        if progress_norm <= 1e-9:
+            return direction_xy
+        evidence = 1.0 if float(np.dot(direction_xy, reference_delta_xy)) >= 0.0 else -1.0
+        evidence_weight = float(np.clip(progress_norm / max(self.axis_selection_min_progress_m * 2.0, 1e-6), 0.25, 1.0))
+        self._axis_score = self.axis_score_decay * self._axis_score + evidence * evidence_weight
+
+        if abs(self._axis_score) >= self.axis_hysteresis_threshold:
+            return direction_xy if self._axis_score >= 0.0 else -direction_xy
         if self._direction_xy is not None and float(np.dot(direction_xy, self._direction_xy)) < 0.0:
             return -direction_xy
         return direction_xy

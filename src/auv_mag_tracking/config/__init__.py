@@ -401,6 +401,9 @@ class TrackingConfig:
     magnetic_lookahead_min_confidence: float = 0.20
     magnetic_lookahead_axis_selection_enabled: bool = False
     magnetic_lookahead_axis_selection_min_progress_m: float = 3.0
+    magnetic_lookahead_axis_hysteresis_enabled: bool = False
+    magnetic_lookahead_axis_hysteresis_threshold: float = 2.0
+    magnetic_lookahead_axis_score_decay: float = 0.6
     magnetic_lookahead_feed_local_path: bool = False
     magnetic_lookahead_feed_max_age_s: float = 60.0
     magnetic_lookahead_feed_max_phase_age_s: float = 90.0
