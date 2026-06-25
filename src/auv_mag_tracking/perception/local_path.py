@@ -10,12 +10,22 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from enum import Enum
 from typing import Deque, Iterable, Optional
 
 import numpy as np
 
 from ..math_utils import heading_from_direction_xy, smallest_angle_error_deg, unit
 from .state import FitResult
+
+
+class LocalPathTrackingState(str, Enum):
+    """Internal local-path estimator state, independent from mission FSM."""
+
+    COLLECTING = "collecting"
+    LINE_TRACK = "line_track"
+    CURVE_TRACK = "curve_track"
+    REACQUIRE = "reacquire"
 
 
 @dataclass
@@ -39,6 +49,7 @@ class LocalCableState:
     residual_m: float
     confidence: float
     latest_time_s: float
+    tracking_state: LocalPathTrackingState = LocalPathTrackingState.COLLECTING
     curvature_1pm: float = 0.0
     radius_m: float = float("inf")
     center_xy_m: Optional[np.ndarray] = None
@@ -72,6 +83,9 @@ class LocalCableStateEstimator:
         arc_residual_ratio: float = 0.85,
         local_line_window: int = 5,
         heading_blend: float = 0.65,
+        curve_heading_delta_deg: float = 12.0,
+        reacquire_gap_s: float = 8.0,
+        state_machine_enabled: bool = True,
     ) -> None:
         self.capacity = max(3, int(capacity))
         self.min_arc_radius_m = max(1e-6, float(min_arc_radius_m))
@@ -79,10 +93,17 @@ class LocalCableStateEstimator:
         self.arc_residual_ratio = float(np.clip(arc_residual_ratio, 0.2, 1.5))
         self.local_line_window = max(3, int(local_line_window))
         self.heading_blend = float(np.clip(heading_blend, 0.0, 0.9))
+        self.curve_heading_delta_deg = max(0.0, float(curve_heading_delta_deg))
+        self.reacquire_gap_s = max(0.1, float(reacquire_gap_s))
+        self.state_machine_enabled = bool(state_machine_enabled)
         self.observations: Deque[LocalPathObservation] = deque(maxlen=self.capacity)
+        self.tracking_state = LocalPathTrackingState.COLLECTING
+        self.last_state: Optional[LocalCableState] = None
 
     def reset(self) -> None:
         self.observations.clear()
+        self.tracking_state = LocalPathTrackingState.COLLECTING
+        self.last_state = None
 
     def add_observation(
         self,
@@ -91,6 +112,14 @@ class LocalCableStateEstimator:
         confidence: float = 1.0,
         heading_deg: Optional[float] = None,
     ) -> None:
+        if (
+            self.state_machine_enabled
+            and self.observations
+            and float(time_s) - self.observations[-1].time_s > self.reacquire_gap_s
+        ):
+            self.tracking_state = LocalPathTrackingState.REACQUIRE
+            self.last_state = None
+            self.observations.clear()
         self.observations.append(
             LocalPathObservation(
                 position_xy_m=np.asarray(position_xy_m, dtype=float),
@@ -112,8 +141,20 @@ class LocalCableStateEstimator:
         line_state = self._fit_line(points, weights, model_name="line")
         local_line_state = self._fit_local_line()
         circle_state = self._fit_circle(points, weights)
+        if not self.state_machine_enabled:
+            if circle_state is None:
+                return self._select_legacy_line_fallback(line_state, local_line_state)
+            arc_is_valid = (
+                circle_state.radius_m >= self.min_arc_radius_m
+                and circle_state.arc_angle_span_deg >= self.min_arc_angle_span_deg
+                and circle_state.residual_m <= max(line_state.residual_m * self.arc_residual_ratio, 0.25)
+            )
+            if not arc_is_valid:
+                return self._select_legacy_line_fallback(line_state, local_line_state)
+            return self._apply_heading_observations(circle_state)
+
         if circle_state is None:
-            return self._select_line_fallback(line_state, local_line_state)
+            return self._finalize_state(self._select_line_fallback(line_state, local_line_state), line_state, local_line_state)
 
         arc_is_valid = (
             circle_state.radius_m >= self.min_arc_radius_m
@@ -121,15 +162,87 @@ class LocalCableStateEstimator:
             and circle_state.residual_m <= max(line_state.residual_m * self.arc_residual_ratio, 0.25)
         )
         if not arc_is_valid:
-            return self._select_line_fallback(line_state, local_line_state)
+            return self._finalize_state(self._select_line_fallback(line_state, local_line_state), line_state, local_line_state)
 
-        return self._apply_heading_observations(circle_state)
+        return self._finalize_state(self._apply_heading_observations(circle_state), line_state, local_line_state)
 
-    @staticmethod
-    def _select_line_fallback(line_state: LocalCableState, local_line_state: LocalCableState) -> LocalCableState:
+    def _select_line_fallback(self, line_state: LocalCableState, local_line_state: LocalCableState) -> LocalCableState:
+        heading_delta_deg = abs(smallest_angle_error_deg(local_line_state.heading_deg, line_state.heading_deg))
+        if heading_delta_deg >= self.curve_heading_delta_deg and local_line_state.confidence >= 0.15:
+            return local_line_state
         if line_state.residual_m <= max(local_line_state.residual_m * 1.25, 0.10):
             return line_state
         return local_line_state
+
+    @staticmethod
+    def _select_legacy_line_fallback(line_state: LocalCableState, local_line_state: LocalCableState) -> LocalCableState:
+        if line_state.residual_m <= max(local_line_state.residual_m * 1.25, 0.10):
+            return line_state
+        return local_line_state
+
+    def _finalize_state(
+        self,
+        candidate_state: LocalCableState,
+        line_state: LocalCableState,
+        local_line_state: LocalCableState,
+    ) -> LocalCableState:
+        latest_heading_deg = self._latest_heading_observation_deg()
+        if latest_heading_deg is not None:
+            candidate_error_deg = abs(smallest_angle_error_deg(candidate_state.heading_deg, latest_heading_deg))
+            local_error_deg = abs(smallest_angle_error_deg(local_line_state.heading_deg, latest_heading_deg))
+            if (
+                candidate_state.model == "arc"
+                and local_error_deg + 5.0 < candidate_error_deg
+                and local_line_state.confidence >= 0.15
+            ):
+                candidate_state = local_line_state
+            elif (
+                candidate_state.model == "line"
+                and self._recent_heading_span_deg() >= self.curve_heading_delta_deg
+                and local_line_state.confidence >= 0.15
+            ):
+                candidate_state = local_line_state
+
+        candidate_state = self._enforce_heading_continuity(candidate_state)
+
+        curve_signal = (
+            candidate_state.model == "arc"
+            or abs(smallest_angle_error_deg(local_line_state.heading_deg, line_state.heading_deg)) >= self.curve_heading_delta_deg
+            or self._recent_heading_span_deg() >= self.curve_heading_delta_deg
+        )
+        if len(self.observations) < max(3, self.local_line_window):
+            self.tracking_state = LocalPathTrackingState.COLLECTING
+        elif curve_signal:
+            self.tracking_state = LocalPathTrackingState.CURVE_TRACK
+        else:
+            self.tracking_state = LocalPathTrackingState.LINE_TRACK
+
+        candidate_state.tracking_state = self.tracking_state
+        self.last_state = candidate_state
+        return candidate_state
+
+    def _enforce_heading_continuity(self, state: LocalCableState) -> LocalCableState:
+        if self.last_state is None:
+            return state
+        heading_error_deg = smallest_angle_error_deg(state.heading_deg, self.last_state.heading_deg)
+        if abs(heading_error_deg) > 90.0:
+            state.tangent_xy = -state.tangent_xy
+            state.heading_deg = heading_from_direction_xy(state.tangent_xy)
+            state.curvature_1pm = -state.curvature_1pm
+        return state
+
+    def _latest_heading_observation_deg(self) -> Optional[float]:
+        for observation in reversed(self.observations):
+            if observation.heading_deg is not None:
+                return observation.heading_deg
+        return None
+
+    def _recent_heading_span_deg(self) -> float:
+        headings = [observation.heading_deg for observation in list(self.observations)[-self.local_line_window :] if observation.heading_deg is not None]
+        if len(headings) < 2:
+            return 0.0
+        unwrapped = np.unwrap(np.deg2rad(np.asarray(headings, dtype=float)))
+        return float(np.rad2deg(np.max(unwrapped) - np.min(unwrapped)))
 
     def _fit_line(self, points: np.ndarray, weights: np.ndarray, model_name: str = "line") -> LocalCableState:
         centroid = np.sum(points * weights[:, None], axis=0)

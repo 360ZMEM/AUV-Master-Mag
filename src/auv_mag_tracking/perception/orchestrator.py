@@ -72,6 +72,7 @@ class MagneticCablePerception:
             capacity=scenario.tracking.local_path_capacity,
             local_line_window=scenario.tracking.local_path_local_line_window,
             heading_blend=scenario.tracking.local_path_heading_blend,
+            state_machine_enabled=False,
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))

@@ -14,7 +14,7 @@ from .filters import (
     StreamingBandpassFilter,
 )
 from .fitter import WeightedSlidingWindowFitter
-from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation
+from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
 from .orchestrator import MagneticCablePerception
 from .peaks import PeakDetector
 from .state import (
@@ -39,6 +39,7 @@ __all__ = [
     "LocalCableState",
     "LocalCableStateEstimator",
     "LocalPathObservation",
+    "LocalPathTrackingState",
     "MagneticBurialInverter",
     "MagneticCablePerception",
     "MagneticVectorAnalyzer",
