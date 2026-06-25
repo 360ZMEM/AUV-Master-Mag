@@ -164,6 +164,9 @@ class ZigZagController:
         if sonar_fresh and perception.estimated_cable_point_xy_m is not None:
             cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
             return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
+        if perception.magnetic_lookahead_valid and perception.magnetic_lookahead_cable_point_xy_m is not None:
+            cable_point_xy_m = np.asarray(perception.magnetic_lookahead_cable_point_xy_m, dtype=float)
+            return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
         if perception.magnetic_cross_track_offset_m is not None:
             return float(perception.magnetic_cross_track_offset_m)
         return self._cross_track_offset_m(pose, perception, base_heading_deg)

@@ -76,6 +76,14 @@ _NUMERIC_CHANNELS = (
     "magnetic_phase_amplitude_m",
     "magnetic_phase_duration_s",
     "magnetic_phase_confidence",
+    "magnetic_lookahead_valid",
+    "magnetic_lookahead_cable_x_m",
+    "magnetic_lookahead_cable_y_m",
+    "magnetic_lookahead_target_x_m",
+    "magnetic_lookahead_target_y_m",
+    "magnetic_lookahead_heading_deg",
+    "magnetic_lookahead_confidence",
+    "magnetic_lookahead_age_s",
     "vector_consistency",
     "peak_detected",
     "safe_lock_active",
@@ -305,6 +313,30 @@ def simulate_run(
             magnetic_phase_amplitude_m=perception.magnetic_phase_amplitude_m,
             magnetic_phase_duration_s=perception.magnetic_phase_duration_s,
             magnetic_phase_confidence=perception.magnetic_phase_confidence,
+            magnetic_lookahead_valid=1.0 if perception.magnetic_lookahead_valid else 0.0,
+            magnetic_lookahead_cable_x_m=(
+                np.nan
+                if perception.magnetic_lookahead_cable_point_xy_m is None
+                else perception.magnetic_lookahead_cable_point_xy_m[0]
+            ),
+            magnetic_lookahead_cable_y_m=(
+                np.nan
+                if perception.magnetic_lookahead_cable_point_xy_m is None
+                else perception.magnetic_lookahead_cable_point_xy_m[1]
+            ),
+            magnetic_lookahead_target_x_m=(
+                np.nan
+                if perception.magnetic_lookahead_target_xy_m is None
+                else perception.magnetic_lookahead_target_xy_m[0]
+            ),
+            magnetic_lookahead_target_y_m=(
+                np.nan
+                if perception.magnetic_lookahead_target_xy_m is None
+                else perception.magnetic_lookahead_target_xy_m[1]
+            ),
+            magnetic_lookahead_heading_deg=_optional(perception.magnetic_lookahead_heading_deg),
+            magnetic_lookahead_confidence=perception.magnetic_lookahead_confidence,
+            magnetic_lookahead_age_s=perception.magnetic_lookahead_age_s,
             vector_consistency=perception.vector_consistency_score,
             peak_detected=1.0 if perception.peak_detected else 0.0,
             safe_lock_active=1.0 if perception.safe_lock_active else 0.0,

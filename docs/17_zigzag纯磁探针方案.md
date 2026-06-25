@@ -193,6 +193,8 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 /Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p11_probe10_mag_phase --max-steps 12000
 /Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p12_probe10_mag_phase_loose --name p13_probe10_mag_phase_lowoffset --max-steps 12000
 /Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p14_probe10_mag_phase_latch --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p15_probe10_mag_lookahead --name p16_probe10_mag_lookahead_local --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p17_probe10_mag_lookahead_age180 --max-steps 12000
 ```
 
 | variant | health | TRACK XT | TRACK vehicle err | route | final dist | raw mag pos err | phase pos err | phase amp | 结论 |
@@ -203,3 +205,15 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 | `p14_probe10_mag_phase_latch` | 26.7 | 7.7m | 41.2° | 2.0% | 33.0m | 10.5m | 8.7m | 4.5m | 相位信任窗口仍不能形成持续控制收益。 |
 
 相位识别使纯磁位置误差进入 `5.5-16.1m` 区间，比 `p6_probe10_mag` 的 `120.5m` 明显更可信；但 route 仍停在 `1.7-3.2%`。这说明当前失败点已经从“单帧纯磁观测污染”转移为“相位事件太稀疏，未形成连续 lookahead 目标”。继续推进时应新增独立的 `magnetic lookahead target` 生成器：用相位事件校正局部电缆轴线和横偏符号，再在事件之间用运动学外推保持前视点，而不是继续依赖 `local path` 被动吃稀疏观测。
+
+### 9.4 Magnetic lookahead target 验证
+
+已新增 `MagneticLookaheadTargetBuilder`：相位事件更新局部电缆轴线，事件之间将车辆位置投影到该轴线，持续输出 `cable_point` 与前方 `lookahead` 诊断目标。控制侧在声呐失效后优先用 lookahead 局部线计算 TRACK 横偏，再退回旧的磁比值横偏。该机制默认关闭，仅用于 dropout 候选验证。
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead coverage | lookahead axis err | lookahead pos err | lookahead age | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `p15_probe10_mag_lookahead` | 25.5 | 23.5m | 104.0° | 20.0% | 93.7m | 0.0% | — | — | — | 关闭 local path 后未形成有效相位 lookahead，route 增益不可解释为可靠预瞄。 |
+| `p16_probe10_mag_lookahead_local` | 24.3 | 19.5m | 45.2° | 5.9% | 35.0m | 35.0% | 14.3° | 11.1m | 32.7s | lookahead 能进入控制链路，但推进仍很弱。 |
+| `p17_probe10_mag_lookahead_age180` | 20.9 | 21.0m | 26.7° | 7.7% | 55.7m | 44.0% | 15.9° | 18.1m | 50.1s | 延长保持时间提高覆盖和 route，但位置误差退化，不能合入。 |
+
+lookahead 使相位事件从“离散诊断”变成了可被控制器消费的连续局部线，但当前 `case_maze_sonar_dropout` 仍没有达到有效推进：最佳 route 仅 `7.7%`，且依赖更老的外推目标。下一步不应继续延长保持时间，而应提高相位事件频率或让控制律显式追踪 lookahead 前方目标，例如在 `TRACK_ACTIVE` 中加入 lookahead pure-pursuit 航向项，并用相位事件刷新目标。

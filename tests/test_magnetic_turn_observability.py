@@ -15,7 +15,9 @@ from auv_mag_tracking.environment import CableEnvironment
 from auv_mag_tracking.math_utils import smallest_angle_error_deg
 from auv_mag_tracking.perception import (
     LocalCableStateEstimator,
+    MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
+    MagneticZigzagPhaseObservation,
     MagneticPathObservationBuilder,
     MagneticZigzagPhaseDetector,
 )
@@ -137,6 +139,45 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertAlmostEqual(float(phase_observation.observation.position_xy_m[0]), 2.0)
         self.assertAlmostEqual(phase_observation.amplitude_m, 1.9)
         self.assertAlmostEqual(phase_observation.duration_s, 3.0)
+
+    def test_magnetic_lookahead_target_persists_between_phase_events(self) -> None:
+        builder = MagneticLookaheadTargetBuilder(
+            max_age_s=10.0,
+            lookahead_distance_m=5.0,
+            heading_blend=1.0,
+        )
+        phase_observation = MagneticZigzagPhaseObservation(
+            observation=MagneticPathObservation(
+                position_xy_m=np.array([0.0, 1.0], dtype=float),
+                heading_deg=0.0,
+                cross_track_offset_m=0.0,
+                confidence=0.8,
+            ),
+            amplitude_m=2.0,
+            duration_s=4.0,
+        )
+
+        target = builder.update(
+            vehicle_position_xy_m=np.array([3.0, 4.0], dtype=float),
+            time_s=0.0,
+            phase_observation=phase_observation,
+        )
+
+        self.assertIsNotNone(target)
+        assert target is not None
+        np.testing.assert_allclose(target.cable_point_xy_m, np.array([3.0, 1.0]), atol=1e-6)
+        np.testing.assert_allclose(target.lookahead_xy_m, np.array([8.0, 1.0]), atol=1e-6)
+        self.assertAlmostEqual(target.heading_deg, 0.0)
+
+        persisted = builder.update(
+            vehicle_position_xy_m=np.array([6.0, -2.0], dtype=float),
+            time_s=5.0,
+        )
+
+        self.assertIsNotNone(persisted)
+        assert persisted is not None
+        np.testing.assert_allclose(persisted.cable_point_xy_m, np.array([6.0, 1.0]), atol=1e-6)
+        self.assertLess(persisted.confidence, target.confidence)
 
 
 if __name__ == "__main__":

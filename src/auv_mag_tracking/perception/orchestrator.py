@@ -26,7 +26,11 @@ from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableStateEstimator, LocalPathTrackingState
-from .magnetic_path import MagneticPathObservationBuilder, MagneticZigzagPhaseDetector
+from .magnetic_path import (
+    MagneticLookaheadTargetBuilder,
+    MagneticPathObservationBuilder,
+    MagneticZigzagPhaseDetector,
+)
 from .peaks import PeakDetector
 from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
@@ -141,6 +145,15 @@ class MagneticCablePerception:
             else None
         )
         self.last_magnetic_phase_time_s = -1e9
+        self.magnetic_lookahead_builder = (
+            MagneticLookaheadTargetBuilder(
+                max_age_s=scenario.tracking.magnetic_lookahead_max_age_s,
+                lookahead_distance_m=scenario.tracking.magnetic_lookahead_distance_m,
+                heading_blend=scenario.tracking.magnetic_lookahead_heading_blend,
+            )
+            if scenario.tracking.magnetic_lookahead_enabled
+            else None
+        )
         # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
         burial_cfg = scenario.burial_inversion
         self.burial_inverter = (
@@ -556,6 +569,7 @@ class MagneticCablePerception:
 
         magnetic_path_observation = None
         magnetic_phase_observation = None
+        magnetic_lookahead_target = None
         if (
             self.magnetic_path_builder is not None
             and (sonar_reading is None or not sonar_reading.valid)
@@ -615,6 +629,12 @@ class MagneticCablePerception:
                     confidence=feed_observation.confidence,
                     heading_deg=feed_observation.heading_deg,
                 )
+        if self.magnetic_lookahead_builder is not None:
+            magnetic_lookahead_target = self.magnetic_lookahead_builder.update(
+                vehicle_position_xy_m=np.asarray(vehicle_position_xy_m, dtype=float),
+                time_s=reading.time_s,
+                phase_observation=magnetic_phase_observation,
+            )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
@@ -696,10 +716,15 @@ class MagneticCablePerception:
             if local_path_tracking_state_estimate is not None
             else self.local_path_tracking_estimator.tracking_state
         )
+        magnetic_lookahead_ready = (
+            magnetic_lookahead_target is not None
+            and magnetic_lookahead_target.confidence >= self.scenario.tracking.magnetic_lookahead_min_confidence
+        )
         local_path_stale_for_reacquire = (
             self.scenario.tracking.local_path_guidance_enabled
             and not self.scenario.tracking.use_nominal_route_prior
             and local_path_state is not None
+            and not magnetic_lookahead_ready
             and local_path_age_s > self.scenario.tracking.reacquire_stale_timeout_s
             and reading.time_s >= self.scenario.tracking.reacquire_min_elapsed_s
         )
@@ -769,6 +794,13 @@ class MagneticCablePerception:
             fused_heading_deg = local_path_state.heading_deg
             estimated_cable_point_xy_m = local_path_state.anchor_xy_m.copy()
             guidance_source = "LOCAL_PATH"
+        elif (
+            magnetic_lookahead_ready
+            and magnetic_lookahead_target is not None
+        ):
+            fused_heading_deg = magnetic_lookahead_target.heading_deg
+            estimated_cable_point_xy_m = magnetic_lookahead_target.cable_point_xy_m.copy()
+            guidance_source = "MAGNETIC_LOOKAHEAD"
         elif line_heading_deg is not None and not weak_signal_flag and bootstrap_fit_ready:
             fused_heading_deg = line_heading_deg
             guidance_source = "MAGNETIC"
@@ -838,6 +870,8 @@ class MagneticCablePerception:
             confidence = max(min(confidence, 0.6), max(_sonar_seed_confidence, 0.4))
         elif guidance_source == "LOCAL_PATH" and local_path_state is not None:
             confidence = max(confidence, min(0.82, local_path_state.confidence))
+        elif guidance_source == "MAGNETIC_LOOKAHEAD" and magnetic_lookahead_target is not None:
+            confidence = max(confidence, min(0.72, magnetic_lookahead_target.confidence))
         self.last_output_confidence = confidence
 
         # --- Task 3: Inverse Confidence Zigzag Width Mapping ---
@@ -998,6 +1032,20 @@ class MagneticCablePerception:
             magnetic_phase_confidence=(
                 0.0 if magnetic_phase_observation is None else magnetic_phase_observation.observation.confidence
             ),
+            magnetic_lookahead_valid=magnetic_lookahead_target is not None,
+            magnetic_lookahead_cable_point_xy_m=(
+                None if magnetic_lookahead_target is None else magnetic_lookahead_target.cable_point_xy_m.copy()
+            ),
+            magnetic_lookahead_target_xy_m=(
+                None if magnetic_lookahead_target is None else magnetic_lookahead_target.lookahead_xy_m.copy()
+            ),
+            magnetic_lookahead_heading_deg=(
+                None if magnetic_lookahead_target is None else magnetic_lookahead_target.heading_deg
+            ),
+            magnetic_lookahead_confidence=(
+                0.0 if magnetic_lookahead_target is None else magnetic_lookahead_target.confidence
+            ),
+            magnetic_lookahead_age_s=float("inf") if magnetic_lookahead_target is None else magnetic_lookahead_target.age_s,
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,

@@ -140,6 +140,13 @@ class PerceptionState:
     magnetic_phase_amplitude_m: float = 0.0
     magnetic_phase_duration_s: float = 0.0
     magnetic_phase_confidence: float = 0.0
+    # --- Magnetic lookahead target diagnostics ---
+    magnetic_lookahead_valid: bool = False
+    magnetic_lookahead_cable_point_xy_m: Optional[np.ndarray] = None
+    magnetic_lookahead_target_xy_m: Optional[np.ndarray] = None
+    magnetic_lookahead_heading_deg: Optional[float] = None
+    magnetic_lookahead_confidence: float = 0.0
+    magnetic_lookahead_age_s: float = float("inf")
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

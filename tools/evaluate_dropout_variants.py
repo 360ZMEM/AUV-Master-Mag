@@ -114,6 +114,41 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p15_probe10_mag_lookahead", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            feed_local_path=False,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            local_path_guidance=False,
+        )),
+        _variant("p16_probe10_mag_lookahead_local", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p17_probe10_mag_lookahead_age180", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_max_age_s=180.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -143,6 +178,9 @@ def _zigzag_probe(
     phase_gate: bool = False,
     phase_min_offset_m: float = 1.0,
     phase_latch_duration_s: float = 0.0,
+    lookahead: bool = False,
+    lookahead_max_age_s: float = 90.0,
+    local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
     scenario.tracking.curve_track_crossing_angle_deg = angle_deg
@@ -166,6 +204,14 @@ def _zigzag_probe(
         scenario.tracking.magnetic_path_phase_max_duration_s = 45.0
         scenario.tracking.magnetic_path_phase_max_axis_delta_deg = 35.0
         scenario.tracking.magnetic_path_phase_latch_duration_s = phase_latch_duration_s
+    if lookahead:
+        scenario.tracking.magnetic_lookahead_enabled = True
+        scenario.tracking.magnetic_lookahead_max_age_s = lookahead_max_age_s
+        scenario.tracking.magnetic_lookahead_distance_m = 20.0
+        scenario.tracking.magnetic_lookahead_heading_blend = 0.45
+        scenario.tracking.magnetic_lookahead_min_confidence = 0.10
+    if local_path_guidance is not None:
+        scenario.tracking.local_path_guidance_enabled = local_path_guidance
 
 
 def main() -> None:
@@ -190,6 +236,7 @@ def main() -> None:
         "name,health,mean_err,track_xt,track_vehicle_err,route,final_dist,"
         "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
         "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
+        "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
         "burial_cov,burial_mae,stop",
         flush=True,
     )
@@ -213,6 +260,9 @@ def main() -> None:
             "p12_",
             "p13_",
             "p14_",
+            "p15_",
+            "p16_",
+            "p17_",
         )):
             continue
         scenario = build(base)
@@ -234,6 +284,10 @@ def main() -> None:
             f"{metrics.magnetic_phase_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_phase_mean_position_error_m:.1f},"
             f"{metrics.magnetic_phase_mean_amplitude_m:.1f},"
+            f"{metrics.magnetic_lookahead_fraction * 100.0:.1f},"
+            f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
+            f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"
+            f"{metrics.magnetic_lookahead_mean_age_s:.1f},"
             f"{metrics.burial_inversion_coverage * 100.0:.1f},"
             f"{metrics.burial_inversion_mae_m:.3f},"
             f"{record.metadata.get('stop_reason')}",

@@ -85,6 +85,10 @@ class HealthMetrics:
     magnetic_phase_mean_axis_error_deg: float = float("nan")
     magnetic_phase_mean_position_error_m: float = float("nan")
     magnetic_phase_mean_amplitude_m: float = float("nan")
+    magnetic_lookahead_fraction: float = 0.0
+    magnetic_lookahead_mean_axis_error_deg: float = float("nan")
+    magnetic_lookahead_mean_position_error_m: float = float("nan")
+    magnetic_lookahead_mean_age_s: float = float("nan")
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -247,6 +251,28 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         float(np.mean(magnetic_phase_amplitude)) if magnetic_phase_amplitude.size else float("nan")
     )
 
+    magnetic_lookahead_valid = record["magnetic_lookahead_valid"] > 0.5
+    magnetic_lookahead_fraction = float(np.mean(magnetic_lookahead_valid)) if n else 0.0
+    magnetic_lookahead_heading = record["magnetic_lookahead_heading_deg"]
+    magnetic_lookahead_axis_errors = []
+    for estimated_heading, true_heading in zip(magnetic_lookahead_heading[magnetic_lookahead_valid], record["true_heading_deg"][magnetic_lookahead_valid]):
+        directional_error = abs(smallest_angle_error_deg(estimated_heading, true_heading))
+        magnetic_lookahead_axis_errors.append(min(directional_error, abs(180.0 - directional_error)))
+    magnetic_lookahead_mean_axis_error = (
+        float(np.mean(magnetic_lookahead_axis_errors)) if magnetic_lookahead_axis_errors else float("nan")
+    )
+    magnetic_lookahead_position_error = np.hypot(
+        record["magnetic_lookahead_cable_x_m"][magnetic_lookahead_valid] - record["true_nearest_x_m"][magnetic_lookahead_valid],
+        record["magnetic_lookahead_cable_y_m"][magnetic_lookahead_valid] - record["true_nearest_y_m"][magnetic_lookahead_valid],
+    )
+    magnetic_lookahead_mean_position_error = (
+        float(np.mean(magnetic_lookahead_position_error)) if magnetic_lookahead_position_error.size else float("nan")
+    )
+    magnetic_lookahead_age = record["magnetic_lookahead_age_s"][magnetic_lookahead_valid]
+    magnetic_lookahead_mean_age = (
+        float(np.mean(magnetic_lookahead_age)) if magnetic_lookahead_age.size else float("nan")
+    )
+
     return HealthMetrics(
         case_name=record.case_name,
         deployment_mode=record.deployment_mode,
@@ -296,6 +322,10 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_phase_mean_axis_error_deg=magnetic_phase_mean_axis_error,
         magnetic_phase_mean_position_error_m=magnetic_phase_mean_position_error,
         magnetic_phase_mean_amplitude_m=magnetic_phase_mean_amplitude,
+        magnetic_lookahead_fraction=magnetic_lookahead_fraction,
+        magnetic_lookahead_mean_axis_error_deg=magnetic_lookahead_mean_axis_error,
+        magnetic_lookahead_mean_position_error_m=magnetic_lookahead_mean_position_error,
+        magnetic_lookahead_mean_age_s=magnetic_lookahead_mean_age,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )

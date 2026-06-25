@@ -34,6 +34,17 @@ class MagneticZigzagPhaseObservation:
     duration_s: float
 
 
+@dataclass
+class MagneticLookaheadTarget:
+    """Continuous local cable line inferred from sparse zig-zag phase events."""
+
+    cable_point_xy_m: np.ndarray
+    lookahead_xy_m: np.ndarray
+    heading_deg: float
+    confidence: float
+    age_s: float
+
+
 class MagneticPathObservationBuilder:
     """Build local cable observations from magnetic anomaly history.
 
@@ -231,3 +242,84 @@ class MagneticZigzagPhaseDetector:
         ])
         heading_deg = heading_from_direction_xy(vector)
         return 0.0 if heading_deg is None else heading_deg
+
+
+class MagneticLookaheadTargetBuilder:
+    """Maintain a continuous local cable target between sparse phase events."""
+
+    def __init__(
+        self,
+        max_age_s: float = 60.0,
+        lookahead_distance_m: float = 20.0,
+        heading_blend: float = 0.45,
+    ) -> None:
+        self.max_age_s = max(1.0, float(max_age_s))
+        self.lookahead_distance_m = max(0.0, float(lookahead_distance_m))
+        self.heading_blend = float(np.clip(heading_blend, 0.0, 1.0))
+        self._anchor_xy_m: Optional[np.ndarray] = None
+        self._direction_xy: Optional[np.ndarray] = None
+        self._confidence: float = 0.0
+        self._last_update_time_s: float = -1e9
+
+    def reset(self) -> None:
+        self._anchor_xy_m = None
+        self._direction_xy = None
+        self._confidence = 0.0
+        self._last_update_time_s = -1e9
+
+    def update(
+        self,
+        vehicle_position_xy_m: np.ndarray,
+        time_s: float,
+        phase_observation: Optional[MagneticZigzagPhaseObservation] = None,
+    ) -> Optional[MagneticLookaheadTarget]:
+        if phase_observation is not None:
+            self._accept_phase_observation(phase_observation, float(time_s))
+
+        if self._anchor_xy_m is None or self._direction_xy is None:
+            return None
+        age_s = float(time_s) - self._last_update_time_s
+        if age_s < 0.0 or age_s > self.max_age_s:
+            return None
+
+        vehicle_xy = np.asarray(vehicle_position_xy_m, dtype=float)
+        along_track_m = float(np.dot(vehicle_xy - self._anchor_xy_m, self._direction_xy))
+        cable_point_xy = self._anchor_xy_m + along_track_m * self._direction_xy
+        lookahead_xy = cable_point_xy + self.lookahead_distance_m * self._direction_xy
+        confidence = float(np.clip(self._confidence * np.exp(-age_s / self.max_age_s), 0.0, 0.95))
+        heading_deg = heading_from_direction_xy(self._direction_xy)
+        if heading_deg is None:
+            return None
+        return MagneticLookaheadTarget(
+            cable_point_xy_m=cable_point_xy,
+            lookahead_xy_m=lookahead_xy,
+            heading_deg=heading_deg,
+            confidence=confidence,
+            age_s=age_s,
+        )
+
+    def _accept_phase_observation(
+        self,
+        phase_observation: MagneticZigzagPhaseObservation,
+        time_s: float,
+    ) -> None:
+        observation = phase_observation.observation
+        new_direction = self._direction_from_heading(observation.heading_deg)
+        if self._direction_xy is not None and float(np.dot(new_direction, self._direction_xy)) < 0.0:
+            new_direction = -new_direction
+        if self._direction_xy is not None:
+            blended_direction = unit(
+                (1.0 - self.heading_blend) * self._direction_xy
+                + self.heading_blend * new_direction
+            )
+            if np.linalg.norm(blended_direction) > 1e-9:
+                new_direction = blended_direction
+        self._direction_xy = new_direction
+        self._anchor_xy_m = np.asarray(observation.position_xy_m, dtype=float).copy()
+        self._confidence = float(np.clip(observation.confidence, 0.05, 0.95))
+        self._last_update_time_s = float(time_s)
+
+    @staticmethod
+    def _direction_from_heading(heading_deg: float) -> np.ndarray:
+        heading_rad = np.deg2rad(heading_deg)
+        return unit(np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float))

@@ -393,6 +393,11 @@ class TrackingConfig:
     magnetic_path_phase_max_duration_s: float = 45.0
     magnetic_path_phase_max_axis_delta_deg: float = 35.0
     magnetic_path_phase_latch_duration_s: float = 0.0
+    magnetic_lookahead_enabled: bool = False
+    magnetic_lookahead_max_age_s: float = 60.0
+    magnetic_lookahead_distance_m: float = 20.0
+    magnetic_lookahead_heading_blend: float = 0.45
+    magnetic_lookahead_min_confidence: float = 0.20
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
