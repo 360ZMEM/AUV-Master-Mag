@@ -6,7 +6,7 @@ is written under ``results/<timestamp>/``.
 Examples
 --------
     python tools/visualize.py --case case1            # one full report
-    python tools/visualize.py --all                   # case1..5 + showcase
+    python tools/visualize.py --all                   # case1..6 + showcase
     python tools/visualize.py --variants              # case1v..6v + showcase
     python tools/visualize.py --maze                  # maze stress cases + showcase
     python tools/visualize.py --all --deployment      # deployment mode
@@ -39,9 +39,9 @@ from auv_mag_tracking.viz import (  # noqa: E402
     simulate_case,
 )
 
-DEFAULT_CASES = ["case1", "case2", "case3", "case4", "case5"]
+DEFAULT_CASES = ["case1", "case2", "case3", "case4", "case5", "case6"]
 VARIANT_CASES = ["case1v", "case2v", "case3v", "case4v", "case5v", "case6v"]
-MAZE_CASES = ["case_maze_sonar", "case_maze_no_sonar"]
+MAZE_CASES = ["case_maze_sonar", "case_maze_sonar_dropout", "case_maze_no_sonar"]
 RESULTS_ROOT = WORKSPACE_ROOT / "results"
 _DURATION_OVERRIDE_S = None
 
@@ -67,6 +67,9 @@ def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
           f"mean_err {metrics.mean_heading_error_deg:.1f}deg  "
           f"TRACK {metrics.track_active_fraction*100:.0f}%  "
           f"switches {metrics.mode_switches}")
+    print(f"       track_xt {metrics.track_mean_cross_track_m:.1f}m  "
+          f"track_vehicle_err {metrics.track_mean_vehicle_heading_error_deg:.1f}deg  "
+          f"final_xt {metrics.final_cross_track_m:.1f}m")
     if record.metadata:
         completion = record.metadata.get("route_completion_ratio")
         stop_reason = record.metadata.get("stop_reason")
@@ -78,7 +81,7 @@ def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Unified AUV cable-tracking visualization")
     parser.add_argument("--case", default="case1", help="scenario name (default: case1)")
-    parser.add_argument("--all", action="store_true", help="run case1..5 + showcase")
+    parser.add_argument("--all", action="store_true", help="run case1..6 + showcase")
     parser.add_argument("--variants", action="store_true", help="run case1v..6v downstream-turn variants + showcase")
     parser.add_argument("--maze", action="store_true", help="run smooth serpentine maze stress cases + showcase")
     parser.add_argument("--progress", action="store_true",

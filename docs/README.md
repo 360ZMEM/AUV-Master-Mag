@@ -119,6 +119,11 @@
    - 控制决策层调优
    - 常见问题诊断
 
+11. **[case_maze_sonar_dropout 调优计划](16_maze_sonar_dropout调优计划.md)**
+   - 解释 dropout 中“角度好但 route 不前进”的失败模式
+   - 给出 D0-D4 分阶段诊断、代表点调优和 selector 改造路线
+   - 明确不把全程角度误差作为主要目标
+
 **读完你将能够**：
 - 独立配置和运行仿真场景
 - 诊断性能问题并进行针对性调优
@@ -271,6 +276,7 @@ python -m unittest discover -s tests
 | 缓弯 / 低频兼容 | case5 | 正弦缓弯 + 15Hz demo（航向误差 9.85°） |
 | 强弯融合压力 | case6 | 连续 S 弯（已知未收口，27.58°） |
 | 迷宫有声呐 | case_maze_sonar | 1× serpentine，Phase D 区域重捕获，当前 endpoint |
+| 迷宫声呐失效 | case_maze_sonar_dropout | 初期有声呐，TRACK 后强制离线，用于验证是否依赖持续声呐 |
 | 紧曲率边界 | case8 | minR≈50m，曲率约束与安全锁恢复 |
 | 高性能验证 | case_hf_industrial | 高采样率（1000Hz）、低噪声 |
 

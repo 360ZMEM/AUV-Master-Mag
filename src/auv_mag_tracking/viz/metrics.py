@@ -63,6 +63,20 @@ class HealthMetrics:
     mean_vector_consistency: float
     # --- Burial inversion (Phase 4 placeholder; NaN until implemented) ---
     burial_inversion_mae_m: float
+    # --- Task-level health indicators ---
+    mean_vehicle_heading_error_deg: float = float("nan")
+    track_mean_heading_error_deg: float = float("nan")
+    track_mean_vehicle_heading_error_deg: float = float("nan")
+    track_mean_cross_track_m: float = float("nan")
+    median_cross_track_m: float = float("nan")
+    p90_cross_track_m: float = float("nan")
+    final_cross_track_m: float = float("nan")
+    route_completion_ratio: float = float("nan")
+    final_route_progress_m: float = float("nan")
+    route_length_m: float = float("nan")
+    final_route_distance_m: float = float("nan")
+    endpoint_goal_enabled: float = 0.0
+    endpoint_completed: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
 
@@ -102,6 +116,12 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     good_ratio = float(np.mean(valid_errors < _GOOD_HEADING_DEG)) if valid_errors.size else 0.0
     flip_count = int(np.sum(valid_errors > _FLIP_HEADING_DEG)) if valid_errors.size else 0
 
+    vehicle_heading_errors = np.array([
+        abs(smallest_angle_error_deg(heading, true_heading))
+        for heading, true_heading in zip(record["heading_deg"], record["true_heading_deg"])
+    ], dtype=float)
+    mean_vehicle_err = float(np.mean(vehicle_heading_errors)) if vehicle_heading_errors.size else float("nan")
+
     # Oscillations: consecutive valid fused-heading samples jumping > 30 deg.
     valid_idx = np.where(~np.isnan(record["fused_heading_deg"]))[0]
     oscillations = 0
@@ -113,6 +133,7 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
 
     mode_fraction = _fraction_table(record.modes)
     track_fraction = mode_fraction.get("track", 0.0)
+    track_mask = np.asarray([mode == "track" for mode in record.modes], dtype=bool)
     mode_switches = sum(1 for i in range(1, len(record.modes)) if record.modes[i] != record.modes[i - 1])
 
     source_fraction = _fraction_table(record.sources)
@@ -137,6 +158,25 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
                            record["pos_y_m"] - record["true_nearest_y_m"])
     mean_cross_track = float(np.mean(cross_track)) if cross_track.size else float("nan")
     max_cross_track = float(np.max(cross_track)) if cross_track.size else float("nan")
+    median_cross_track = float(np.median(cross_track)) if cross_track.size else float("nan")
+    p90_cross_track = float(np.percentile(cross_track, 90.0)) if cross_track.size else float("nan")
+    final_cross_track = float(cross_track[-1]) if cross_track.size else float("nan")
+
+    track_heading_errors = heading_errors[track_mask] if track_mask.size == heading_errors.size else np.empty(0)
+    valid_track_heading_errors = track_heading_errors[np.isfinite(track_heading_errors)]
+    track_mean_heading_error = (
+        float(np.mean(valid_track_heading_errors)) if valid_track_heading_errors.size else float("nan")
+    )
+    track_mean_vehicle_heading_error = (
+        float(np.mean(vehicle_heading_errors[track_mask]))
+        if track_mask.size == vehicle_heading_errors.size and np.any(track_mask)
+        else float("nan")
+    )
+    track_mean_cross_track = (
+        float(np.mean(cross_track[track_mask]))
+        if track_mask.size == cross_track.size and np.any(track_mask)
+        else float("nan")
+    )
 
     mean_conf = float(np.mean(record["confidence"])) if n else float("nan")
     safe_lock_fraction = float(np.mean(record["safe_lock_active"])) if n else 0.0
@@ -183,6 +223,19 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         safe_lock_fraction=safe_lock_fraction,
         mean_vector_consistency=mean_vec,
         burial_inversion_mae_m=burial_mae,
+        mean_vehicle_heading_error_deg=mean_vehicle_err,
+        track_mean_heading_error_deg=track_mean_heading_error,
+        track_mean_vehicle_heading_error_deg=track_mean_vehicle_heading_error,
+        track_mean_cross_track_m=track_mean_cross_track,
+        median_cross_track_m=median_cross_track,
+        p90_cross_track_m=p90_cross_track,
+        final_cross_track_m=final_cross_track,
+        route_completion_ratio=float(record.metadata.get("route_completion_ratio", float("nan"))),
+        final_route_progress_m=float(record.metadata.get("final_route_progress_m", float("nan"))),
+        route_length_m=float(record.metadata.get("route_length_m", float("nan"))),
+        final_route_distance_m=float(record.metadata.get("final_route_distance_m", float("nan"))),
+        endpoint_goal_enabled=float(record.metadata.get("endpoint_goal_enabled", 0.0)),
+        endpoint_completed=float(record.metadata.get("endpoint_completed", 0.0)),
         heading_errors_deg=heading_errors,
     )
 
@@ -190,18 +243,27 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
 def health_score(metrics: HealthMetrics) -> float:
     """把若干关键指标加权成 0–100 的总分（越高越好）。"""
     score = 0.0
-    # Heading accuracy: full credit at 0 deg, zero at 25 deg (35 pts)
+    # Fused-heading accuracy: diagnostic only; strong curves can still be
+    # controllable even when the perception heading lags the local tangent.
     if not np.isnan(metrics.mean_heading_error_deg):
-        score += max(0.0, 25.0 - metrics.mean_heading_error_deg) / 25.0 * 35.0
-    # Good-heading ratio (20 pts)
-    score += metrics.good_ratio * 20.0
-    # TRACK_ACTIVE occupancy, capped at 30% target (20 pts)
-    score += min(metrics.track_active_fraction / 0.30, 1.0) * 20.0
-    # Mode stability: full credit at <=6 switches, zero at >=30 (15 pts)
-    score += max(0.0, (30.0 - metrics.mode_switches)) / 24.0 * 15.0
-    # Cross-track containment: full at 0 m, zero at 12 m (10 pts)
-    if not np.isnan(metrics.mean_cross_track_m):
-        score += max(0.0, 12.0 - metrics.mean_cross_track_m) / 12.0 * 10.0
+        score += max(0.0, 35.0 - metrics.mean_heading_error_deg) / 35.0 * 10.0
+    score += metrics.good_ratio * 5.0
+    # Closed-loop task quality: prioritize TRACK-phase vehicle behavior over
+    # all-run perception angle means.
+    if not np.isnan(metrics.track_mean_vehicle_heading_error_deg):
+        score += max(0.0, 25.0 - metrics.track_mean_vehicle_heading_error_deg) / 25.0 * 10.0
+    if not np.isnan(metrics.track_mean_cross_track_m):
+        score += max(0.0, 12.0 - metrics.track_mean_cross_track_m) / 12.0 * 20.0
+    score += min(metrics.track_active_fraction / 0.30, 1.0) * 10.0
+    score += max(0.0, (30.0 - metrics.mode_switches)) / 24.0 * 10.0
+    if not np.isnan(metrics.final_cross_track_m):
+        score += max(0.0, 18.0 - metrics.final_cross_track_m) / 18.0 * 10.0
+    if metrics.endpoint_goal_enabled >= 0.5 and not np.isnan(metrics.route_completion_ratio):
+        route_score = max(0.0, min(metrics.route_completion_ratio, 1.0)) * 20.0
+        endpoint_bonus = 5.0 if metrics.endpoint_completed >= 0.5 else 0.0
+        score += min(25.0, route_score + endpoint_bonus)
+    elif metrics.endpoint_goal_enabled < 0.5:
+        score += 25.0
     return float(max(0.0, min(100.0, score)))
 
 
@@ -256,4 +318,3 @@ def compare_to_baseline(current: HealthMetrics, baseline: MilestoneMetrics) -> P
         delta = after - before
         fields[name] = (before, after, delta, higher_is_better, unit, target)
     return ProgressDelta(case_name=current.case_name, fields=fields)
-

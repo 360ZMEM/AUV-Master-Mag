@@ -21,7 +21,9 @@ from auv_mag_tracking.viz.recorder import simulate_case
 
 
 def _metrics(case_name: str, *, mean_err: float, track: float, switches: int,
-             cross_track: float = 2.0, good_ratio: float = 0.9) -> HealthMetrics:
+             cross_track: float = 2.0, good_ratio: float = 0.9,
+             track_vehicle_err: float = 4.0, endpoint_goal: float = 0.0,
+             route: float = 0.0) -> HealthMetrics:
     """Build a HealthMetrics with only the fields the progress view reads set."""
     return HealthMetrics(
         case_name=case_name,
@@ -51,6 +53,19 @@ def _metrics(case_name: str, *, mean_err: float, track: float, switches: int,
         safe_lock_fraction=0.0,
         mean_vector_consistency=0.8,
         burial_inversion_mae_m=float("nan"),
+        mean_vehicle_heading_error_deg=track_vehicle_err,
+        track_mean_heading_error_deg=mean_err,
+        track_mean_vehicle_heading_error_deg=track_vehicle_err,
+        track_mean_cross_track_m=cross_track,
+        median_cross_track_m=cross_track,
+        p90_cross_track_m=cross_track,
+        final_cross_track_m=cross_track,
+        route_completion_ratio=route,
+        final_route_progress_m=route * 100.0,
+        route_length_m=100.0,
+        final_route_distance_m=cross_track,
+        endpoint_goal_enabled=endpoint_goal,
+        endpoint_completed=1.0 if endpoint_goal and route >= 0.95 else 0.0,
         heading_errors_deg=np.array([mean_err]),
     )
 
@@ -84,6 +99,32 @@ class ProgressComparisonTest(unittest.TestCase):
         delta = compare_to_baseline(current, PRE_2G["case4"])
         _, after, _, _, _, _ = delta.fields["health"]
         self.assertAlmostEqual(after, health_score(current))
+
+    def test_health_score_uses_task_metrics_not_only_fused_heading(self) -> None:
+        current = _metrics(
+            "case6_like",
+            mean_err=28.0,
+            track=0.50,
+            switches=2,
+            cross_track=3.0,
+            good_ratio=0.35,
+            track_vehicle_err=6.0,
+        )
+        self.assertGreater(health_score(current), 70.0)
+
+    def test_endpoint_goal_route_failure_is_penalized(self) -> None:
+        current = _metrics(
+            "maze_dropout_like",
+            mean_err=4.0,
+            track=0.52,
+            switches=22,
+            cross_track=24.0,
+            good_ratio=0.9,
+            track_vehicle_err=90.0,
+            endpoint_goal=1.0,
+            route=0.015,
+        )
+        self.assertLess(health_score(current), 35.0)
 
     def test_regression_detected_when_error_grows(self) -> None:
         baseline = MilestoneMetrics("caseX", health=80.0, mean_heading_error_deg=5.0,

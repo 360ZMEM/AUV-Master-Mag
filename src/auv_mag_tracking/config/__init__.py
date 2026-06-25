@@ -676,6 +676,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     - case5: 低频演示模式对比
     - case6: 声呐与磁感知融合
     - case1v..case6v: case1..case6 的后续转弯变种
+    - case_maze_sonar_dropout: maze 初期有声呐、进入 TRACK 后声呐失效
     - case_maze_sonar/case_maze_no_sonar: 光滑迷宫往返长电缆压力测试
     - case7: 初始定位后声呐失效 + TRACK zig-zag 保持
     - case_hf_phone: 手机级高保真噪声
@@ -1115,6 +1116,13 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         return scenario
 
     maze_sonar = _build_maze_case("case_maze_sonar", sonar_enabled=True)
+    maze_sonar_dropout = _build_maze_case("case_maze_sonar_dropout", sonar_enabled=True)
+    maze_sonar_dropout.description = (
+        "Smooth serpentine maze cable stress test where sonar is available for initial lock "
+        "and forced offline after entering TRACK_ACTIVE."
+    )
+    maze_sonar_dropout.sonar.fail_after_track_active = True
+    maze_sonar_dropout.sonar.fail_after_track_delay_s = 0.0
     maze_no_sonar = _build_maze_case("case_maze_no_sonar", sonar_enabled=False)
 
     # 手机级高保真场景：保留基线结构，仅增强硬件噪声与较低采样率。
@@ -1245,6 +1253,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         case5v.name: case5v,
         case6v.name: case6v,
         maze_sonar.name: maze_sonar,
+        maze_sonar_dropout.name: maze_sonar_dropout,
         maze_no_sonar.name: maze_no_sonar,
         sonar_dropout_zigzag.name: sonar_dropout_zigzag,
         hf_phone.name: hf_phone,

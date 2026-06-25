@@ -55,6 +55,11 @@ def main() -> None:
         f"TRACK {metrics.track_active_fraction*100:.0f}%  "
         f"switches {metrics.mode_switches}"
     )
+    print(
+        f"track_xt {metrics.track_mean_cross_track_m:.1f}m  "
+        f"track_vehicle_err {metrics.track_mean_vehicle_heading_error_deg:.1f}deg  "
+        f"final_xt {metrics.final_cross_track_m:.1f}m"
+    )
     print(f"report: {case_dir / 'report.md'}")
 
 

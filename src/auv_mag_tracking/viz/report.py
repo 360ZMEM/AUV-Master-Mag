@@ -23,9 +23,18 @@ def _auto_analysis(metrics: HealthMetrics) -> List[str]:
     if mean_err <= 15.0:
         lines.append(f"- GOOD: mean heading error {mean_err:.1f} deg within 15 deg target.")
     elif mean_err <= 30.0:
-        lines.append(f"- MODERATE: mean heading error {mean_err:.1f} deg, above 15 deg target.")
+        lines.append(
+            f"- MODERATE: mean fused-heading error {mean_err:.1f} deg, above 15 deg target; "
+            "check task-level metrics before judging tracking failure."
+        )
     else:
-        lines.append(f"- WARNING: mean heading error {mean_err:.1f} deg is high; check line-fit direction / FSM transitions.")
+        lines.append(f"- WARNING: mean fused-heading error {mean_err:.1f} deg is high; check line-fit direction / FSM transitions.")
+
+    if metrics.track_active_fraction > 0.0:
+        lines.append(
+            f"- TRACK quality: vehicle heading error {metrics.track_mean_vehicle_heading_error_deg:.1f} deg, "
+            f"cross-track {metrics.track_mean_cross_track_m:.1f} m during TRACK_ACTIVE."
+        )
 
     if metrics.flip_count > 0:
         lines.append(f"- WARNING: {metrics.flip_count} frames with ~180 deg error (heading-flip residue).")
@@ -44,6 +53,13 @@ def _auto_analysis(metrics: HealthMetrics) -> List[str]:
         lines.append(f"- WARNING: max cross-track {metrics.max_cross_track_m:.1f} m exceeds 12 m band.")
     else:
         lines.append(f"- GOOD: max cross-track {metrics.max_cross_track_m:.1f} m within 12 m band.")
+
+    if metrics.route_completion_ratio == metrics.route_completion_ratio:
+        lines.append(
+            f"- Route progress: {metrics.route_completion_ratio*100:.1f}% "
+            f"(final route distance {metrics.final_route_distance_m:.1f} m, "
+            f"endpoint={'yes' if metrics.endpoint_completed >= 0.5 else 'no'})."
+        )
 
     lines.append(
         f"- Guidance contribution: sonar {metrics.sonar_contribution*100:.0f}% / "
@@ -84,6 +100,9 @@ def save_run_report(metrics: HealthMetrics, fig_paths: Dict[str, Path], out_path
         f"| Mean heading error | {metrics.mean_heading_error_deg:.1f} deg |",
         f"| Median heading error | {metrics.median_heading_error_deg:.1f} deg |",
         f"| Final heading error | {metrics.final_heading_error_deg:.1f} deg |",
+        f"| Mean vehicle heading error | {metrics.mean_vehicle_heading_error_deg:.1f} deg |",
+        f"| TRACK fused-heading error | {metrics.track_mean_heading_error_deg:.1f} deg |",
+        f"| TRACK vehicle heading error | {metrics.track_mean_vehicle_heading_error_deg:.1f} deg |",
         f"| Good estimates (<15 deg) | {metrics.good_ratio*100:.0f}% |",
         f"| Heading flips (~180 deg) | {metrics.flip_count} |",
         f"| Heading oscillations | {metrics.heading_oscillations} |",
@@ -95,7 +114,15 @@ def save_run_report(metrics: HealthMetrics, fig_paths: Dict[str, Path], out_path
         f"| Mean fit residual | {metrics.mean_fit_residual_m:.2f} m |",
         f"| Lock-grade fraction (lambda_perp<1) | {metrics.lock_grade_fraction*100:.0f}% |",
         f"| Mean cross-track | {metrics.mean_cross_track_m:.1f} m |",
+        f"| Median cross-track | {metrics.median_cross_track_m:.1f} m |",
+        f"| P90 cross-track | {metrics.p90_cross_track_m:.1f} m |",
+        f"| TRACK mean cross-track | {metrics.track_mean_cross_track_m:.1f} m |",
         f"| Max cross-track | {metrics.max_cross_track_m:.1f} m |",
+        f"| Final cross-track | {metrics.final_cross_track_m:.1f} m |",
+        f"| Route completion | {metrics.route_completion_ratio*100:.1f}% |",
+        f"| Final route distance | {metrics.final_route_distance_m:.1f} m |",
+        f"| Endpoint goal enabled | {'yes' if metrics.endpoint_goal_enabled >= 0.5 else 'no'} |",
+        f"| Endpoint completed | {'yes' if metrics.endpoint_completed >= 0.5 else 'no'} |",
         f"| Mean confidence | {metrics.mean_confidence:.2f} |",
         f"| Sonar contribution | {metrics.sonar_contribution*100:.0f}% |",
         f"| Magnetic contribution | {metrics.magnetic_contribution*100:.0f}% |",
@@ -142,14 +169,14 @@ def save_showcase_report(metrics_list: List[HealthMetrics], showcase_fig: Path, 
         "",
         "## Scenario matrix",
         "",
-        "| Case | Health | Mean err [deg] | TRACK % | Switches | Peaks | Sonar % | Mag % | Max XT [m] |",
-        "|------|--------|----------------|---------|----------|-------|---------|-------|------------|",
+        "| Case | Health | Fused err [deg] | TRACK veh err [deg] | TRACK XT [m] | Route % | TRACK % | Switches |",
+        "|------|--------|------------------|---------------------|--------------|---------|---------|----------|",
     ]
     for m in metrics_list:
         lines.append(
             f"| {m.case_name} | {health_score(m):.0f} | {m.mean_heading_error_deg:.1f} | "
-            f"{m.track_active_fraction*100:.0f} | {m.mode_switches} | {m.total_peaks} | "
-            f"{m.sonar_contribution*100:.0f} | {m.magnetic_contribution*100:.0f} | {m.max_cross_track_m:.1f} |"
+            f"{m.track_mean_vehicle_heading_error_deg:.1f} | {m.track_mean_cross_track_m:.1f} | "
+            f"{m.route_completion_ratio*100:.1f} | {m.track_active_fraction*100:.0f} | {m.mode_switches} |"
         )
     lines.append("")
 

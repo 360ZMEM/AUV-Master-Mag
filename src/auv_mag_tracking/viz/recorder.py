@@ -307,6 +307,7 @@ def simulate_run(
             "final_route_progress_m": final_progress_m,
             "final_route_distance_m": final_distance_m,
             "route_completion_ratio": final_progress_m / max(float(route_length_m), 1e-9),
+            "endpoint_goal_enabled": float(scenario.stop_at_cable_endpoint),
             "endpoint_completed": float(endpoint_completed),
             "stop_reason": "endpoint" if endpoint_completed else "duration",
         }

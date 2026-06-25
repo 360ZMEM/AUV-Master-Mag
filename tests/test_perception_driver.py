@@ -24,6 +24,14 @@ class PerceptionDriverTest(unittest.TestCase):
         self.assertTrue(scenarios["case_hf_phone"].sensor.high_fidelity.enabled)
         self.assertTrue(scenarios["case_hf_industrial"].sensor.high_fidelity.enabled)
 
+    def test_maze_sonar_dropout_scenario_is_registered(self) -> None:
+        scenarios = build_default_scenarios()
+        scenario = scenarios["case_maze_sonar_dropout"]
+        self.assertTrue(scenario.sonar.fail_after_track_active)
+        self.assertEqual(scenario.sonar.fail_after_track_delay_s, 0.0)
+        self.assertTrue(scenario.tracking.reacquire_region_control_enabled)
+        self.assertFalse(scenarios["case_maze_no_sonar"].tracking.reacquire_region_control_enabled)
+
     def test_high_fidelity_magnetometer_returns_quantized_waveform_block(self) -> None:
         scenario = build_default_scenarios()["case1"]
         scenario.sensor.high_fidelity.enabled = True

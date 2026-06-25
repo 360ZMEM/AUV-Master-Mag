@@ -96,7 +96,8 @@ def render_overview(record: RunRecord, metrics: HealthMetrics, out_path: Path) -
     fig.suptitle(
         f"AUV Cable Tracking — {record.case_name} ({mode_tag})   "
         f"Health {score:.0f}/100   "
-        rf"$\bar{{e}}_\psi={metrics.mean_heading_error_deg:.1f}^\circ$   "
+        rf"fused $\bar{{e}}_\psi={metrics.mean_heading_error_deg:.1f}^\circ$   "
+        rf"TRACK XT={metrics.track_mean_cross_track_m:.1f} m   "
         f"TRACK {metrics.track_active_fraction*100:.0f}%",
         fontsize=14, fontweight="bold",
     )
@@ -250,12 +251,16 @@ def render_showcase(metrics_list: List[HealthMetrics], out_path: Path) -> Path:
     gs = fig.add_gridspec(2, 2, hspace=0.4, wspace=0.22,
                           left=0.07, right=0.97, top=0.9, bottom=0.1)
 
-    # (a) heading error vs target
+    # (a) fused-heading error vs task-level TRACK vehicle heading error
     ax = fig.add_subplot(gs[0, 0])
-    ax.bar(x, [m.mean_heading_error_deg for m in metrics_list], color=_C_FIT, width=0.6)
+    width = 0.38
+    ax.bar(x - width / 2, [m.mean_heading_error_deg for m in metrics_list], color=_C_FIT, width=width,
+           label="Fused heading")
+    ax.bar(x + width / 2, [m.track_mean_vehicle_heading_error_deg for m in metrics_list], color=_C_AUV, width=width,
+           label="TRACK vehicle")
     ax.axhline(15.0, color=_C_GOOD, ls="--", lw=1.3, label=r"$15^\circ$ target")
     ax.set_xticks(x); ax.set_xticklabels(cases, rotation=20)
-    ax.set_ylabel(r"$\bar{e}_\psi$ [deg]"); ax.set_title("(a) Mean heading error"); ax.legend()
+    ax.set_ylabel(r"$\bar{e}_\psi$ [deg]"); ax.set_title("(a) Perception vs. closed-loop heading"); ax.legend()
 
     # (b) FSM occupancy stacked
     ax = fig.add_subplot(gs[0, 1])
@@ -269,7 +274,6 @@ def render_showcase(metrics_list: List[HealthMetrics], out_path: Path) -> Path:
 
     # (c) sonar vs magnetic contribution
     ax = fig.add_subplot(gs[1, 0])
-    width = 0.38
     ax.bar(x - width / 2, [m.sonar_contribution * 100.0 for m in metrics_list], width,
            color=_C_AUV, label="Sonar")
     ax.bar(x + width / 2, [m.magnetic_contribution * 100.0 for m in metrics_list], width,
