@@ -26,6 +26,7 @@ from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableStateEstimator, LocalPathTrackingState
+from .magnetic_path import MagneticPathObservationBuilder
 from .peaks import PeakDetector
 from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
@@ -119,6 +120,15 @@ class MagneticCablePerception:
             window=scenario.tracking.mag_cross_track_window,
             min_perp_amplitude_nt=scenario.tracking.mag_cross_track_min_perp_amplitude_nt,
             quality_gate=scenario.tracking.mag_cross_track_quality_gate,
+        )
+        self.magnetic_path_builder = (
+            MagneticPathObservationBuilder(
+                vertical_separation_m=scenario.vehicle.altitude_above_seabed_m + scenario.environment.burial_depth_m,
+                min_horizontal_field_nt=scenario.tracking.magnetic_path_min_horizontal_field_nt,
+                max_cross_track_m=scenario.tracking.magnetic_path_max_cross_track_m,
+            )
+            if scenario.tracking.magnetic_path_observation_enabled
+            else None
         )
         # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
         burial_cfg = scenario.burial_inversion
@@ -532,6 +542,32 @@ class MagneticCablePerception:
                 anomaly_ned_nt=anomaly_ned_nt,
                 burial_measurement=burial_measurement,
             )
+
+        if (
+            self.magnetic_path_builder is not None
+            and (sonar_reading is None or not sonar_reading.valid)
+            and signal_reliable
+            and self.last_accepted_fit_result.direction_xy is not None
+            and self.last_output_confidence >= self.scenario.tracking.low_confidence_threshold
+        ):
+            magnetic_observation = self.magnetic_path_builder.build(
+                vehicle_position_xy_m=np.asarray(vehicle_position_xy_m, dtype=float),
+                anomaly_ned_nt=anomaly_ned_nt,
+                movement_heading_deg=pose_measurement.heading_deg,
+            )
+            if magnetic_observation is not None:
+                self.local_path_estimator.add_observation(
+                    magnetic_observation.position_xy_m,
+                    time_s=reading.time_s,
+                    confidence=magnetic_observation.confidence,
+                    heading_deg=magnetic_observation.heading_deg,
+                )
+                self.local_path_tracking_estimator.add_observation(
+                    magnetic_observation.position_xy_m,
+                    time_s=reading.time_s,
+                    confidence=magnetic_observation.confidence,
+                    heading_deg=magnetic_observation.heading_deg,
+                )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9

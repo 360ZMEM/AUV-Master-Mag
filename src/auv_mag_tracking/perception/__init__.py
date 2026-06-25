@@ -15,6 +15,7 @@ from .filters import (
 )
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
+from .magnetic_path import MagneticPathObservation, MagneticPathObservationBuilder
 from .orchestrator import MagneticCablePerception
 from .peaks import PeakDetector
 from .reacquire_region import ObservableRegion, ObservableRegionSelector

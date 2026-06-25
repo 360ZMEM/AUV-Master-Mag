@@ -1,0 +1,110 @@
+import sys
+import unittest
+from pathlib import Path
+
+import numpy as np
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = WORKSPACE_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from auv_mag_tracking.config import build_default_scenarios
+from auv_mag_tracking.environment import CableEnvironment
+from auv_mag_tracking.math_utils import smallest_angle_error_deg
+from auv_mag_tracking.perception import LocalCableStateEstimator, MagneticPathObservationBuilder
+
+
+class MagneticTurnObservabilityTest(unittest.TestCase):
+    def _case6_magnetic_observations(self, *, lateral_amplitude_m: float) -> tuple[list, list]:
+        scenario = build_default_scenarios()["case6"]
+        environment = CableEnvironment(scenario)
+        route_points = environment.route.sample_xy(step_m=7.5)[14:50]
+        builder = MagneticPathObservationBuilder(
+            vertical_separation_m=scenario.vehicle.altitude_above_seabed_m + scenario.environment.burial_depth_m,
+            min_horizontal_field_nt=0.01,
+            max_cross_track_m=25.0,
+            max_step_heading_change_deg=90.0,
+        )
+
+        observations = []
+        truths = []
+        previous_vehicle_xy = None
+        for index, cable_xy in enumerate(route_points):
+            truth = environment.cable_truth_at_xy(cable_xy)
+            normal_xy = np.array([-truth.tangent_xy[1], truth.tangent_xy[0]], dtype=float)
+            lateral_offset_m = lateral_amplitude_m * np.sin(index * 0.85)
+            vehicle_xy = cable_xy + lateral_offset_m * normal_xy
+            vehicle_z_m = environment.seabed_depth_m(vehicle_xy) - scenario.vehicle.altitude_above_seabed_m
+            field_gain = environment.field_model.cable_field_gain_ned_nt(
+                np.array([vehicle_xy[0], vehicle_xy[1], vehicle_z_m], dtype=float)
+            )
+            anomaly_ned_nt = field_gain * scenario.signal.ac_current_amplitude_a
+            movement_heading_deg = None
+            if previous_vehicle_xy is not None:
+                movement = vehicle_xy - previous_vehicle_xy
+                if np.linalg.norm(movement) > 1e-6:
+                    movement_heading_deg = float(np.rad2deg(np.arctan2(movement[1], movement[0])))
+            previous_vehicle_xy = vehicle_xy.copy()
+            observation = builder.build(vehicle_xy, anomaly_ned_nt, movement_heading_deg=movement_heading_deg)
+            if observation is None:
+                continue
+            observations.append(observation)
+            truths.append(truth)
+        return observations, truths
+
+    def test_pure_magnetic_history_can_reconstruct_case6_curve_when_laterally_excited(self) -> None:
+        observations, truths = self._case6_magnetic_observations(lateral_amplitude_m=5.0)
+
+        self.assertGreaterEqual(len(observations), 24)
+        point_errors_m = [
+            float(np.linalg.norm(observation.position_xy_m - truth.nearest_point_xy_m))
+            for observation, truth in zip(observations, truths)
+        ]
+        heading_errors_deg = [
+            abs(smallest_angle_error_deg(observation.heading_deg, truth.heading_deg))
+            for observation, truth in zip(observations, truths)
+        ]
+        self.assertLess(float(np.median(point_errors_m)), 3.0)
+        self.assertLess(float(np.percentile(point_errors_m, 90.0)), 8.0)
+        self.assertLess(float(np.median(heading_errors_deg)), 20.0)
+
+        estimator = LocalCableStateEstimator(
+            capacity=22,
+            local_line_window=5,
+            min_arc_radius_m=30.0,
+            min_arc_angle_span_deg=180.0,
+            heading_blend=0.55,
+            curve_heading_delta_deg=10.0,
+            min_observation_spacing_m=1.0,
+        )
+        fit_errors_deg = []
+        curve_states = 0
+        for index, (observation, truth) in enumerate(zip(observations, truths)):
+            estimator.add_observation(
+                observation.position_xy_m,
+                time_s=float(index),
+                confidence=observation.confidence,
+                heading_deg=observation.heading_deg,
+            )
+            state = estimator.estimate()
+            if state is None or index < 8:
+                continue
+            fit_errors_deg.append(abs(smallest_angle_error_deg(state.heading_deg, truth.heading_deg)))
+            if state.tracking_state.value == "curve_track":
+                curve_states += 1
+
+        self.assertGreater(curve_states, 8)
+        self.assertLess(float(np.median(fit_errors_deg)), 25.0)
+
+    def test_pure_magnetic_turn_observation_requires_lateral_excitation(self) -> None:
+        observations, _ = self._case6_magnetic_observations(lateral_amplitude_m=0.0)
+
+        offsets = np.array([abs(observation.cross_track_offset_m) for observation in observations], dtype=float)
+        self.assertGreater(len(observations), 20)
+        self.assertLess(float(np.percentile(offsets, 90.0)), 0.5)
+
+
+if __name__ == "__main__":
+    unittest.main()

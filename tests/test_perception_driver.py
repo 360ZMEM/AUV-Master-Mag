@@ -32,6 +32,14 @@ class PerceptionDriverTest(unittest.TestCase):
         self.assertTrue(scenario.tracking.reacquire_region_control_enabled)
         self.assertFalse(scenarios["case_maze_no_sonar"].tracking.reacquire_region_control_enabled)
 
+    def test_maze_sparse_sonar_scenario_is_registered(self) -> None:
+        scenario = build_default_scenarios()["case_maze_sparse_sonar"]
+        self.assertFalse(scenario.sonar.fail_after_track_active)
+        self.assertAlmostEqual(scenario.sonar.prob_detection, 0.20)
+        self.assertAlmostEqual(scenario.tracking.local_path_max_age_s, 180.0)
+        self.assertFalse(scenario.tracking.magnetic_path_observation_enabled)
+        self.assertTrue(scenario.tracking.reacquire_region_control_enabled)
+
     def test_high_fidelity_magnetometer_returns_quantized_waveform_block(self) -> None:
         scenario = build_default_scenarios()["case1"]
         scenario.sensor.high_fidelity.enabled = True

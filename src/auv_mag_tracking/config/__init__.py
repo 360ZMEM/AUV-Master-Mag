@@ -381,6 +381,9 @@ class TrackingConfig:
     local_path_max_age_s: float = 20.0
     local_path_curve_residual_relax: float = 2.0
     local_path_min_observation_spacing_m: float = 0.0
+    magnetic_path_observation_enabled: bool = False
+    magnetic_path_min_horizontal_field_nt: float = 5.0
+    magnetic_path_max_cross_track_m: float = 30.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
@@ -679,6 +682,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     - case6: 声呐与磁感知融合
     - case1v..case6v: case1..case6 的后续转弯变种
     - case_maze_sonar_dropout: maze 初期有声呐、进入 TRACK 后声呐失效
+    - case_maze_sparse_sonar: maze 低频稀疏声呐锚点 + 磁跟踪
     - case_maze_sonar/case_maze_no_sonar: 光滑迷宫往返长电缆压力测试
     - case7: 初始定位后声呐失效 + TRACK zig-zag 保持
     - case_hf_phone: 手机级高保真噪声
@@ -1080,6 +1084,9 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.local_path_max_age_s = 120.0
         scenario.tracking.local_path_curve_residual_relax = 2.0
         scenario.tracking.local_path_min_observation_spacing_m = 0.0
+        scenario.tracking.magnetic_path_observation_enabled = False
+        scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
+        scenario.tracking.magnetic_path_max_cross_track_m = 30.0
         scenario.tracking.curve_track_speed_factor = 0.6
         scenario.tracking.curve_track_crossing_angle_deg = 6.0
         scenario.tracking.reacquire_search_radius_m = 24.0
@@ -1127,6 +1134,16 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     )
     maze_sonar_dropout.sonar.fail_after_track_active = True
     maze_sonar_dropout.sonar.fail_after_track_delay_s = 0.0
+    maze_sparse_sonar = _build_maze_case("case_maze_sparse_sonar", sonar_enabled=True)
+    maze_sparse_sonar.description = (
+        "Smooth serpentine maze cable stress test with sparse low-probability sonar anchors "
+        "and magnetic/local-path tracking between anchors."
+    )
+    maze_sparse_sonar.sonar.prob_detection = 0.20
+    maze_sparse_sonar.tracking.local_path_max_age_s = 180.0
+    maze_sparse_sonar.tracking.magnetic_path_observation_enabled = False
+    maze_sparse_sonar.tracking.magnetic_path_min_horizontal_field_nt = 5.0
+    maze_sparse_sonar.tracking.magnetic_path_max_cross_track_m = 30.0
     maze_no_sonar = _build_maze_case("case_maze_no_sonar", sonar_enabled=False)
 
     # 手机级高保真场景：保留基线结构，仅增强硬件噪声与较低采样率。
@@ -1258,6 +1275,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         case6v.name: case6v,
         maze_sonar.name: maze_sonar,
         maze_sonar_dropout.name: maze_sonar_dropout,
+        maze_sparse_sonar.name: maze_sparse_sonar,
         maze_no_sonar.name: maze_no_sonar,
         sonar_dropout_zigzag.name: sonar_dropout_zigzag,
         hf_phone.name: hf_phone,

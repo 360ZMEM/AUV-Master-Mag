@@ -213,3 +213,41 @@
    - `reacquire_region_max_duration_s`
    - 稀疏声呐命中后的 trusted anchor 更新策略
 4. 如果必须继续强制离线，则需要引入外部全局先验或额外传感器；现有磁 + IMU + 局部记忆不足以通过 1x maze。
+
+## 8. 纯磁转弯可观测性与 sparse 实施记录
+
+新增独立测试：
+
+```bash
+/Users/bytedance/miniconda3/bin/python -m unittest tests.test_magnetic_turn_observability
+```
+
+结论：
+
+- 纯磁水平矢量能给出电缆轴线，但单帧天然存在 `180deg` 方向歧义。
+- 在有横向激励的历史轨迹中，可以用 `B_down/B_perp` 反演横偏，把 AUV 位置投影成隐式电缆点，并通过 `LocalCableStateEstimator` 感知 case6 式曲线。
+- 无横向激励时，横偏接近 0，历史点缺少几何张角，不能可靠判断转弯。
+- 因此纯磁转弯拟合必须绑定 zig-zag/运动历史；不能用于初始 bootstrap，也不应单独替代声呐锚点。
+
+已整合默认关闭能力：
+
+- `magnetic_path_observation_enabled`
+- `MagneticPathObservationBuilder`
+- 仅在已有 accepted fit 且声呐当前无效时，才允许纯磁隐式观测补充 local path。
+
+代表点结果：
+
+| variant | health | TRACK XT | TRACK vehicle err | route | stop | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| sparse `prob=0.20` + 默认 local age `120s` | `45.3` | `4.3m` | `14.0deg` | `59.4%` | duration | 有效但未到终点。 |
+| sparse + 纯磁隐式观测开启 | `16.0` | `18.4m` | `104.5deg` | `16.7%` | duration | 退化，说明纯磁观测尚未和 zig-zag 相位绑定。 |
+| sparse + `local_path_max_age_s=180` | `68.5` | `3.5m` | `13.0deg` | `99.5%` | endpoint | 当前 sparse 有效基线。 |
+
+当前落地场景：
+
+- `case_maze_sparse_sonar`
+- `sonar.prob_detection=0.20`
+- `local_path_max_age_s=180.0`
+- `magnetic_path_observation_enabled=False`
+
+这条 sparse 流程说明：强制离线仍失败，但低频声呐锚点已经足够让 maze 闭环；下一步若要启用纯磁转弯观测，应先把它和 TRACK zig-zag 的跨线相位绑定，而不是在普通 sparse 主流程中直接打开。

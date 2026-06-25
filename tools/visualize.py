@@ -41,7 +41,7 @@ from auv_mag_tracking.viz import (  # noqa: E402
 
 DEFAULT_CASES = ["case1", "case2", "case3", "case4", "case5", "case6"]
 VARIANT_CASES = ["case1v", "case2v", "case3v", "case4v", "case5v", "case6v"]
-MAZE_CASES = ["case_maze_sonar", "case_maze_sonar_dropout", "case_maze_no_sonar"]
+MAZE_CASES = ["case_maze_sonar", "case_maze_sonar_dropout", "case_maze_sparse_sonar", "case_maze_no_sonar"]
 RESULTS_ROOT = WORKSPACE_ROOT / "results"
 _DURATION_OVERRIDE_S = None
 
