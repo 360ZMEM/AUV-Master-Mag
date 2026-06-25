@@ -382,8 +382,11 @@ class TrackingConfig:
     local_path_curve_residual_relax: float = 2.0
     local_path_min_observation_spacing_m: float = 0.0
     magnetic_path_observation_enabled: bool = False
+    magnetic_path_feed_local_path: bool = True
     magnetic_path_min_horizontal_field_nt: float = 5.0
     magnetic_path_max_cross_track_m: float = 30.0
+    magnetic_path_feed_max_innovation_m: float = float("inf")
+    magnetic_path_feed_max_heading_delta_deg: float = 90.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
@@ -1085,8 +1088,11 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.local_path_curve_residual_relax = 2.0
         scenario.tracking.local_path_min_observation_spacing_m = 0.0
         scenario.tracking.magnetic_path_observation_enabled = False
+        scenario.tracking.magnetic_path_feed_local_path = True
         scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
         scenario.tracking.magnetic_path_max_cross_track_m = 30.0
+        scenario.tracking.magnetic_path_feed_max_innovation_m = float("inf")
+        scenario.tracking.magnetic_path_feed_max_heading_delta_deg = 90.0
         scenario.tracking.curve_track_speed_factor = 0.6
         scenario.tracking.curve_track_crossing_angle_deg = 6.0
         scenario.tracking.reacquire_search_radius_m = 24.0

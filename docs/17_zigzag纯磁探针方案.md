@@ -138,3 +138,47 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 4. 在无先验/maze 中启用纯磁观测前，必须先显式建模 TRACK zig-zag 的跨线相位；否则会再次污染 local path。
 5. 如果探针模式在更多场景稳定，再评估是否把 `3deg` TRACK probe 升级为默认基线。
 
+
+## 9. case_maze_sonar_dropout 探针调优
+
+本节专门验证 `case_maze_sonar_dropout`：声呐只负责初始捕获，TRACK 后强制离线。目标是确认 zig-zag 是否真正提升纯磁电缆位置估计和预瞄，而不仅是改善局部角度指标。
+
+评估入口：
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe
+```
+
+门控候选因为完整时长较慢，单独短测：
+
+```bash
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p9_probe10_mag_gate20 --max-steps 12000
+/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p10_probe10_mag_gate10 --max-steps 12000
+```
+
+### 9.1 性能列表
+
+| variant | health | TRACK XT | TRACK vehicle err | route | final dist | mag probe | mag axis err | mag pos err | burial MAE | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `d0_baseline` | 27.4 | 24.3m | 89.7° | 1.5% | 21.3m | 0% | — | — | 0.490m | dropout 基线失败。 |
+| `p1_probe3_nomag` | 14.9 | 21.7m | 89.2° | 2.9% | 16.9m | 0% | — | — | 0.311m | 仅 3° zig-zag 无有效推进。 |
+| `p2_probe6_nomag` | 31.0 | 23.0m | 89.8° | 1.6% | 25.8m | 0% | — | — | 0.340m | 仅 6° zig-zag 无有效推进。 |
+| `p3_probe10_nomag` | 27.4 | 24.3m | 89.7° | 1.5% | 21.3m | 0% | — | — | 0.490m | 仅 10° zig-zag 等同基线。 |
+| `p4_probe3_mag` | 33.7 | 9.3m | 14.3° | 17.2% | 9.4m | 35.8% | 45.3° | 79.0m | 228.363m | 有局部收益，但纯磁位置严重污染。 |
+| `p5_probe6_mag` | 29.1 | 9.5m | 14.0° | 16.9% | 694.1m | 26.7% | 41.3° | 163.5m | 305.866m | 位置/埋深发散，不可用。 |
+| `p6_probe10_mag` | 41.3 | 7.0m | 16.0° | 60.4% | 73.8m | 35.9% | 37.3° | 120.5m | 3.893m | route 表面提升，但预瞄位置不可接受。 |
+| `p6d_probe10_mag_diag` | 27.4 | 24.3m | 89.7° | 1.5% | 21.3m | 96.0% | 49.0° | 19.4m | 0.490m | 只诊断不接入：估计可观测，但不产生控制收益。 |
+| `p7_probe6_mag_age180` | 29.1 | 9.5m | 14.0° | 16.9% | 694.1m | 26.7% | 41.3° | 163.5m | 305.866m | 延长 local path 记忆无改善。 |
+| `p8_probe10_mag_age180` | 41.3 | 7.0m | 16.0° | 60.4% | 73.8m | 35.9% | 37.3° | 120.5m | 3.893m | 与 p6 相同，仍不可靠。 |
+| `p9_probe10_mag_gate20` | 29.3 | 14.9m | 21.5° | 15.5% | 11.6m | 83.3% | 33.9° | 18.3m | 0.733m | 门控降低位置误差，但推进不足。 |
+| `p10_probe10_mag_gate10` | 26.5 | 7.3m | 21.8° | 0.0% | 33.1m | 80.5% | 28.0° | 8.3m | 0.713m | 位置估计最好，但过度门控后不前进。 |
+
+### 9.2 结论
+
+1. 仅增加 TRACK zig-zag 幅度无法解决 dropout，`3°/6°/10°` 都没有真正推进。
+2. `10° + 纯磁接入` 能把 route 推到 `60.4%`，但纯磁位置误差达到 `120.5m`，这不是可靠预瞄，而是错误观测驱动下的投影收益。
+3. 只诊断不接入时，纯磁位置误差降到 `19.4m`，说明 zig-zag 产生了可观测信息，但还不足以直接控制。
+4. 加创新门控后，位置误差可降到 `8.3-18.3m`，但 route 降到 `0-15.5%`，说明当前门控尚不能同时满足“估计准”和“可推进”。
+5. 本轮没有找到可合入默认 dropout 流程的有效参数，因此不应把 `case1v-6v` 的默认探针策略改为更大幅度。
+
+当前判断：zig-zag 对纯磁估计是必要激励，但 `case_maze_sonar_dropout` 还缺一个“跨线相位 -> 可信观测 -> 预瞄目标”的中间层。下一步应先实现显式 zig-zag 相位识别，只在跨线相位完整、磁横偏符号变化成立、创新距离受控时生成 lookahead，而不是把每帧纯磁投影直接喂给 local path。

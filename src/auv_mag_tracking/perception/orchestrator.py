@@ -554,9 +554,21 @@ class MagneticCablePerception:
             magnetic_path_observation = self.magnetic_path_builder.build(
                 vehicle_position_xy_m=np.asarray(vehicle_position_xy_m, dtype=float),
                 anomaly_ned_nt=anomaly_ned_nt,
-                movement_heading_deg=pose_measurement.heading_deg,
+                movement_heading_deg=(
+                    heading_from_direction_xy(self.last_accepted_fit_result.direction_xy)
+                    if self.last_accepted_fit_result.direction_xy is not None
+                    else pose_measurement.heading_deg
+                ),
             )
-            if magnetic_path_observation is not None:
+            if (
+                magnetic_path_observation is not None
+                and self.scenario.tracking.magnetic_path_feed_local_path
+                and self._magnetic_path_feed_allowed(
+                    vehicle_position_xy_m,
+                    magnetic_path_observation.position_xy_m,
+                    magnetic_path_observation.heading_deg,
+                )
+            ):
                 self.local_path_estimator.add_observation(
                     magnetic_path_observation.position_xy_m,
                     time_s=reading.time_s,
@@ -952,3 +964,25 @@ class MagneticCablePerception:
             reacquire_region_score=0.0 if reacquire_region is None else reacquire_region.score,
             reacquire_region_reason="none" if reacquire_region is None else reacquire_region.reason,
         )
+
+    def _magnetic_path_feed_allowed(
+        self,
+        vehicle_position_xy_m: np.ndarray,
+        observation_xy_m: np.ndarray,
+        observation_heading_deg: float,
+    ) -> bool:
+        """Gate pure-magnetic observations before they can affect local path."""
+        if self.last_accepted_fit_result.direction_xy is None:
+            return False
+        reference_xy = self._local_line_point(vehicle_position_xy_m, self.last_accepted_fit_result)
+        if reference_xy is None:
+            return False
+        innovation_m = float(np.linalg.norm(np.asarray(observation_xy_m, dtype=float) - reference_xy))
+        if innovation_m > self.scenario.tracking.magnetic_path_feed_max_innovation_m:
+            return False
+        reference_heading_deg = heading_from_direction_xy(self.last_accepted_fit_result.direction_xy)
+        if reference_heading_deg is None:
+            return False
+        axis_error_deg = abs(smallest_angle_error_deg(observation_heading_deg, reference_heading_deg))
+        axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
+        return axis_error_deg <= self.scenario.tracking.magnetic_path_feed_max_heading_delta_deg
