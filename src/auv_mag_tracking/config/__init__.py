@@ -310,6 +310,20 @@ class TrackingConfig:
         reacquire_search_radius_m: 重捕获搜索以最近可信电缆点为锚的搜索半径。
         reacquire_stale_timeout_s: 局部路径过时多久后才进入部署重捕获。
         reacquire_min_elapsed_s: 仿真/任务运行多久后才允许部署重捕获接管。
+        reacquire_zigzag_enabled: 重捕获时是否启用锚点局部 zig-zag 搜索。
+        reacquire_zigzag_along_step_m: 重捕获 zig-zag 每次翻腿后的沿切向推进距离。
+        reacquire_zigzag_max_along_m: 重捕获 zig-zag 相对锚点的最大沿切向搜索深度。
+        reacquire_region_enabled: 是否启用 Phase D 可观测区域诊断/执行。
+        reacquire_region_control_enabled: 是否允许任务 FSM 进入 REACQUIRE_REGION 控制态。
+        reacquire_region_forward_distance_m: forward gate 相对可信锚点的前向距离。
+        reacquire_region_turn_lateral_offset_m: turn-side gate 相对可信锚点的侧向距离。
+        reacquire_region_half_length_m: 可观测区域半长。
+        reacquire_region_half_width_m: 可观测区域半宽。
+        reacquire_region_min_confidence: 区域控制接管所需的最低区域置信度。
+        reacquire_region_entry_streak_required: 进入区域重捕获所需连续帧数。
+        reacquire_region_recovery_streak_required: 区域重捕获退出到 LOCK_ALIGN 所需连续恢复帧数。
+        reacquire_region_unavailable_hold_s: 区域不可用多久后退回 SEARCH。
+        reacquire_region_max_duration_s: 单次区域重捕获最大持续时间。
         parabolic_interpolation_enabled: 是否启用抛物线插值以细化峰值位置。
         peak_position_delay_s: 峰值位置输出的延迟补偿。
         bootstrap_min_heading_diff_deg: 启动拟合所需的最小航向差。
@@ -410,6 +424,20 @@ class TrackingConfig:
     reacquire_search_radius_m: float = 20.0
     reacquire_stale_timeout_s: float = 16.0
     reacquire_min_elapsed_s: float = 0.0
+    reacquire_zigzag_enabled: bool = False
+    reacquire_zigzag_along_step_m: float = 12.0
+    reacquire_zigzag_max_along_m: float = 72.0
+    reacquire_region_enabled: bool = False
+    reacquire_region_control_enabled: bool = False
+    reacquire_region_forward_distance_m: float = 48.0
+    reacquire_region_turn_lateral_offset_m: float = 60.0
+    reacquire_region_half_length_m: float = 36.0
+    reacquire_region_half_width_m: float = 24.0
+    reacquire_region_min_confidence: float = 0.20
+    reacquire_region_entry_streak_required: int = 5
+    reacquire_region_recovery_streak_required: int = 8
+    reacquire_region_unavailable_hold_s: float = 3.0
+    reacquire_region_max_duration_s: float = 45.0
     # --- Robust peak finding parameters ---
     parabolic_interpolation_enabled: bool = True
     peak_position_delay_s: float = 0.04
@@ -991,10 +1019,9 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     def _build_maze_case(name: str, sonar_enabled: bool) -> ScenarioConfig:
         """构建光滑迷宫往返电缆压力场景。
 
-        几何按 2× 等比放大（相对早期 100m 间距/30m 半径 prototype）：
-        lane 长 600m、间距 200m、U-turn 半径 60m，minR=60m 远大于
-        25m 环境硬约束。该场景固定作为后续迷宫压力基准，不再继续
-        通过 4×/8× 等比放大来回避算法问题。
+        几何使用 1× prototype：lane 长 300m、间距 100m、U-turn 半径
+        30m，minR=30m 仍高于 25m 环境硬约束。该场景用于快速测试
+        Phase D 区域重捕获，避免在大地图上做高成本网格搜参。
 
         逐帧诊断显示当前失锁首先发生在 lane1 直线段：早期高 SNR 观测
         污染线性 PCA，使 TRACK 初始 fused_heading 偏约 17°，车辆在尚未
@@ -1005,25 +1032,25 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario = copy.deepcopy(standard)
         scenario.name = name
         scenario.description = (
-            "Smooth serpentine maze cable stress test (2x scaled) with endpoint completion "
+            "Smooth serpentine maze cable stress test (1x prototype) with endpoint completion "
             f"({'sonar enabled' if sonar_enabled else 'sonar disabled'})."
         )
-        scenario.duration_s = 4400.0
+        scenario.duration_s = 2600.0
         scenario.stop_at_cable_endpoint = True
-        scenario.endpoint_progress_margin_m = 20.0
-        scenario.endpoint_lateral_tolerance_m = 36.0
+        scenario.endpoint_progress_margin_m = 10.0
+        scenario.endpoint_lateral_tolerance_m = 18.0
         scenario.environment = EnvironmentConfig(
-            cable_waypoints_xy_m=((-300.0, 0.0), (300.0, 0.0)),
+            cable_waypoints_xy_m=((-150.0, 0.0), (150.0, 0.0)),
             cable_route_mode="serpentine",
             maze_turn_count=4,
-            maze_straight_length_m=600.0,
-            maze_lane_spacing_m=200.0,
-            maze_turn_radius_m=60.0,
+            maze_straight_length_m=300.0,
+            maze_lane_spacing_m=100.0,
+            maze_turn_radius_m=30.0,
             nominal_route_heading_deg=0.0,
             burial_depth_m=1.5,
-            min_cable_curvature_radius_m=60.0,
+            min_cable_curvature_radius_m=30.0,
             validate_curvature_on_build=True,
-            field_segment_length_m=4.0,
+            field_segment_length_m=2.0,
         )
         scenario.vehicle = VehicleConfig(
             cruise_speed_mps=1.0,
@@ -1031,7 +1058,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             max_yaw_rate_deg_s=36.0,
             min_turning_radius_m=2.5,
             altitude_above_seabed_m=6.0,
-            initial_position_ned_m=(-315.0, -4.0, 0.0),
+            initial_position_ned_m=(-165.0, -4.0, 0.0),
             initial_heading_deg=10.0,
         )
         scenario.tracking.use_nominal_route_prior = False
@@ -1055,6 +1082,20 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.reacquire_search_radius_m = 24.0
         scenario.tracking.reacquire_stale_timeout_s = 8.0
         scenario.tracking.reacquire_min_elapsed_s = 0.0
+        scenario.tracking.reacquire_zigzag_enabled = False
+        scenario.tracking.reacquire_zigzag_along_step_m = 12.0
+        scenario.tracking.reacquire_zigzag_max_along_m = 72.0
+        scenario.tracking.reacquire_region_enabled = True
+        scenario.tracking.reacquire_region_control_enabled = sonar_enabled
+        scenario.tracking.reacquire_region_forward_distance_m = 48.0
+        scenario.tracking.reacquire_region_turn_lateral_offset_m = 60.0
+        scenario.tracking.reacquire_region_half_length_m = 36.0
+        scenario.tracking.reacquire_region_half_width_m = 24.0
+        scenario.tracking.reacquire_region_min_confidence = 0.20
+        scenario.tracking.reacquire_region_entry_streak_required = 5
+        scenario.tracking.reacquire_region_recovery_streak_required = 8
+        scenario.tracking.reacquire_region_unavailable_hold_s = 3.0
+        scenario.tracking.reacquire_region_max_duration_s = 45.0
         scenario.tracking.lost_timeout_s = 8.0
         scenario.tracking.sonar_preferred_distance_m = 8.0
         scenario.tracking.fsm_cov_perp_converged_m2 = 20.0

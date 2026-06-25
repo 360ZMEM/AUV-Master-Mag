@@ -17,6 +17,7 @@ from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
 from .orchestrator import MagneticCablePerception
 from .peaks import PeakDetector
+from .reacquire_region import ObservableRegion, ObservableRegionSelector
 from .state import (
     FitResult,
     PeakEvent,
@@ -44,6 +45,8 @@ __all__ = [
     "MagneticCablePerception",
     "MagneticVectorAnalyzer",
     "MedianWindowFilter",
+    "ObservableRegion",
+    "ObservableRegionSelector",
     "PeakDetector",
     "PeakEvent",
     "PeakObservation",

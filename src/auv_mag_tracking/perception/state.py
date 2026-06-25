@@ -134,3 +134,11 @@ class PerceptionState:
     local_path_residual_m: float = float("inf")
     local_path_radius_m: float = float("inf")
     local_path_tracking_state: str = "collecting"
+    # --- Reacquisition observable-region diagnostics ---
+    reacquire_region_center_xy_m: Optional[np.ndarray] = None
+    reacquire_region_heading_deg: Optional[float] = None
+    reacquire_region_half_length_m: float = 0.0
+    reacquire_region_half_width_m: float = 0.0
+    reacquire_region_confidence: float = 0.0
+    reacquire_region_score: float = 0.0
+    reacquire_region_reason: str = "none"

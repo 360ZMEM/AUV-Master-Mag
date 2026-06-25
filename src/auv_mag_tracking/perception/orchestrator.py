@@ -27,6 +27,7 @@ from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingB
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableStateEstimator, LocalPathTrackingState
 from .peaks import PeakDetector
+from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
 from .vector import EnvelopeGradientTracker, MagneticVectorAnalyzer
 
@@ -84,6 +85,13 @@ class MagneticCablePerception:
                 scenario.tracking.local_path_guidance_enabled
                 and not scenario.tracking.use_nominal_route_prior
             ),
+        )
+        self.reacquire_region_selector = ObservableRegionSelector(
+            forward_distance_m=scenario.tracking.reacquire_region_forward_distance_m,
+            turn_lateral_offset_m=scenario.tracking.reacquire_region_turn_lateral_offset_m,
+            half_length_m=scenario.tracking.reacquire_region_half_length_m,
+            half_width_m=scenario.tracking.reacquire_region_half_width_m,
+            max_anchor_age_s=scenario.tracking.local_path_max_age_s,
         )
         self.confidence_estimator = ConfidenceEstimator(scenario.tracking.lost_timeout_s)
         self.valid_points_xy: Deque[np.ndarray] = deque(maxlen=max(3, scenario.tracking.blind_follow_memory_size))
@@ -626,6 +634,30 @@ class MagneticCablePerception:
             and local_path_age_s <= self.scenario.tracking.local_path_max_age_s
             and not local_path_stale_for_reacquire
         )
+        deployment_reacquire_required = (
+            local_path_tracking_state == LocalPathTrackingState.REACQUIRE
+            or local_path_stale_for_reacquire
+        )
+        if (
+            self.scenario.tracking.reacquire_region_enabled
+            and local_path_state is not None
+            and not deployment_reacquire_required
+            and local_path_state.confidence >= self.scenario.tracking.local_path_min_confidence
+        ):
+            self.reacquire_region_selector.update_trusted_state(
+                anchor_xy_m=local_path_state.anchor_xy_m,
+                heading_deg=local_path_state.heading_deg,
+                confidence=local_path_state.confidence,
+                time_s=local_path_state.latest_time_s,
+                curvature_1pm=local_path_state.curvature_1pm,
+            )
+        reacquire_region = None
+        if self.scenario.tracking.reacquire_region_enabled:
+            reacquire_region = self.reacquire_region_selector.select(
+                time_s=reading.time_s,
+                vehicle_position_xy_m=vehicle_position_xy_m,
+                reacquire_required=deployment_reacquire_required,
+            )
 
         # --- Task 1: Sonar Seed Injection (Highest Priority) ---
         # When sonar is online and valid, and magnetic fit is not yet mature,
@@ -830,10 +862,7 @@ class MagneticCablePerception:
             detected_peak_xy_m=detected_peak_xy_m,
             deployment_estimated_cable_heading_deg=self.deployment_estimated_cable_heading_deg,
             deployment_heading_confidence=self.deployment_heading_confidence,
-            deployment_reacquire_required=(
-                local_path_tracking_state == LocalPathTrackingState.REACQUIRE
-                or local_path_stale_for_reacquire
-            ),
+            deployment_reacquire_required=deployment_reacquire_required,
             # Signal enhancement outputs
             envelope_gradient_nT_per_m=self.envelope_tracker.gradient_nT_per_m,
             envelope_gradient_heading_deg=self.envelope_tracker.gradient_heading_deg,
@@ -868,4 +897,11 @@ class MagneticCablePerception:
             local_path_residual_m=local_path_residual_m,
             local_path_radius_m=local_path_radius_m,
             local_path_tracking_state=local_path_tracking_state_value,
+            reacquire_region_center_xy_m=None if reacquire_region is None else reacquire_region.center_xy_m.copy(),
+            reacquire_region_heading_deg=None if reacquire_region is None else reacquire_region.heading_deg,
+            reacquire_region_half_length_m=0.0 if reacquire_region is None else reacquire_region.half_length_m,
+            reacquire_region_half_width_m=0.0 if reacquire_region is None else reacquire_region.half_width_m,
+            reacquire_region_confidence=0.0 if reacquire_region is None else reacquire_region.confidence,
+            reacquire_region_score=0.0 if reacquire_region is None else reacquire_region.score,
+            reacquire_region_reason="none" if reacquire_region is None else reacquire_region.reason,
         )

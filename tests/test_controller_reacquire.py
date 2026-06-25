@@ -114,6 +114,25 @@ class ZigZagControllerReacquireTest(unittest.TestCase):
         self.assertGreater(abs(smallest_angle_error_deg(heading_deg, 0.0)), 20.0)
         self.assertLess(abs(smallest_angle_error_deg(heading_deg, 47.0)), 8.0)
 
+    def test_reacquire_zigzag_flips_at_anchor_half_band(self) -> None:
+        pose = Pose(
+            position_ned_m=np.array([5.0, 25.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            pitch_deg=0.0,
+            roll_deg=0.0,
+            speed_mps=1.0,
+        )
+        self.controller.reacquire_anchor_xy_m = np.array([0.0, 0.0], dtype=float)
+        self.controller.reacquire_anchor_heading_deg = 0.0
+        self.controller.leg_sign = 1.0
+
+        heading_deg = self.controller._reacquire_zigzag_heading_deg(pose)
+
+        self.assertIsNotNone(heading_deg)
+        self.assertLess(self.controller.leg_sign, 0.0)
+        self.assertEqual(self.controller.reacquire_leg_index, 1)
+        self.assertLess(abs(smallest_angle_error_deg(heading_deg, -90.0)), 35.0)
+
     def test_curve_track_uses_dedicated_crossing_angle_and_speed_factor(self) -> None:
         pose = Pose(
             position_ned_m=np.array([0.0, 0.0, 0.0], dtype=float),

@@ -648,6 +648,10 @@ class MissionFsmTest(unittest.TestCase):
         converged: bool = False,
         confidence: float = 0.0,
         peak: bool = False,
+        reacquire: bool = False,
+        region_available: bool = False,
+        region_confidence: float = 0.0,
+        region_control: bool = False,
     ) -> MissionInput:
         return MissionInput(
             time_s=time_s,
@@ -660,6 +664,10 @@ class MissionFsmTest(unittest.TestCase):
                 np.array([[5.0, 0.0], [0.0, 0.4]], dtype=float) if converged else None
             ),
             peak_detected=peak,
+            reacquire_required=reacquire,
+            reacquire_region_available=region_available,
+            reacquire_region_confidence=region_confidence,
+            reacquire_region_control_enabled=region_control,
         )
 
     def test_starts_in_search(self) -> None:
@@ -727,6 +735,93 @@ class MissionFsmTest(unittest.TestCase):
         for step in range(self.thresholds.lock_streak_required):
             decision = self.manager.update(self._input(float(step), signal=True, peak=True))
         self.assertEqual(decision.guidance_source, "MAGNETIC_PEAK")
+
+    def test_region_reacquire_shadow_mode_does_not_take_control(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        for step in range(self.thresholds.track_streak_required):
+            self.manager.update(self._input(10.0 + step, signal=True, converged=True, confidence=0.8))
+        self.assertEqual(self.manager.state, MissionState.TRACK_ACTIVE)
+
+        decision = self.manager.update(
+            self._input(
+                100.0,
+                signal=True,
+                confidence=0.8,
+                reacquire=True,
+                region_available=True,
+                region_confidence=1.0,
+                region_control=False,
+            )
+        )
+
+        self.assertEqual(decision.state, MissionState.TRACK_ACTIVE)
+
+    def test_track_enters_region_reacquire_after_debounced_intent(self) -> None:
+        for step in range(self.thresholds.lock_streak_required):
+            self.manager.update(self._input(float(step), signal=True))
+        for step in range(self.thresholds.track_streak_required):
+            self.manager.update(self._input(10.0 + step, signal=True, converged=True, confidence=0.8))
+
+        for step in range(self.thresholds.reacquire_region_entry_streak_required):
+            decision = self.manager.update(
+                self._input(
+                    100.0 + step,
+                    signal=True,
+                    confidence=0.8,
+                    reacquire=True,
+                    region_available=True,
+                    region_confidence=1.0,
+                    region_control=True,
+                )
+            )
+
+        self.assertEqual(decision.state, MissionState.REACQUIRE_REGION)
+        self.assertEqual(decision.guidance_source, "REACQUIRE_REGION")
+
+    def test_region_reacquire_exits_after_stable_recovery(self) -> None:
+        self.manager._enter(MissionState.REACQUIRE_REGION, time_s=10.0)
+
+        for step in range(self.thresholds.reacquire_region_recovery_streak_required):
+            decision = self.manager.update(
+                self._input(
+                    20.0 + step,
+                    signal=True,
+                    confidence=0.8,
+                    reacquire=False,
+                    region_available=True,
+                    region_confidence=1.0,
+                    region_control=True,
+                )
+            )
+
+        self.assertEqual(decision.state, MissionState.LOCK_ALIGN)
+
+    def test_region_reacquire_falls_back_when_region_disappears(self) -> None:
+        self.manager._enter(MissionState.REACQUIRE_REGION, time_s=10.0)
+
+        self.manager.update(
+            self._input(
+                20.0,
+                signal=False,
+                confidence=0.8,
+                reacquire=True,
+                region_available=False,
+                region_control=True,
+            )
+        )
+        decision = self.manager.update(
+            self._input(
+                20.0 + self.thresholds.reacquire_region_unavailable_hold_s + 0.1,
+                signal=False,
+                confidence=0.8,
+                reacquire=True,
+                region_available=False,
+                region_control=True,
+            )
+        )
+
+        self.assertEqual(decision.state, MissionState.SEARCH_ZIGZAG)
 
 
 if __name__ == "__main__":
