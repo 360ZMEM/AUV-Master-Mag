@@ -639,6 +639,11 @@ class MagneticCablePerception:
                 magnetic_lookahead_target is not None
                 and self.scenario.tracking.magnetic_lookahead_feed_local_path
                 and magnetic_lookahead_target.confidence >= self.scenario.tracking.magnetic_lookahead_min_confidence
+                and self._magnetic_lookahead_feed_allowed(
+                    magnetic_lookahead_target,
+                    reading.time_s,
+                    self.local_path_estimator.estimate(),
+                )
             ):
                 self.local_path_estimator.add_observation(
                     magnetic_lookahead_target.cable_point_xy_m,
@@ -1100,3 +1105,39 @@ class MagneticCablePerception:
         axis_error_deg = abs(smallest_angle_error_deg(observation_heading_deg, reference_heading_deg))
         axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
         return axis_error_deg <= self.scenario.tracking.magnetic_path_feed_max_heading_delta_deg
+
+    def _magnetic_lookahead_feed_allowed(
+        self,
+        magnetic_lookahead_target,
+        time_s: float,
+        local_path_state,
+    ) -> bool:
+        """Gate lookahead-derived observations before feeding local path."""
+        if magnetic_lookahead_target.age_s > self.scenario.tracking.magnetic_lookahead_feed_max_age_s:
+            return False
+        phase_age_s = float(time_s) - self.last_magnetic_phase_time_s
+        if phase_age_s > self.scenario.tracking.magnetic_lookahead_feed_max_phase_age_s:
+            return False
+
+        if local_path_state is None:
+            return True
+
+        if (
+            np.isfinite(local_path_state.residual_m)
+            and local_path_state.residual_m > self.scenario.tracking.magnetic_lookahead_feed_max_local_residual_m
+        ):
+            return False
+
+        reference_heading_deg = local_path_state.heading_deg
+        axis_error_deg = abs(smallest_angle_error_deg(magnetic_lookahead_target.heading_deg, reference_heading_deg))
+        axis_error_deg = min(axis_error_deg, abs(180.0 - axis_error_deg))
+        if axis_error_deg > self.scenario.tracking.magnetic_lookahead_feed_max_heading_delta_deg:
+            return False
+
+        projected_xy = project_point_to_line(
+            magnetic_lookahead_target.cable_point_xy_m,
+            local_path_state.anchor_xy_m,
+            local_path_state.tangent_xy,
+        )
+        innovation_m = float(np.linalg.norm(magnetic_lookahead_target.cable_point_xy_m - projected_xy))
+        return innovation_m <= self.scenario.tracking.magnetic_lookahead_feed_max_innovation_m

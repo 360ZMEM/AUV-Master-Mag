@@ -245,6 +245,116 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p25_probe10_feedlocal_gate60", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p26_probe10_feedlocal_gate90", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_pursuit=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=90.0,
+            lookahead_feed_max_phase_age_s=90.0,
+            lookahead_feed_max_innovation_m=20.0,
+            lookahead_feed_max_axis_delta_deg=45.0,
+            lookahead_feed_max_local_residual_m=8.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p27_probe10_gate60_nopursuit", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p28_probe10_gate45_conservative", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=45.0,
+            lookahead_feed_max_phase_age_s=45.0,
+            lookahead_feed_max_innovation_m=10.0,
+            lookahead_feed_max_axis_delta_deg=25.0,
+            lookahead_feed_max_local_residual_m=4.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p29_probe10_gate60_mid", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=12.0,
+            lookahead_feed_max_axis_delta_deg=30.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
+        _variant("p30_probe10_gate75_mid", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_max_age_s=75.0,
+            lookahead_feed_max_phase_age_s=75.0,
+            lookahead_feed_max_innovation_m=12.0,
+            lookahead_feed_max_axis_delta_deg=30.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -278,6 +388,11 @@ def _zigzag_probe(
     lookahead_max_age_s: float = 90.0,
     lookahead_pursuit: bool = False,
     lookahead_feed_local_path: bool = False,
+    lookahead_feed_max_age_s: float | None = None,
+    lookahead_feed_max_phase_age_s: float | None = None,
+    lookahead_feed_max_innovation_m: float | None = None,
+    lookahead_feed_max_axis_delta_deg: float | None = None,
+    lookahead_feed_max_local_residual_m: float | None = None,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
@@ -309,6 +424,16 @@ def _zigzag_probe(
         scenario.tracking.magnetic_lookahead_heading_blend = 0.45
         scenario.tracking.magnetic_lookahead_min_confidence = 0.10
         scenario.tracking.magnetic_lookahead_feed_local_path = lookahead_feed_local_path
+        if lookahead_feed_max_age_s is not None:
+            scenario.tracking.magnetic_lookahead_feed_max_age_s = lookahead_feed_max_age_s
+        if lookahead_feed_max_phase_age_s is not None:
+            scenario.tracking.magnetic_lookahead_feed_max_phase_age_s = lookahead_feed_max_phase_age_s
+        if lookahead_feed_max_innovation_m is not None:
+            scenario.tracking.magnetic_lookahead_feed_max_innovation_m = lookahead_feed_max_innovation_m
+        if lookahead_feed_max_axis_delta_deg is not None:
+            scenario.tracking.magnetic_lookahead_feed_max_heading_delta_deg = lookahead_feed_max_axis_delta_deg
+        if lookahead_feed_max_local_residual_m is not None:
+            scenario.tracking.magnetic_lookahead_feed_max_local_residual_m = lookahead_feed_max_local_residual_m
     if lookahead_pursuit:
         scenario.tracking.magnetic_lookahead_pursuit_enabled = True
         scenario.tracking.magnetic_lookahead_pursuit_gain = 0.45
@@ -373,6 +498,12 @@ def main() -> None:
             "p22_",
             "p23_",
             "p24_",
+            "p25_",
+            "p26_",
+            "p27_",
+            "p28_",
+            "p29_",
+            "p30_",
         )):
             continue
         scenario = build(base)

@@ -399,6 +399,11 @@ class TrackingConfig:
     magnetic_lookahead_heading_blend: float = 0.45
     magnetic_lookahead_min_confidence: float = 0.20
     magnetic_lookahead_feed_local_path: bool = False
+    magnetic_lookahead_feed_max_age_s: float = 60.0
+    magnetic_lookahead_feed_max_phase_age_s: float = 90.0
+    magnetic_lookahead_feed_max_innovation_m: float = 20.0
+    magnetic_lookahead_feed_max_heading_delta_deg: float = 45.0
+    magnetic_lookahead_feed_max_local_residual_m: float = 8.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
