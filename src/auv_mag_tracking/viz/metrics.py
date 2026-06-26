@@ -110,6 +110,8 @@ class HealthMetrics:
     shadow_axis_hypothesis_fraction: float = 0.0
     shadow_axis_mean_score: float = float("nan")
     shadow_axis_mean_margin: float = float("nan")
+    shadow_axis_mean_positive_score: float = float("nan")
+    shadow_axis_mean_negative_score: float = float("nan")
     shadow_axis_positive_fraction: float = 0.0
     shadow_axis_mean_age_s: float = float("nan")
     shadow_axis_validation_pass_fraction: float = 0.0
@@ -130,11 +132,111 @@ class HealthMetrics:
     shadow_axis_dual_gate_pass_fraction: float = 0.0
     shadow_axis_dual_gate_reject_validation_fraction: float = 0.0
     shadow_axis_dual_gate_reject_feed_fraction: float = 0.0
+    shadow_axis_dual_gate_pass_while_progressing_fraction: float = 0.0
+    shadow_axis_validation_pass_while_progressing_fraction: float = 0.0
+    magnetic_lookahead_feed_allowed_while_progressing_fraction: float = 0.0
+    route_progressing_while_dual_gate_pass_fraction: float = 0.0
+    shadow_axis_progress_alignment_active_fraction: float = 0.0
+    shadow_axis_progress_alignment_pass_fraction: float = 0.0
+    shadow_axis_progress_alignment_reject_no_hypothesis_fraction: float = 0.0
+    shadow_axis_progress_alignment_reject_no_proxy_fraction: float = 0.0
+    shadow_axis_progress_alignment_reject_low_confidence_fraction: float = 0.0
+    shadow_axis_progress_alignment_reject_stale_fraction: float = 0.0
+    shadow_axis_progress_alignment_reject_reverse_fraction: float = 0.0
+    shadow_axis_progress_alignment_mean_dot: float = float("nan")
+    shadow_axis_progress_aligned_dual_gate_pass_fraction: float = 0.0
+    shadow_axis_progress_aligned_dual_gate_reject_dual_fraction: float = 0.0
+    shadow_axis_progress_aligned_dual_gate_reject_progress_fraction: float = 0.0
+    shadow_axis_progress_aligned_dual_gate_pass_while_progressing_fraction: float = 0.0
+    route_progressing_while_progress_aligned_dual_pass_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_reject_no_hypothesis_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_reject_no_proxy_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_reject_low_confidence_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_reject_stale_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_reject_no_aligned_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_mean_score: float = float("nan")
+    shadow_axis_progress_aligned_candidate_mean_task_score: float = float("nan")
+    shadow_axis_progress_aligned_candidate_mean_combined_score: float = float("nan")
+    shadow_axis_progress_aligned_candidate_combined_pass_fraction: float = 0.0
+    shadow_axis_progress_aligned_candidate_mean_margin: float = float("nan")
+    shadow_axis_progress_aligned_candidate_mean_dot: float = float("nan")
+    shadow_axis_progress_aligned_candidate_positive_fraction: float = 0.0
+    shadow_axis_progress_oracle_active_fraction: float = 0.0
+    shadow_axis_progress_oracle_consistency_fraction: float = 0.0
+    shadow_axis_progress_candidate_forward_fraction: float = 0.0
+    shadow_axis_progress_candidate_backward_fraction: float = 0.0
+    shadow_axis_progress_proxy_valid_fraction: float = 0.0
+    shadow_axis_progress_proxy_held_fraction: float = 0.0
+    shadow_axis_progress_proxy_local_path_fraction: float = 0.0
+    shadow_axis_progress_proxy_sonar_fraction: float = 0.0
+    shadow_axis_progress_proxy_mean_age_s: float = float("nan")
+    shadow_axis_progress_proxy_mean_confidence: float = float("nan")
+    shadow_axis_route_bound_proxy_valid_fraction: float = 0.0
+    shadow_axis_route_bound_proxy_mean_distance_m: float = float("nan")
+    shadow_axis_route_bound_candidate_mean_dot: float = float("nan")
+    shadow_axis_route_bound_oracle_consistency_fraction: float = 0.0
     zigzag_probe_active_fraction: float = 0.0
     zigzag_probe_cycle_count: int = 0
     zigzag_probe_leg_flip_count: int = 0
     zigzag_probe_magnetic_crossing_count: int = 0
     zigzag_probe_magnetic_crossings_per_cycle: float = 0.0
+    zigzag_probe_forward_leg_fraction: float = 0.0
+    zigzag_probe_backward_leg_fraction: float = 0.0
+    zigzag_probe_stall_leg_fraction: float = 0.0
+    zigzag_probe_crossing_forward_leg_fraction: float = 0.0
+    zigzag_probe_crossing_backward_leg_fraction: float = 0.0
+    zigzag_probe_crossing_stall_leg_fraction: float = 0.0
+    zigzag_probe_mean_forward_leg_delta_m: float = float("nan")
+    zigzag_probe_mean_backward_leg_delta_m: float = float("nan")
+    zigzag_probe_forward_phase_fraction: float = 0.0
+    zigzag_probe_forward_phase_crossing_count: int = 0
+    zigzag_probe_forward_phase_crossing_fraction: float = 0.0
+    zigzag_probe_forward_phase_magnetic_path_fraction: float = 0.0
+    zigzag_probe_forward_phase_magnetic_phase_fraction: float = 0.0
+    zigzag_probe_forward_phase_lookahead_fraction: float = 0.0
+    zigzag_probe_forward_phase_candidate_fraction: float = 0.0
+    shadow_forward_zigzag_valid_fraction: float = 0.0
+    shadow_forward_zigzag_feasible_fraction: float = 0.0
+    shadow_forward_zigzag_mean_forward_dot: float = float("nan")
+    shadow_forward_zigzag_mean_lateral_dot_abs: float = float("nan")
+    shadow_forward_zigzag_mean_forward_rate_mps: float = float("nan")
+    shadow_forward_zigzag_mean_lateral_rate_mps: float = float("nan")
+    shadow_forward_zigzag_completed_leg_feasible_fraction: float = 0.0
+    shadow_forward_zigzag_mean_leg_route_delta_m: float = float("nan")
+    shadow_forward_zigzag_mean_leg_lateral_sweep_m: float = float("nan")
+    shadow_forward_sweep_best_angle_deg: float = float("nan")
+    shadow_forward_sweep_best_leg_duration_multiplier: float = float("nan")
+    shadow_forward_sweep_best_feasible_fraction: float = 0.0
+    shadow_forward_sweep_best_mean_leg_route_delta_m: float = float("nan")
+    shadow_forward_sweep_best_mean_leg_lateral_sweep_m: float = float("nan")
+    shadow_forward_sweep_best_forward_dot: float = float("nan")
+    shadow_forward_sweep_best_lateral_dot_abs: float = float("nan")
+    shadow_decoupled_lateral_valid_fraction: float = 0.0
+    shadow_decoupled_lateral_feasible_fraction: float = 0.0
+    shadow_decoupled_lateral_mean_forward_dot: float = float("nan")
+    shadow_decoupled_lateral_mean_targeting_dot: float = float("nan")
+    shadow_decoupled_lateral_mean_abs_error_m: float = float("nan")
+    shadow_decoupled_lateral_mean_forward_rate_mps: float = float("nan")
+    shadow_decoupled_lateral_mean_targeting_rate_mps: float = float("nan")
+    shadow_decoupled_lateral_completed_leg_feasible_fraction: float = 0.0
+    shadow_decoupled_lateral_mean_leg_route_delta_m: float = float("nan")
+    shadow_decoupled_lateral_mean_leg_sweep_m: float = float("nan")
+    probe_burst_manager_active_fraction: float = 0.0
+    probe_burst_manager_idle_fraction: float = 0.0
+    probe_burst_manager_burst_fraction: float = 0.0
+    probe_burst_manager_recovery_fraction: float = 0.0
+    probe_burst_manager_cooldown_fraction: float = 0.0
+    probe_burst_manager_transition_count: int = 0
+    probe_burst_manager_recovery_timeout_count: int = 0
+    probe_burst_manager_mean_state_elapsed_s: float = float("nan")
+    probe_burst_manager_mean_route_delta_m: float = float("nan")
+    probe_burst_manager_max_evidence_count: int = 0
+    probe_burst_manager_control_allowed_fraction: float = 0.0
+    probe_burst_manager_reacquire_safe_control_allowed_fraction: float = 0.0
+    probe_burst_manager_mean_entry_abs_cross_track_m: float = float("nan")
+    probe_burst_manager_entry_xt_le4_fraction: float = 0.0
+    probe_burst_manager_entry_xt_le20_fraction: float = 0.0
     magnetic_crossing_probe_forced_flip_count: int = 0
     magnetic_crossing_probe_missed_count: int = 0
     magnetic_crossing_probe_mean_wait_s: float = float("nan")
@@ -393,6 +495,330 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         if zigzag_probe_cycle_count > 0
         else 0.0
     )
+    probe_forward_leg_count = int(np.nansum(record["zigzag_probe_forward_leg_event"]))
+    probe_backward_leg_count = int(np.nansum(record["zigzag_probe_backward_leg_event"]))
+    probe_stall_leg_count = int(np.nansum(record["zigzag_probe_stall_leg_event"]))
+    probe_completed_leg_count = max(
+        probe_forward_leg_count + probe_backward_leg_count + probe_stall_leg_count,
+        1,
+    )
+    zigzag_probe_forward_leg_fraction = float(probe_forward_leg_count / probe_completed_leg_count)
+    zigzag_probe_backward_leg_fraction = float(probe_backward_leg_count / probe_completed_leg_count)
+    zigzag_probe_stall_leg_fraction = float(probe_stall_leg_count / probe_completed_leg_count)
+    probe_crossing_forward_count = int(np.nansum(record["zigzag_probe_magnetic_crossing_forward_leg_event"]))
+    probe_crossing_backward_count = int(np.nansum(record["zigzag_probe_magnetic_crossing_backward_leg_event"]))
+    probe_crossing_stall_count = int(np.nansum(record["zigzag_probe_magnetic_crossing_stall_leg_event"]))
+    probe_crossing_denominator = max(
+        probe_crossing_forward_count + probe_crossing_backward_count + probe_crossing_stall_count,
+        1,
+    )
+    zigzag_probe_crossing_forward_leg_fraction = float(
+        probe_crossing_forward_count / probe_crossing_denominator
+    )
+    zigzag_probe_crossing_backward_leg_fraction = float(
+        probe_crossing_backward_count / probe_crossing_denominator
+    )
+    zigzag_probe_crossing_stall_leg_fraction = float(
+        probe_crossing_stall_count / probe_crossing_denominator
+    )
+    completed_leg_deltas = record["zigzag_probe_completed_leg_route_delta_m"]
+    forward_leg_deltas = completed_leg_deltas[record["zigzag_probe_forward_leg_event"] > 0.5]
+    forward_leg_deltas = forward_leg_deltas[np.isfinite(forward_leg_deltas)]
+    backward_leg_deltas = completed_leg_deltas[record["zigzag_probe_backward_leg_event"] > 0.5]
+    backward_leg_deltas = backward_leg_deltas[np.isfinite(backward_leg_deltas)]
+    zigzag_probe_mean_forward_leg_delta = (
+        float(np.mean(forward_leg_deltas)) if forward_leg_deltas.size else float("nan")
+    )
+    zigzag_probe_mean_backward_leg_delta = (
+        float(np.mean(backward_leg_deltas)) if backward_leg_deltas.size else float("nan")
+    )
+    probe_forward_phase_active = record["zigzag_probe_forward_phase_active"] > 0.5
+    probe_forward_phase_count = int(np.sum(probe_forward_phase_active))
+    zigzag_probe_forward_phase_fraction = (
+        float(probe_forward_phase_count / max(int(np.sum(zigzag_probe_active)), 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+    zigzag_probe_forward_phase_crossing_count = int(
+        np.nansum(record["zigzag_probe_forward_phase_magnetic_crossing_event"])
+    )
+    zigzag_probe_forward_phase_crossing_fraction = (
+        float(zigzag_probe_forward_phase_crossing_count / max(zigzag_probe_magnetic_crossing_count, 1))
+        if zigzag_probe_magnetic_crossing_count > 0
+        else 0.0
+    )
+    if probe_forward_phase_count > 0:
+        zigzag_probe_forward_phase_magnetic_path_fraction = float(
+            np.mean(record["zigzag_probe_forward_phase_magnetic_path_valid"][probe_forward_phase_active] > 0.5)
+        )
+        zigzag_probe_forward_phase_magnetic_phase_fraction = float(
+            np.mean(record["zigzag_probe_forward_phase_magnetic_phase_valid"][probe_forward_phase_active] > 0.5)
+        )
+        zigzag_probe_forward_phase_lookahead_fraction = float(
+            np.mean(record["zigzag_probe_forward_phase_lookahead_valid"][probe_forward_phase_active] > 0.5)
+        )
+        zigzag_probe_forward_phase_candidate_fraction = float(
+            np.mean(record["zigzag_probe_forward_phase_candidate_valid"][probe_forward_phase_active] > 0.5)
+        )
+    else:
+        zigzag_probe_forward_phase_magnetic_path_fraction = 0.0
+        zigzag_probe_forward_phase_magnetic_phase_fraction = 0.0
+        zigzag_probe_forward_phase_lookahead_fraction = 0.0
+        zigzag_probe_forward_phase_candidate_fraction = 0.0
+    shadow_forward_zigzag_valid = record["shadow_forward_zigzag_valid"] > 0.5
+    shadow_forward_zigzag_valid_fraction = (
+        float(np.sum(shadow_forward_zigzag_valid) / max(int(np.sum(zigzag_probe_active)), 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+    shadow_forward_zigzag_feasible = record["shadow_forward_zigzag_feasible"] > 0.5
+    shadow_forward_zigzag_feasible_fraction = (
+        float(np.sum(shadow_forward_zigzag_feasible & shadow_forward_zigzag_valid)
+              / max(int(np.sum(shadow_forward_zigzag_valid)), 1))
+        if np.any(shadow_forward_zigzag_valid)
+        else 0.0
+    )
+    shadow_forward_zigzag_mean_forward_dot = _finite_mean_for_mask(
+        "shadow_forward_zigzag_forward_dot",
+        shadow_forward_zigzag_valid,
+    )
+    shadow_forward_zigzag_mean_lateral_dot_abs = _finite_mean_for_mask(
+        "shadow_forward_zigzag_lateral_dot_abs",
+        shadow_forward_zigzag_valid,
+    )
+    shadow_forward_zigzag_mean_forward_rate_mps = _finite_mean_for_mask(
+        "shadow_forward_zigzag_forward_rate_mps",
+        shadow_forward_zigzag_valid,
+    )
+    shadow_forward_zigzag_mean_lateral_rate_mps = _finite_mean_for_mask(
+        "shadow_forward_zigzag_lateral_rate_mps",
+        shadow_forward_zigzag_valid,
+    )
+    shadow_forward_leg_route_delta = record["shadow_forward_zigzag_completed_leg_route_delta_m"]
+    shadow_forward_leg_valid = np.isfinite(shadow_forward_leg_route_delta)
+    shadow_forward_leg_count = int(np.sum(shadow_forward_leg_valid))
+    shadow_forward_zigzag_completed_leg_feasible_fraction = (
+        float(
+            np.sum(record["shadow_forward_zigzag_completed_leg_feasible_event"][shadow_forward_leg_valid] > 0.5)
+            / max(shadow_forward_leg_count, 1)
+        )
+        if shadow_forward_leg_count > 0
+        else 0.0
+    )
+    shadow_forward_zigzag_mean_leg_route_delta = (
+        float(np.mean(shadow_forward_leg_route_delta[shadow_forward_leg_valid]))
+        if shadow_forward_leg_count > 0
+        else float("nan")
+    )
+    shadow_forward_leg_lateral_sweep = record["shadow_forward_zigzag_completed_leg_lateral_sweep_m"]
+    shadow_forward_leg_lateral_sweep = shadow_forward_leg_lateral_sweep[shadow_forward_leg_valid]
+    shadow_forward_leg_lateral_sweep = shadow_forward_leg_lateral_sweep[
+        np.isfinite(shadow_forward_leg_lateral_sweep)
+    ]
+    shadow_forward_zigzag_mean_leg_lateral_sweep = (
+        float(np.mean(shadow_forward_leg_lateral_sweep))
+        if shadow_forward_leg_lateral_sweep.size
+        else float("nan")
+    )
+    shadow_sweep_leg_distances: list[float] = []
+    current_shadow_sweep_distance = 0.0
+    for idx, active in enumerate(zigzag_probe_active):
+        if not active:
+            if current_shadow_sweep_distance > 0.0:
+                shadow_sweep_leg_distances.append(current_shadow_sweep_distance)
+                current_shadow_sweep_distance = 0.0
+            continue
+        speed_mps = float(record["speed_mps"][idx]) if np.isfinite(record["speed_mps"][idx]) else 0.0
+        current_shadow_sweep_distance += max(speed_mps, 0.0) * record.dt_s
+        if record["zigzag_probe_leg_flip_event"][idx] > 0.5:
+            if current_shadow_sweep_distance > 0.0:
+                shadow_sweep_leg_distances.append(current_shadow_sweep_distance)
+            current_shadow_sweep_distance = 0.0
+    if current_shadow_sweep_distance > 0.0:
+        shadow_sweep_leg_distances.append(current_shadow_sweep_distance)
+
+    shadow_decoupled_lateral_valid = record["shadow_decoupled_lateral_valid"] > 0.5
+    shadow_decoupled_lateral_valid_fraction = (
+        float(np.sum(shadow_decoupled_lateral_valid) / max(int(np.sum(zigzag_probe_active)), 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+    shadow_decoupled_lateral_feasible = record["shadow_decoupled_lateral_feasible"] > 0.5
+    shadow_decoupled_lateral_feasible_fraction = (
+        float(np.sum(shadow_decoupled_lateral_feasible & shadow_decoupled_lateral_valid)
+              / max(int(np.sum(shadow_decoupled_lateral_valid)), 1))
+        if np.any(shadow_decoupled_lateral_valid)
+        else 0.0
+    )
+    shadow_decoupled_lateral_mean_forward_dot = _finite_mean_for_mask(
+        "shadow_decoupled_lateral_forward_dot",
+        shadow_decoupled_lateral_valid,
+    )
+    shadow_decoupled_lateral_mean_targeting_dot = _finite_mean_for_mask(
+        "shadow_decoupled_lateral_targeting_dot",
+        shadow_decoupled_lateral_valid,
+    )
+    shadow_decoupled_lateral_errors = record["shadow_decoupled_lateral_error_m"][
+        shadow_decoupled_lateral_valid
+    ]
+    shadow_decoupled_lateral_errors = shadow_decoupled_lateral_errors[
+        np.isfinite(shadow_decoupled_lateral_errors)
+    ]
+    shadow_decoupled_lateral_mean_abs_error = (
+        float(np.mean(np.abs(shadow_decoupled_lateral_errors)))
+        if shadow_decoupled_lateral_errors.size
+        else float("nan")
+    )
+    shadow_decoupled_lateral_mean_forward_rate = _finite_mean_for_mask(
+        "shadow_decoupled_lateral_forward_rate_mps",
+        shadow_decoupled_lateral_valid,
+    )
+    shadow_decoupled_lateral_mean_targeting_rate = _finite_mean_for_mask(
+        "shadow_decoupled_lateral_targeting_rate_mps",
+        shadow_decoupled_lateral_valid,
+    )
+    shadow_decoupled_lateral_leg_route_delta = record[
+        "shadow_decoupled_lateral_completed_leg_route_delta_m"
+    ]
+    shadow_decoupled_lateral_leg_valid = np.isfinite(shadow_decoupled_lateral_leg_route_delta)
+    shadow_decoupled_lateral_leg_count = int(np.sum(shadow_decoupled_lateral_leg_valid))
+    shadow_decoupled_lateral_completed_leg_feasible_fraction = (
+        float(
+            np.sum(
+                record["shadow_decoupled_lateral_completed_leg_feasible_event"][
+                    shadow_decoupled_lateral_leg_valid
+                ] > 0.5
+            )
+            / max(shadow_decoupled_lateral_leg_count, 1)
+        )
+        if shadow_decoupled_lateral_leg_count > 0
+        else 0.0
+    )
+    shadow_decoupled_lateral_mean_leg_route_delta = (
+        float(np.mean(shadow_decoupled_lateral_leg_route_delta[shadow_decoupled_lateral_leg_valid]))
+        if shadow_decoupled_lateral_leg_count > 0
+        else float("nan")
+    )
+    shadow_decoupled_lateral_leg_sweep = record["shadow_decoupled_lateral_completed_leg_sweep_m"][
+        shadow_decoupled_lateral_leg_valid
+    ]
+    shadow_decoupled_lateral_leg_sweep = shadow_decoupled_lateral_leg_sweep[
+        np.isfinite(shadow_decoupled_lateral_leg_sweep)
+    ]
+    shadow_decoupled_lateral_mean_leg_sweep = (
+        float(np.mean(shadow_decoupled_lateral_leg_sweep))
+        if shadow_decoupled_lateral_leg_sweep.size
+        else float("nan")
+    )
+
+    probe_burst_state = record["probe_burst_manager_state_code"]
+    probe_burst_active_mask = np.isfinite(probe_burst_state)
+    probe_burst_denominator = max(int(np.sum(probe_burst_active_mask)), 1)
+    probe_burst_manager_active_fraction = (
+        float(np.sum(probe_burst_active_mask) / max(record.n_steps, 1))
+        if record.n_steps > 0
+        else 0.0
+    )
+    probe_burst_manager_idle_fraction = float(
+        np.sum(probe_burst_state[probe_burst_active_mask] == 1.0) / probe_burst_denominator
+    )
+    probe_burst_manager_burst_fraction = float(
+        np.sum(probe_burst_state[probe_burst_active_mask] == 2.0) / probe_burst_denominator
+    )
+    probe_burst_manager_recovery_fraction = float(
+        np.sum(probe_burst_state[probe_burst_active_mask] == 3.0) / probe_burst_denominator
+    )
+    probe_burst_manager_cooldown_fraction = float(
+        np.sum(probe_burst_state[probe_burst_active_mask] == 4.0) / probe_burst_denominator
+    )
+    probe_burst_manager_transition_count = int(
+        np.sum(np.isin(record["probe_burst_manager_reason_code"], [3.0, 4.0, 5.0, 6.0, 7.0, 8.0]))
+    )
+    probe_burst_manager_recovery_timeout_count = int(
+        np.sum(record["probe_burst_manager_reason_code"] == 7.0)
+    )
+    probe_burst_manager_mean_state_elapsed = _finite_mean_for_mask(
+        "probe_burst_manager_state_elapsed_s",
+        probe_burst_active_mask,
+    )
+    probe_burst_manager_mean_route_delta = _finite_mean_for_mask(
+        "probe_burst_manager_route_delta_m",
+        probe_burst_active_mask,
+    )
+    probe_burst_manager_evidence_count = record["probe_burst_manager_evidence_count"][
+        probe_burst_active_mask
+    ]
+    probe_burst_manager_evidence_count = probe_burst_manager_evidence_count[
+        np.isfinite(probe_burst_manager_evidence_count)
+    ]
+    probe_burst_manager_max_evidence_count = (
+        int(np.max(probe_burst_manager_evidence_count))
+        if probe_burst_manager_evidence_count.size
+        else 0
+    )
+    probe_burst_control_allowed = record["probe_burst_manager_control_allowed"] > 0.5
+    probe_burst_manager_control_allowed_fraction = (
+        float(np.sum(probe_burst_control_allowed & probe_burst_active_mask) / probe_burst_denominator)
+    )
+    probe_burst_reacquire_safe_allowed = (
+        record["probe_burst_manager_reacquire_safe_control_allowed"] > 0.5
+    )
+    probe_burst_manager_reacquire_safe_control_allowed_fraction = (
+        float(np.sum(probe_burst_reacquire_safe_allowed & probe_burst_active_mask) / probe_burst_denominator)
+    )
+    probe_burst_entry_xt = record["probe_burst_manager_entry_abs_cross_track_m"][
+        probe_burst_active_mask
+    ]
+    probe_burst_entry_xt = probe_burst_entry_xt[np.isfinite(probe_burst_entry_xt)]
+    probe_burst_manager_mean_entry_abs_cross_track = (
+        float(np.mean(probe_burst_entry_xt))
+        if probe_burst_entry_xt.size
+        else float("nan")
+    )
+    probe_burst_manager_entry_xt_le4_fraction = (
+        float(np.sum(probe_burst_entry_xt <= 4.0) / max(probe_burst_entry_xt.size, 1))
+        if probe_burst_entry_xt.size
+        else 0.0
+    )
+    probe_burst_manager_entry_xt_le20_fraction = (
+        float(np.sum(probe_burst_entry_xt <= 20.0) / max(probe_burst_entry_xt.size, 1))
+        if probe_burst_entry_xt.size
+        else 0.0
+    )
+
+    shadow_forward_sweep_best_angle = float("nan")
+    shadow_forward_sweep_best_multiplier = float("nan")
+    shadow_forward_sweep_best_feasible_fraction = 0.0
+    shadow_forward_sweep_best_mean_route_delta = float("nan")
+    shadow_forward_sweep_best_mean_lateral_sweep = float("nan")
+    shadow_forward_sweep_best_forward_dot = float("nan")
+    shadow_forward_sweep_best_lateral_dot_abs = float("nan")
+    sweep_lateral_min_m = float(record.metadata.get("zigzag_lateral_sweep_min_m", 2.0))
+    sweep_forward_min_m = float(record.metadata.get("shadow_probe_forward_delta_min_m", 0.5))
+    if shadow_sweep_leg_distances:
+        leg_distances = np.asarray(shadow_sweep_leg_distances, dtype=float)
+        best_key = (-1.0, -1.0, -1.0)
+        for angle_deg in (10.0, 14.0, 18.0, 22.0):
+            angle_rad = np.deg2rad(angle_deg)
+            forward_dot = float(np.cos(angle_rad))
+            lateral_dot_abs = float(np.sin(angle_rad))
+            for multiplier in (1.0, 1.5, 2.0):
+                route_deltas = leg_distances * forward_dot * multiplier
+                lateral_sweeps = leg_distances * lateral_dot_abs * multiplier
+                feasible = (route_deltas > sweep_forward_min_m) & (lateral_sweeps >= sweep_lateral_min_m)
+                feasible_fraction = float(np.mean(feasible))
+                mean_route_delta = float(np.mean(route_deltas))
+                mean_lateral_sweep = float(np.mean(lateral_sweeps))
+                key = (feasible_fraction, mean_lateral_sweep, mean_route_delta)
+                if key > best_key:
+                    best_key = key
+                    shadow_forward_sweep_best_angle = angle_deg
+                    shadow_forward_sweep_best_multiplier = multiplier
+                    shadow_forward_sweep_best_feasible_fraction = feasible_fraction
+                    shadow_forward_sweep_best_mean_route_delta = mean_route_delta
+                    shadow_forward_sweep_best_mean_lateral_sweep = mean_lateral_sweep
+                    shadow_forward_sweep_best_forward_dot = forward_dot
+                    shadow_forward_sweep_best_lateral_dot_abs = lateral_dot_abs
     cycle_duration_at_flip = record["zigzag_probe_last_cycle_duration_s"][
         record["zigzag_probe_leg_flip_event"] > 0.5
     ]
@@ -499,6 +925,16 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     shadow_axis_margins = record["shadow_axis_score_margin"][shadow_axis_valid]
     shadow_axis_margins = shadow_axis_margins[np.isfinite(shadow_axis_margins)]
     shadow_axis_mean_margin = float(np.mean(shadow_axis_margins)) if shadow_axis_margins.size else float("nan")
+    shadow_axis_positive_scores = record["shadow_axis_positive_score"][shadow_axis_valid]
+    shadow_axis_positive_scores = shadow_axis_positive_scores[np.isfinite(shadow_axis_positive_scores)]
+    shadow_axis_mean_positive_score = (
+        float(np.mean(shadow_axis_positive_scores)) if shadow_axis_positive_scores.size else float("nan")
+    )
+    shadow_axis_negative_scores = record["shadow_axis_negative_score"][shadow_axis_valid]
+    shadow_axis_negative_scores = shadow_axis_negative_scores[np.isfinite(shadow_axis_negative_scores)]
+    shadow_axis_mean_negative_score = (
+        float(np.mean(shadow_axis_negative_scores)) if shadow_axis_negative_scores.size else float("nan")
+    )
     shadow_axis_signs = record["shadow_axis_selected_sign"][shadow_axis_valid]
     shadow_axis_signs = shadow_axis_signs[np.isfinite(shadow_axis_signs)]
     shadow_axis_positive_fraction = (
@@ -572,6 +1008,258 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_dual_gate_reject_validation_fraction = 0.0
         shadow_axis_dual_gate_reject_feed_fraction = 0.0
         shadow_axis_consumption_fraction = 0.0
+    progressing_mask = record["route_progress_rate_mps"] > 0.2
+    progressing_count = int(np.sum(progressing_mask))
+    if progressing_count > 0:
+        shadow_axis_dual_gate_pass_while_progressing_fraction = float(
+            np.sum((record["shadow_axis_dual_gate_passed"] > 0.5) & progressing_mask) / progressing_count
+        )
+        shadow_axis_validation_pass_while_progressing_fraction = float(
+            np.sum((record["shadow_axis_validation_passed"] > 0.5) & progressing_mask) / progressing_count
+        )
+        magnetic_lookahead_feed_allowed_while_progressing_fraction = float(
+            np.sum((record["magnetic_lookahead_feed_allowed"] > 0.5) & progressing_mask) / progressing_count
+        )
+    else:
+        shadow_axis_dual_gate_pass_while_progressing_fraction = 0.0
+        shadow_axis_validation_pass_while_progressing_fraction = 0.0
+        magnetic_lookahead_feed_allowed_while_progressing_fraction = 0.0
+    dual_pass_mask = record["shadow_axis_dual_gate_passed"] > 0.5
+    dual_pass_count = int(np.sum(dual_pass_mask))
+    route_progressing_while_dual_gate_pass_fraction = (
+        float(np.sum(progressing_mask & dual_pass_mask) / dual_pass_count)
+        if dual_pass_count > 0
+        else 0.0
+    )
+    progress_alignment_active_mask = record["shadow_axis_progress_alignment_enabled"] > 0.5
+    progress_alignment_active_count = int(np.sum(progress_alignment_active_mask))
+    if progress_alignment_active_count > 0:
+        progress_alignment_reason = record["shadow_axis_progress_alignment_reason_code"][progress_alignment_active_mask]
+        shadow_axis_progress_alignment_active_fraction = progress_alignment_active_count / n if n else 0.0
+        shadow_axis_progress_alignment_pass_fraction = float(
+            np.sum(progress_alignment_reason == 1.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_alignment_reject_no_hypothesis_fraction = float(
+            np.sum(progress_alignment_reason == 2.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_alignment_reject_no_proxy_fraction = float(
+            np.sum(progress_alignment_reason == 3.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_alignment_reject_low_confidence_fraction = float(
+            np.sum(progress_alignment_reason == 4.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_alignment_reject_stale_fraction = float(
+            np.sum(progress_alignment_reason == 5.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_alignment_reject_reverse_fraction = float(
+            np.sum(progress_alignment_reason == 6.0) / progress_alignment_active_count
+        )
+        progress_alignment_dots = record["shadow_axis_progress_alignment_dot"][progress_alignment_active_mask]
+        progress_alignment_dots = progress_alignment_dots[np.isfinite(progress_alignment_dots)]
+        shadow_axis_progress_alignment_mean_dot = (
+            float(np.mean(progress_alignment_dots)) if progress_alignment_dots.size else float("nan")
+        )
+    else:
+        shadow_axis_progress_alignment_active_fraction = 0.0
+        shadow_axis_progress_alignment_pass_fraction = 0.0
+        shadow_axis_progress_alignment_reject_no_hypothesis_fraction = 0.0
+        shadow_axis_progress_alignment_reject_no_proxy_fraction = 0.0
+        shadow_axis_progress_alignment_reject_low_confidence_fraction = 0.0
+        shadow_axis_progress_alignment_reject_stale_fraction = 0.0
+        shadow_axis_progress_alignment_reject_reverse_fraction = 0.0
+        shadow_axis_progress_alignment_mean_dot = float("nan")
+    progress_aligned_dual_active_mask = progress_alignment_active_mask
+    progress_aligned_dual_active_count = int(np.sum(progress_aligned_dual_active_mask))
+    if progress_aligned_dual_active_count > 0:
+        progress_aligned_dual_reason = record["shadow_axis_progress_aligned_dual_gate_reason_code"][
+            progress_aligned_dual_active_mask
+        ]
+        shadow_axis_progress_aligned_dual_gate_pass_fraction = float(
+            np.sum(progress_aligned_dual_reason == 1.0) / progress_aligned_dual_active_count
+        )
+        shadow_axis_progress_aligned_dual_gate_reject_dual_fraction = float(
+            np.sum(progress_aligned_dual_reason == 2.0) / progress_aligned_dual_active_count
+        )
+        shadow_axis_progress_aligned_dual_gate_reject_progress_fraction = float(
+            np.sum(progress_aligned_dual_reason == 3.0) / progress_aligned_dual_active_count
+        )
+    else:
+        shadow_axis_progress_aligned_dual_gate_pass_fraction = 0.0
+        shadow_axis_progress_aligned_dual_gate_reject_dual_fraction = 0.0
+        shadow_axis_progress_aligned_dual_gate_reject_progress_fraction = 0.0
+    progress_aligned_dual_pass_mask = record["shadow_axis_progress_aligned_dual_gate_passed"] > 0.5
+    if progressing_count > 0:
+        shadow_axis_progress_aligned_dual_gate_pass_while_progressing_fraction = float(
+            np.sum(progress_aligned_dual_pass_mask & progressing_mask) / progressing_count
+        )
+    else:
+        shadow_axis_progress_aligned_dual_gate_pass_while_progressing_fraction = 0.0
+    progress_aligned_dual_pass_count = int(np.sum(progress_aligned_dual_pass_mask))
+    route_progressing_while_progress_aligned_dual_pass_fraction = (
+        float(np.sum(progress_aligned_dual_pass_mask & progressing_mask) / progress_aligned_dual_pass_count)
+        if progress_aligned_dual_pass_count > 0
+        else 0.0
+    )
+    progress_aligned_candidate_reason = record["shadow_axis_progress_aligned_candidate_reason_code"]
+    if progress_alignment_active_count > 0:
+        progress_aligned_candidate_active_reason = progress_aligned_candidate_reason[progress_alignment_active_mask]
+        shadow_axis_progress_aligned_candidate_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 1.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_aligned_candidate_reject_no_hypothesis_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 2.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_aligned_candidate_reject_no_proxy_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 3.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_aligned_candidate_reject_low_confidence_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 4.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_aligned_candidate_reject_stale_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 5.0) / progress_alignment_active_count
+        )
+        shadow_axis_progress_aligned_candidate_reject_no_aligned_fraction = float(
+            np.sum(progress_aligned_candidate_active_reason == 6.0) / progress_alignment_active_count
+        )
+    else:
+        shadow_axis_progress_aligned_candidate_fraction = 0.0
+        shadow_axis_progress_aligned_candidate_reject_no_hypothesis_fraction = 0.0
+        shadow_axis_progress_aligned_candidate_reject_no_proxy_fraction = 0.0
+        shadow_axis_progress_aligned_candidate_reject_low_confidence_fraction = 0.0
+        shadow_axis_progress_aligned_candidate_reject_stale_fraction = 0.0
+        shadow_axis_progress_aligned_candidate_reject_no_aligned_fraction = 0.0
+    progress_aligned_candidate_valid = record["shadow_axis_progress_aligned_candidate_valid"] > 0.5
+    progress_aligned_candidate_scores = record["shadow_axis_progress_aligned_candidate_score"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_scores = progress_aligned_candidate_scores[np.isfinite(progress_aligned_candidate_scores)]
+    shadow_axis_progress_aligned_candidate_mean_score = (
+        float(np.mean(progress_aligned_candidate_scores)) if progress_aligned_candidate_scores.size else float("nan")
+    )
+    progress_aligned_candidate_task_scores = record["shadow_axis_progress_aligned_candidate_task_score"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_task_scores = progress_aligned_candidate_task_scores[
+        np.isfinite(progress_aligned_candidate_task_scores)
+    ]
+    shadow_axis_progress_aligned_candidate_mean_task_score = (
+        float(np.mean(progress_aligned_candidate_task_scores))
+        if progress_aligned_candidate_task_scores.size
+        else float("nan")
+    )
+    progress_aligned_candidate_combined_scores = record["shadow_axis_progress_aligned_candidate_combined_score"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_combined_scores = progress_aligned_candidate_combined_scores[
+        np.isfinite(progress_aligned_candidate_combined_scores)
+    ]
+    shadow_axis_progress_aligned_candidate_mean_combined_score = (
+        float(np.mean(progress_aligned_candidate_combined_scores))
+        if progress_aligned_candidate_combined_scores.size
+        else float("nan")
+    )
+    shadow_axis_progress_aligned_candidate_combined_pass_fraction = (
+        float(np.mean(progress_aligned_candidate_combined_scores >= 0.70))
+        if progress_aligned_candidate_combined_scores.size
+        else 0.0
+    )
+    progress_aligned_candidate_margins = record["shadow_axis_progress_aligned_candidate_margin"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_margins = progress_aligned_candidate_margins[
+        np.isfinite(progress_aligned_candidate_margins)
+    ]
+    shadow_axis_progress_aligned_candidate_mean_margin = (
+        float(np.mean(progress_aligned_candidate_margins)) if progress_aligned_candidate_margins.size else float("nan")
+    )
+    progress_aligned_candidate_dots = record["shadow_axis_progress_aligned_candidate_dot"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_dots = progress_aligned_candidate_dots[np.isfinite(progress_aligned_candidate_dots)]
+    shadow_axis_progress_aligned_candidate_mean_dot = (
+        float(np.mean(progress_aligned_candidate_dots)) if progress_aligned_candidate_dots.size else float("nan")
+    )
+    progress_aligned_candidate_signs = record["shadow_axis_progress_aligned_candidate_sign"][
+        progress_aligned_candidate_valid
+    ]
+    progress_aligned_candidate_signs = progress_aligned_candidate_signs[np.isfinite(progress_aligned_candidate_signs)]
+    shadow_axis_progress_aligned_candidate_positive_fraction = (
+        float(np.mean(progress_aligned_candidate_signs > 0.0)) if progress_aligned_candidate_signs.size else 0.0
+    )
+    oracle_mask = progress_aligned_candidate_valid & (np.abs(record["route_progress_rate_mps"]) > 0.2)
+    oracle_count = int(np.sum(oracle_mask))
+    shadow_axis_progress_oracle_active_fraction = oracle_count / n if n else 0.0
+    if oracle_count > 0:
+        oracle_dots = record["shadow_axis_progress_aligned_candidate_dot"][oracle_mask]
+        oracle_rates = record["route_progress_rate_mps"][oracle_mask]
+        consistent = ((oracle_dots >= 0.0) & (oracle_rates > 0.0)) | ((oracle_dots < 0.0) & (oracle_rates < 0.0))
+        shadow_axis_progress_oracle_consistency_fraction = float(np.mean(consistent))
+    else:
+        shadow_axis_progress_oracle_consistency_fraction = 0.0
+    if progress_aligned_candidate_valid.any():
+        candidate_rates = record["route_progress_rate_mps"][progress_aligned_candidate_valid]
+        shadow_axis_progress_candidate_forward_fraction = float(np.mean(candidate_rates > 0.2))
+        shadow_axis_progress_candidate_backward_fraction = float(np.mean(candidate_rates < -0.2))
+    else:
+        shadow_axis_progress_candidate_forward_fraction = 0.0
+        shadow_axis_progress_candidate_backward_fraction = 0.0
+    progress_proxy_valid = record["shadow_axis_progress_proxy_valid"] > 0.5
+    progress_proxy_count = int(np.sum(progress_proxy_valid))
+    shadow_axis_progress_proxy_valid_fraction = progress_proxy_count / n if n else 0.0
+    if progress_proxy_count > 0:
+        progress_proxy_sources = record["shadow_axis_progress_proxy_source_code"][progress_proxy_valid]
+        shadow_axis_progress_proxy_held_fraction = float(np.mean(progress_proxy_sources == 1.0))
+        shadow_axis_progress_proxy_local_path_fraction = float(np.mean(progress_proxy_sources == 2.0))
+        shadow_axis_progress_proxy_sonar_fraction = float(np.mean(progress_proxy_sources == 3.0))
+        progress_proxy_ages = record["shadow_axis_progress_proxy_age_s"][progress_proxy_valid]
+        progress_proxy_ages = progress_proxy_ages[np.isfinite(progress_proxy_ages)]
+        shadow_axis_progress_proxy_mean_age_s = (
+            float(np.mean(progress_proxy_ages)) if progress_proxy_ages.size else float("nan")
+        )
+        progress_proxy_conf = record["shadow_axis_progress_proxy_confidence"][progress_proxy_valid]
+        progress_proxy_conf = progress_proxy_conf[np.isfinite(progress_proxy_conf)]
+        shadow_axis_progress_proxy_mean_confidence = (
+            float(np.mean(progress_proxy_conf)) if progress_proxy_conf.size else float("nan")
+        )
+    else:
+        shadow_axis_progress_proxy_held_fraction = 0.0
+        shadow_axis_progress_proxy_local_path_fraction = 0.0
+        shadow_axis_progress_proxy_sonar_fraction = 0.0
+        shadow_axis_progress_proxy_mean_age_s = float("nan")
+        shadow_axis_progress_proxy_mean_confidence = float("nan")
+    route_bound_proxy_valid = record["shadow_axis_route_bound_proxy_valid"] > 0.5
+    route_bound_proxy_count = int(np.sum(route_bound_proxy_valid))
+    shadow_axis_route_bound_proxy_valid_fraction = route_bound_proxy_count / n if n else 0.0
+    if route_bound_proxy_count > 0:
+        route_bound_distances = record["shadow_axis_route_bound_proxy_distance_m"][route_bound_proxy_valid]
+        route_bound_distances = route_bound_distances[np.isfinite(route_bound_distances)]
+        shadow_axis_route_bound_proxy_mean_distance_m = (
+            float(np.mean(route_bound_distances)) if route_bound_distances.size else float("nan")
+        )
+    else:
+        shadow_axis_route_bound_proxy_mean_distance_m = float("nan")
+    route_bound_candidate_dots = record["shadow_axis_route_bound_candidate_dot"][progress_aligned_candidate_valid]
+    route_bound_candidate_dots = route_bound_candidate_dots[np.isfinite(route_bound_candidate_dots)]
+    shadow_axis_route_bound_candidate_mean_dot = (
+        float(np.mean(route_bound_candidate_dots)) if route_bound_candidate_dots.size else float("nan")
+    )
+    route_bound_oracle_mask = (
+        progress_aligned_candidate_valid
+        & route_bound_proxy_valid
+        & np.isfinite(record["shadow_axis_route_bound_candidate_dot"])
+        & (np.abs(record["route_progress_rate_mps"]) > 0.2)
+    )
+    route_bound_oracle_count = int(np.sum(route_bound_oracle_mask))
+    if route_bound_oracle_count > 0:
+        route_bound_oracle_dots = record["shadow_axis_route_bound_candidate_dot"][route_bound_oracle_mask]
+        route_bound_oracle_rates = record["route_progress_rate_mps"][route_bound_oracle_mask]
+        route_bound_consistent = (
+            ((route_bound_oracle_dots >= 0.0) & (route_bound_oracle_rates > 0.0))
+            | ((route_bound_oracle_dots < 0.0) & (route_bound_oracle_rates < 0.0))
+        )
+        shadow_axis_route_bound_oracle_consistency_fraction = float(np.mean(route_bound_consistent))
+    else:
+        shadow_axis_route_bound_oracle_consistency_fraction = 0.0
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -647,6 +1335,8 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_hypothesis_fraction=shadow_axis_hypothesis_fraction,
         shadow_axis_mean_score=shadow_axis_mean_score,
         shadow_axis_mean_margin=shadow_axis_mean_margin,
+        shadow_axis_mean_positive_score=shadow_axis_mean_positive_score,
+        shadow_axis_mean_negative_score=shadow_axis_mean_negative_score,
         shadow_axis_positive_fraction=shadow_axis_positive_fraction,
         shadow_axis_mean_age_s=shadow_axis_mean_age,
         shadow_axis_validation_pass_fraction=shadow_axis_validation_pass_fraction,
@@ -671,11 +1361,169 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_dual_gate_pass_fraction=shadow_axis_dual_gate_pass_fraction,
         shadow_axis_dual_gate_reject_validation_fraction=shadow_axis_dual_gate_reject_validation_fraction,
         shadow_axis_dual_gate_reject_feed_fraction=shadow_axis_dual_gate_reject_feed_fraction,
+        shadow_axis_dual_gate_pass_while_progressing_fraction=(
+            shadow_axis_dual_gate_pass_while_progressing_fraction
+        ),
+        shadow_axis_validation_pass_while_progressing_fraction=(
+            shadow_axis_validation_pass_while_progressing_fraction
+        ),
+        magnetic_lookahead_feed_allowed_while_progressing_fraction=(
+            magnetic_lookahead_feed_allowed_while_progressing_fraction
+        ),
+        route_progressing_while_dual_gate_pass_fraction=route_progressing_while_dual_gate_pass_fraction,
+        shadow_axis_progress_alignment_active_fraction=shadow_axis_progress_alignment_active_fraction,
+        shadow_axis_progress_alignment_pass_fraction=shadow_axis_progress_alignment_pass_fraction,
+        shadow_axis_progress_alignment_reject_no_hypothesis_fraction=(
+            shadow_axis_progress_alignment_reject_no_hypothesis_fraction
+        ),
+        shadow_axis_progress_alignment_reject_no_proxy_fraction=(
+            shadow_axis_progress_alignment_reject_no_proxy_fraction
+        ),
+        shadow_axis_progress_alignment_reject_low_confidence_fraction=(
+            shadow_axis_progress_alignment_reject_low_confidence_fraction
+        ),
+        shadow_axis_progress_alignment_reject_stale_fraction=(
+            shadow_axis_progress_alignment_reject_stale_fraction
+        ),
+        shadow_axis_progress_alignment_reject_reverse_fraction=(
+            shadow_axis_progress_alignment_reject_reverse_fraction
+        ),
+        shadow_axis_progress_alignment_mean_dot=shadow_axis_progress_alignment_mean_dot,
+        shadow_axis_progress_aligned_dual_gate_pass_fraction=(
+            shadow_axis_progress_aligned_dual_gate_pass_fraction
+        ),
+        shadow_axis_progress_aligned_dual_gate_reject_dual_fraction=(
+            shadow_axis_progress_aligned_dual_gate_reject_dual_fraction
+        ),
+        shadow_axis_progress_aligned_dual_gate_reject_progress_fraction=(
+            shadow_axis_progress_aligned_dual_gate_reject_progress_fraction
+        ),
+        shadow_axis_progress_aligned_dual_gate_pass_while_progressing_fraction=(
+            shadow_axis_progress_aligned_dual_gate_pass_while_progressing_fraction
+        ),
+        route_progressing_while_progress_aligned_dual_pass_fraction=(
+            route_progressing_while_progress_aligned_dual_pass_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_fraction=shadow_axis_progress_aligned_candidate_fraction,
+        shadow_axis_progress_aligned_candidate_reject_no_hypothesis_fraction=(
+            shadow_axis_progress_aligned_candidate_reject_no_hypothesis_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_reject_no_proxy_fraction=(
+            shadow_axis_progress_aligned_candidate_reject_no_proxy_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_reject_low_confidence_fraction=(
+            shadow_axis_progress_aligned_candidate_reject_low_confidence_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_reject_stale_fraction=(
+            shadow_axis_progress_aligned_candidate_reject_stale_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_reject_no_aligned_fraction=(
+            shadow_axis_progress_aligned_candidate_reject_no_aligned_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_mean_score=shadow_axis_progress_aligned_candidate_mean_score,
+        shadow_axis_progress_aligned_candidate_mean_task_score=(
+            shadow_axis_progress_aligned_candidate_mean_task_score
+        ),
+        shadow_axis_progress_aligned_candidate_mean_combined_score=(
+            shadow_axis_progress_aligned_candidate_mean_combined_score
+        ),
+        shadow_axis_progress_aligned_candidate_combined_pass_fraction=(
+            shadow_axis_progress_aligned_candidate_combined_pass_fraction
+        ),
+        shadow_axis_progress_aligned_candidate_mean_margin=shadow_axis_progress_aligned_candidate_mean_margin,
+        shadow_axis_progress_aligned_candidate_mean_dot=shadow_axis_progress_aligned_candidate_mean_dot,
+        shadow_axis_progress_aligned_candidate_positive_fraction=(
+            shadow_axis_progress_aligned_candidate_positive_fraction
+        ),
+        shadow_axis_progress_oracle_active_fraction=shadow_axis_progress_oracle_active_fraction,
+        shadow_axis_progress_oracle_consistency_fraction=shadow_axis_progress_oracle_consistency_fraction,
+        shadow_axis_progress_candidate_forward_fraction=shadow_axis_progress_candidate_forward_fraction,
+          shadow_axis_progress_candidate_backward_fraction=shadow_axis_progress_candidate_backward_fraction,
+          shadow_axis_progress_proxy_valid_fraction=shadow_axis_progress_proxy_valid_fraction,
+          shadow_axis_progress_proxy_held_fraction=shadow_axis_progress_proxy_held_fraction,
+          shadow_axis_progress_proxy_local_path_fraction=shadow_axis_progress_proxy_local_path_fraction,
+          shadow_axis_progress_proxy_sonar_fraction=shadow_axis_progress_proxy_sonar_fraction,
+          shadow_axis_progress_proxy_mean_age_s=shadow_axis_progress_proxy_mean_age_s,
+          shadow_axis_progress_proxy_mean_confidence=shadow_axis_progress_proxy_mean_confidence,
+          shadow_axis_route_bound_proxy_valid_fraction=shadow_axis_route_bound_proxy_valid_fraction,
+          shadow_axis_route_bound_proxy_mean_distance_m=shadow_axis_route_bound_proxy_mean_distance_m,
+          shadow_axis_route_bound_candidate_mean_dot=shadow_axis_route_bound_candidate_mean_dot,
+          shadow_axis_route_bound_oracle_consistency_fraction=(
+              shadow_axis_route_bound_oracle_consistency_fraction
+          ),
         zigzag_probe_active_fraction=zigzag_probe_active_fraction,
         zigzag_probe_cycle_count=zigzag_probe_cycle_count,
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,
         zigzag_probe_magnetic_crossing_count=zigzag_probe_magnetic_crossing_count,
         zigzag_probe_magnetic_crossings_per_cycle=zigzag_probe_magnetic_crossings_per_cycle,
+          zigzag_probe_forward_leg_fraction=zigzag_probe_forward_leg_fraction,
+          zigzag_probe_backward_leg_fraction=zigzag_probe_backward_leg_fraction,
+          zigzag_probe_stall_leg_fraction=zigzag_probe_stall_leg_fraction,
+          zigzag_probe_crossing_forward_leg_fraction=zigzag_probe_crossing_forward_leg_fraction,
+          zigzag_probe_crossing_backward_leg_fraction=zigzag_probe_crossing_backward_leg_fraction,
+          zigzag_probe_crossing_stall_leg_fraction=zigzag_probe_crossing_stall_leg_fraction,
+          zigzag_probe_mean_forward_leg_delta_m=zigzag_probe_mean_forward_leg_delta,
+          zigzag_probe_mean_backward_leg_delta_m=zigzag_probe_mean_backward_leg_delta,
+          zigzag_probe_forward_phase_fraction=zigzag_probe_forward_phase_fraction,
+          zigzag_probe_forward_phase_crossing_count=zigzag_probe_forward_phase_crossing_count,
+          zigzag_probe_forward_phase_crossing_fraction=zigzag_probe_forward_phase_crossing_fraction,
+          zigzag_probe_forward_phase_magnetic_path_fraction=(
+              zigzag_probe_forward_phase_magnetic_path_fraction
+          ),
+          zigzag_probe_forward_phase_magnetic_phase_fraction=(
+              zigzag_probe_forward_phase_magnetic_phase_fraction
+          ),
+          zigzag_probe_forward_phase_lookahead_fraction=zigzag_probe_forward_phase_lookahead_fraction,
+          zigzag_probe_forward_phase_candidate_fraction=zigzag_probe_forward_phase_candidate_fraction,
+          shadow_forward_zigzag_valid_fraction=shadow_forward_zigzag_valid_fraction,
+          shadow_forward_zigzag_feasible_fraction=shadow_forward_zigzag_feasible_fraction,
+          shadow_forward_zigzag_mean_forward_dot=shadow_forward_zigzag_mean_forward_dot,
+          shadow_forward_zigzag_mean_lateral_dot_abs=shadow_forward_zigzag_mean_lateral_dot_abs,
+          shadow_forward_zigzag_mean_forward_rate_mps=shadow_forward_zigzag_mean_forward_rate_mps,
+          shadow_forward_zigzag_mean_lateral_rate_mps=shadow_forward_zigzag_mean_lateral_rate_mps,
+          shadow_forward_zigzag_completed_leg_feasible_fraction=(
+              shadow_forward_zigzag_completed_leg_feasible_fraction
+          ),
+          shadow_forward_zigzag_mean_leg_route_delta_m=shadow_forward_zigzag_mean_leg_route_delta,
+          shadow_forward_zigzag_mean_leg_lateral_sweep_m=shadow_forward_zigzag_mean_leg_lateral_sweep,
+            shadow_forward_sweep_best_angle_deg=shadow_forward_sweep_best_angle,
+            shadow_forward_sweep_best_leg_duration_multiplier=shadow_forward_sweep_best_multiplier,
+            shadow_forward_sweep_best_feasible_fraction=shadow_forward_sweep_best_feasible_fraction,
+            shadow_forward_sweep_best_mean_leg_route_delta_m=shadow_forward_sweep_best_mean_route_delta,
+            shadow_forward_sweep_best_mean_leg_lateral_sweep_m=shadow_forward_sweep_best_mean_lateral_sweep,
+            shadow_forward_sweep_best_forward_dot=shadow_forward_sweep_best_forward_dot,
+            shadow_forward_sweep_best_lateral_dot_abs=shadow_forward_sweep_best_lateral_dot_abs,
+            shadow_decoupled_lateral_valid_fraction=shadow_decoupled_lateral_valid_fraction,
+            shadow_decoupled_lateral_feasible_fraction=shadow_decoupled_lateral_feasible_fraction,
+            shadow_decoupled_lateral_mean_forward_dot=shadow_decoupled_lateral_mean_forward_dot,
+            shadow_decoupled_lateral_mean_targeting_dot=shadow_decoupled_lateral_mean_targeting_dot,
+            shadow_decoupled_lateral_mean_abs_error_m=shadow_decoupled_lateral_mean_abs_error,
+            shadow_decoupled_lateral_mean_forward_rate_mps=shadow_decoupled_lateral_mean_forward_rate,
+            shadow_decoupled_lateral_mean_targeting_rate_mps=shadow_decoupled_lateral_mean_targeting_rate,
+            shadow_decoupled_lateral_completed_leg_feasible_fraction=(
+                shadow_decoupled_lateral_completed_leg_feasible_fraction
+            ),
+            shadow_decoupled_lateral_mean_leg_route_delta_m=shadow_decoupled_lateral_mean_leg_route_delta,
+            shadow_decoupled_lateral_mean_leg_sweep_m=shadow_decoupled_lateral_mean_leg_sweep,
+            probe_burst_manager_active_fraction=probe_burst_manager_active_fraction,
+            probe_burst_manager_idle_fraction=probe_burst_manager_idle_fraction,
+            probe_burst_manager_burst_fraction=probe_burst_manager_burst_fraction,
+            probe_burst_manager_recovery_fraction=probe_burst_manager_recovery_fraction,
+            probe_burst_manager_cooldown_fraction=probe_burst_manager_cooldown_fraction,
+            probe_burst_manager_transition_count=probe_burst_manager_transition_count,
+            probe_burst_manager_recovery_timeout_count=probe_burst_manager_recovery_timeout_count,
+            probe_burst_manager_mean_state_elapsed_s=probe_burst_manager_mean_state_elapsed,
+            probe_burst_manager_mean_route_delta_m=probe_burst_manager_mean_route_delta,
+            probe_burst_manager_max_evidence_count=probe_burst_manager_max_evidence_count,
+            probe_burst_manager_control_allowed_fraction=probe_burst_manager_control_allowed_fraction,
+            probe_burst_manager_reacquire_safe_control_allowed_fraction=(
+                probe_burst_manager_reacquire_safe_control_allowed_fraction
+            ),
+            probe_burst_manager_mean_entry_abs_cross_track_m=(
+                probe_burst_manager_mean_entry_abs_cross_track
+            ),
+            probe_burst_manager_entry_xt_le4_fraction=probe_burst_manager_entry_xt_le4_fraction,
+            probe_burst_manager_entry_xt_le20_fraction=probe_burst_manager_entry_xt_le20_fraction,
         magnetic_crossing_probe_forced_flip_count=magnetic_crossing_probe_forced_flip_count,
         magnetic_crossing_probe_missed_count=magnetic_crossing_probe_missed_count,
         magnetic_crossing_probe_mean_wait_s=magnetic_crossing_probe_mean_wait_s,

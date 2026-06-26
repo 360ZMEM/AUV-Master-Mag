@@ -171,6 +171,10 @@ class MagneticCablePerception:
             else None
         )
         self.last_magnetic_lookahead_feed_heading_deg: Optional[float] = None
+        self.shadow_progress_proxy_direction_xy: Optional[np.ndarray] = None
+        self.shadow_progress_proxy_time_s: float = -1e9
+        self.shadow_progress_proxy_confidence: float = 0.0
+        self.shadow_progress_proxy_source_code: float = 0.0
         # --- Calibrated-amplitude burial-depth inverter (peak-free) ---
         burial_cfg = scenario.burial_inversion
         self.burial_inverter = (
@@ -728,6 +732,44 @@ class MagneticCablePerception:
             magnetic_lookahead_feed_diag,
         )
 
+        local_path_state_for_shadow = self.local_path_estimator.estimate()
+        shadow_progress_proxy_diag = self._update_shadow_progress_proxy_diagnostics(
+            reading.time_s,
+            sonar_reading,
+            local_path_state_for_shadow,
+        )
+        shadow_route_bound_proxy_diag = self._shadow_route_bound_progress_proxy_diagnostics(
+            vehicle_position_xy_m,
+            sonar_reading,
+            local_path_state_for_shadow,
+        )
+        shadow_selection_proxy_diag = (
+            shadow_route_bound_proxy_diag
+            if (
+                self.scenario.tracking.magnetic_shadow_route_bound_progress_proxy_enabled
+                and shadow_route_bound_proxy_diag["valid"] > 0.5
+            )
+            else shadow_progress_proxy_diag
+        )
+        shadow_axis_progress_alignment_diag = self._shadow_axis_progress_alignment_diagnostics(
+            magnetic_shadow_hypothesis_selection,
+            reading.time_s,
+            shadow_selection_proxy_diag,
+        )
+        shadow_axis_progress_aligned_candidate_diag = (
+            self._shadow_axis_progress_aligned_candidate_selection_diagnostics(
+                magnetic_shadow_hypothesis_selection,
+                reading.time_s,
+                shadow_selection_proxy_diag,
+            )
+        )
+        shadow_axis_progress_aligned_dual_gate_diag = (
+            self._shadow_axis_progress_aligned_dual_gate_diagnostics(
+                shadow_axis_dual_gate_diag,
+                shadow_axis_progress_alignment_diag,
+            )
+        )
+
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
             self.last_confirmed_peak_strength_nt = 0.0
@@ -1166,6 +1208,16 @@ class MagneticCablePerception:
             shadow_axis_score_margin=(
                 0.0 if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.score_margin
             ),
+            shadow_axis_positive_score=(
+                float("nan")
+                if magnetic_shadow_hypothesis_selection is None
+                else magnetic_shadow_hypothesis_selection.positive_score
+            ),
+            shadow_axis_negative_score=(
+                float("nan")
+                if magnetic_shadow_hypothesis_selection is None
+                else magnetic_shadow_hypothesis_selection.negative_score
+            ),
             shadow_axis_target_xy_m=(
                 None if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.target_xy_m.copy()
             ),
@@ -1183,6 +1235,70 @@ class MagneticCablePerception:
             shadow_axis_dual_gate_enabled=shadow_axis_dual_gate_diag["enabled"] > 0.5,
             shadow_axis_dual_gate_passed=shadow_axis_dual_gate_diag["passed"] > 0.5,
             shadow_axis_dual_gate_reason_code=shadow_axis_dual_gate_diag["reason_code"],
+            shadow_axis_progress_alignment_enabled=shadow_axis_progress_alignment_diag["enabled"] > 0.5,
+            shadow_axis_progress_alignment_passed=shadow_axis_progress_alignment_diag["passed"] > 0.5,
+            shadow_axis_progress_alignment_reason_code=shadow_axis_progress_alignment_diag["reason_code"],
+            shadow_axis_progress_alignment_dot=shadow_axis_progress_alignment_diag["alignment_dot"],
+            shadow_axis_progress_alignment_reference_age_s=shadow_axis_progress_alignment_diag["reference_age_s"],
+            shadow_axis_progress_aligned_dual_gate_passed=(
+                shadow_axis_progress_aligned_dual_gate_diag["passed"] > 0.5
+            ),
+            shadow_axis_progress_aligned_dual_gate_reason_code=(
+                shadow_axis_progress_aligned_dual_gate_diag["reason_code"]
+            ),
+            shadow_axis_progress_aligned_candidate_valid=(
+                shadow_axis_progress_aligned_candidate_diag["valid"] > 0.5
+            ),
+            shadow_axis_progress_aligned_candidate_reason_code=(
+                shadow_axis_progress_aligned_candidate_diag["reason_code"]
+            ),
+            shadow_axis_progress_aligned_candidate_sign=(
+                shadow_axis_progress_aligned_candidate_diag["selected_sign"]
+            ),
+            shadow_axis_progress_aligned_candidate_score=(
+                shadow_axis_progress_aligned_candidate_diag["selected_score"]
+            ),
+            shadow_axis_progress_aligned_candidate_task_score=(
+                shadow_axis_progress_aligned_candidate_diag["task_score"]
+            ),
+            shadow_axis_progress_aligned_candidate_combined_score=(
+                shadow_axis_progress_aligned_candidate_diag["combined_score"]
+            ),
+            shadow_axis_progress_aligned_candidate_margin=(
+                shadow_axis_progress_aligned_candidate_diag["score_margin"]
+            ),
+            shadow_axis_progress_aligned_candidate_dot=(
+                shadow_axis_progress_aligned_candidate_diag["task_progress_dot"]
+            ),
+            shadow_axis_progress_aligned_candidate_count=(
+                int(shadow_axis_progress_aligned_candidate_diag["aligned_candidate_count"])
+            ),
+            shadow_axis_progress_proxy_valid=shadow_progress_proxy_diag["valid"] > 0.5,
+            shadow_axis_progress_proxy_source_code=shadow_progress_proxy_diag["source_code"],
+            shadow_axis_progress_proxy_age_s=shadow_progress_proxy_diag["age_s"],
+            shadow_axis_progress_proxy_confidence=shadow_progress_proxy_diag["confidence"],
+            shadow_axis_progress_proxy_heading_deg=(
+                None
+                if not np.isfinite(shadow_progress_proxy_diag["heading_deg"])
+                else shadow_progress_proxy_diag["heading_deg"]
+            ),
+            shadow_axis_route_bound_proxy_valid=shadow_route_bound_proxy_diag["valid"] > 0.5,
+            shadow_axis_route_bound_proxy_source_code=shadow_route_bound_proxy_diag["source_code"],
+            shadow_axis_route_bound_proxy_progress_m=shadow_route_bound_proxy_diag["progress_m"],
+            shadow_axis_route_bound_proxy_distance_m=shadow_route_bound_proxy_diag["distance_m"],
+            shadow_axis_route_bound_proxy_heading_deg=(
+                None
+                if not np.isfinite(shadow_route_bound_proxy_diag["heading_deg"])
+                else shadow_route_bound_proxy_diag["heading_deg"]
+            ),
+            shadow_axis_route_bound_candidate_dot=(
+                shadow_axis_progress_aligned_candidate_diag["task_progress_dot"]
+                if (
+                    self.scenario.tracking.magnetic_shadow_route_bound_progress_proxy_enabled
+                    and shadow_route_bound_proxy_diag["valid"] > 0.5
+                )
+                else float("nan")
+            ),
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,
@@ -1323,6 +1439,320 @@ class MagneticCablePerception:
             return diagnostics
         diagnostics["passed"] = 1.0
         diagnostics["reason_code"] = 1.0
+        return diagnostics
+
+    def _update_shadow_progress_proxy_diagnostics(
+        self,
+        time_s: float,
+        sonar_reading: Optional[SonarReading],
+        local_path_state,
+    ) -> dict:
+        """Maintain a short-lived task-progress direction proxy.
+
+        Source code: 0 none, 1 held, 2 local_path, 3 sonar_heading.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "valid": 0.0,
+            "source_code": 0.0,
+            "age_s": float("inf"),
+            "confidence": 0.0,
+            "heading_deg": float("nan"),
+            "direction_xy": None,
+        }
+        if not self.scenario.tracking.magnetic_shadow_progress_alignment_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+        max_age_s = self.scenario.tracking.magnetic_shadow_progress_alignment_max_age_s
+
+        update_direction = None
+        update_confidence = 0.0
+        update_source_code = 0.0
+        if (
+            sonar_reading is not None
+            and sonar_reading.valid
+            and sonar_reading.estimated_heading_ned_deg is not None
+        ):
+            update_direction = np.array([
+                np.cos(np.deg2rad(sonar_reading.estimated_heading_ned_deg)),
+                np.sin(np.deg2rad(sonar_reading.estimated_heading_ned_deg)),
+            ], dtype=float)
+            update_confidence = max(float(sonar_reading.confidence), 0.05)
+            update_source_code = 3.0
+        elif (
+            local_path_state is not None
+            and local_path_state.tangent_xy is not None
+            and local_path_state.confidence >= self.scenario.tracking.magnetic_shadow_progress_alignment_min_confidence
+            and float(time_s) - float(local_path_state.latest_time_s) <= max_age_s
+        ):
+            update_direction = np.asarray(local_path_state.tangent_xy, dtype=float)
+            update_confidence = float(local_path_state.confidence)
+            update_source_code = 2.0
+
+        if update_direction is not None:
+            update_norm = float(np.linalg.norm(update_direction))
+            if update_norm > 1e-9:
+                update_direction = update_direction / update_norm
+                if (
+                    self.shadow_progress_proxy_direction_xy is not None
+                    and float(np.dot(update_direction, self.shadow_progress_proxy_direction_xy)) < 0.0
+                ):
+                    update_direction = -update_direction
+                self.shadow_progress_proxy_direction_xy = update_direction.copy()
+                self.shadow_progress_proxy_time_s = float(time_s)
+                self.shadow_progress_proxy_confidence = update_confidence
+                self.shadow_progress_proxy_source_code = update_source_code
+
+        if self.shadow_progress_proxy_direction_xy is None:
+            return diagnostics
+        age_s = float(time_s) - self.shadow_progress_proxy_time_s
+        if (
+            age_s < 0.0
+            or age_s > max_age_s
+            or (
+                not self.scenario.tracking.magnetic_shadow_progress_proxy_hold_enabled
+                  and age_s > 1e-9
+            )
+        ):
+            return diagnostics
+
+        diagnostics["valid"] = 1.0
+        diagnostics["source_code"] = self.shadow_progress_proxy_source_code if age_s <= 1e-9 else 1.0
+        diagnostics["age_s"] = age_s
+        diagnostics["confidence"] = self.shadow_progress_proxy_confidence
+        diagnostics["heading_deg"] = heading_from_direction_xy(self.shadow_progress_proxy_direction_xy)
+        diagnostics["direction_xy"] = self.shadow_progress_proxy_direction_xy.copy()
+        return diagnostics
+
+    def _shadow_axis_progress_alignment_diagnostics(
+        self,
+        shadow_axis_selection,
+        time_s: float,
+        progress_proxy_diag: dict,
+    ) -> dict:
+        """Shadow-only task-progress alignment gate for D4 diagnostics.
+
+        Reason code:
+        0 disabled, 1 passed, 2 no hypothesis, 3 no progress proxy,
+        4 low proxy confidence, 5 stale proxy, 6 reverse/orthogonal.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "passed": 0.0,
+            "reason_code": 0.0,
+            "alignment_dot": float("nan"),
+            "reference_age_s": float("inf"),
+        }
+        if not self.scenario.tracking.magnetic_shadow_progress_alignment_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+        if shadow_axis_selection is None:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        selected_candidate = getattr(shadow_axis_selection, "selected_candidate", None)
+        if selected_candidate is None:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if progress_proxy_diag["valid"] <= 0.5 or progress_proxy_diag["direction_xy"] is None:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        if progress_proxy_diag["confidence"] < self.scenario.tracking.magnetic_shadow_progress_alignment_min_confidence:
+            diagnostics["reason_code"] = 4.0
+            return diagnostics
+        reference_age_s = float(progress_proxy_diag["age_s"])
+        diagnostics["reference_age_s"] = reference_age_s
+        if reference_age_s > self.scenario.tracking.magnetic_shadow_progress_alignment_max_age_s:
+            diagnostics["reason_code"] = 5.0
+            return diagnostics
+
+        candidate_dir = np.asarray(selected_candidate.direction_xy, dtype=float)
+        reference_dir = np.asarray(progress_proxy_diag["direction_xy"], dtype=float)
+        candidate_norm = float(np.linalg.norm(candidate_dir))
+        reference_norm = float(np.linalg.norm(reference_dir))
+        if candidate_norm <= 1e-9 or reference_norm <= 1e-9:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        candidate_dir = candidate_dir / candidate_norm
+        reference_dir = reference_dir / reference_norm
+        alignment_dot = float(np.dot(candidate_dir, reference_dir))
+        diagnostics["alignment_dot"] = alignment_dot
+        if alignment_dot < self.scenario.tracking.magnetic_shadow_progress_alignment_min_dot:
+            diagnostics["reason_code"] = 6.0
+            return diagnostics
+
+        diagnostics["passed"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        return diagnostics
+
+    def _shadow_route_bound_progress_proxy_diagnostics(
+        self,
+        vehicle_position_xy_m: np.ndarray,
+        sonar_reading: Optional[SonarReading],
+        local_path_state,
+    ) -> dict:
+        """Route-ordered progress proxy for shadow diagnostics.
+
+        Source code: 0 none, 2 vehicle position, 3 local path anchor, 4 sonar anchor.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "valid": 0.0,
+            "source_code": 0.0,
+            "progress_m": float("nan"),
+            "distance_m": float("nan"),
+            "heading_deg": float("nan"),
+            "direction_xy": None,
+            "confidence": 1.0,
+            "age_s": 0.0,
+        }
+        if not self.scenario.tracking.magnetic_shadow_route_bound_progress_proxy_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+
+        anchor_xy = None
+        source_code = 0.0
+        if sonar_reading is not None and sonar_reading.valid and sonar_reading.estimated_position_ned_m is not None:
+            anchor_xy = np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2]
+            source_code = 4.0
+        elif local_path_state is not None and local_path_state.anchor_xy_m is not None:
+            anchor_xy = np.asarray(local_path_state.anchor_xy_m, dtype=float)
+            source_code = 3.0
+        elif vehicle_position_xy_m is not None:
+            anchor_xy = np.asarray(vehicle_position_xy_m, dtype=float)[:2]
+            source_code = 2.0
+        if anchor_xy is None or not np.all(np.isfinite(anchor_xy)):
+            return diagnostics
+
+        _, route_tangent_xy, route_distance_m, route_progress_m, _ = nearest_point_on_polyline(
+            anchor_xy,
+            self.nominal_route_lookup,
+        )
+        route_norm = float(np.linalg.norm(route_tangent_xy))
+        if route_norm <= 1e-9:
+            return diagnostics
+        route_tangent_xy = route_tangent_xy / route_norm
+        diagnostics["valid"] = 1.0
+        diagnostics["source_code"] = source_code
+        diagnostics["progress_m"] = route_progress_m
+        diagnostics["distance_m"] = route_distance_m
+        diagnostics["heading_deg"] = heading_from_direction_xy(route_tangent_xy)
+        diagnostics["direction_xy"] = route_tangent_xy.copy()
+        return diagnostics
+
+    def _shadow_axis_progress_aligned_dual_gate_diagnostics(
+        self,
+        shadow_axis_dual_gate_diag: dict,
+        shadow_axis_progress_alignment_diag: dict,
+    ) -> dict:
+        """Shadow-only dual gate plus task-progress alignment.
+
+        Reason code:
+        0 disabled, 1 passed, 2 dual gate rejected, 3 progress alignment rejected.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "passed": 0.0,
+            "reason_code": 0.0,
+        }
+        if not self.scenario.tracking.magnetic_shadow_progress_alignment_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+        if shadow_axis_dual_gate_diag["passed"] <= 0.5:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if shadow_axis_progress_alignment_diag["passed"] <= 0.5:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        diagnostics["passed"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        return diagnostics
+
+    def _shadow_axis_progress_aligned_candidate_selection_diagnostics(
+        self,
+        shadow_axis_selection,
+        time_s: float,
+        progress_proxy_diag: dict,
+    ) -> dict:
+        """Select the best shadow candidate after task-progress filtering.
+
+        Reason code:
+        0 disabled, 1 selected, 2 no hypothesis, 3 no progress proxy,
+        4 low proxy confidence, 5 stale proxy, 6 no aligned candidates.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "valid": 0.0,
+            "reason_code": 0.0,
+            "selected_sign": 0.0,
+            "selected_score": 0.0,
+            "task_score": 0.0,
+            "combined_score": 0.0,
+            "score_margin": 0.0,
+            "task_progress_dot": float("nan"),
+            "aligned_candidate_count": 0.0,
+        }
+        if not self.scenario.tracking.magnetic_shadow_progress_alignment_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+        if shadow_axis_selection is None or not getattr(shadow_axis_selection, "candidates", ()):
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if progress_proxy_diag["valid"] <= 0.5 or progress_proxy_diag["direction_xy"] is None:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        if progress_proxy_diag["confidence"] < self.scenario.tracking.magnetic_shadow_progress_alignment_min_confidence:
+            diagnostics["reason_code"] = 4.0
+            return diagnostics
+        reference_age_s = float(progress_proxy_diag["age_s"])
+        if reference_age_s > self.scenario.tracking.magnetic_shadow_progress_alignment_max_age_s:
+            diagnostics["reason_code"] = 5.0
+            return diagnostics
+
+        reference_dir = np.asarray(progress_proxy_diag["direction_xy"], dtype=float)
+        reference_norm = float(np.linalg.norm(reference_dir))
+        if reference_norm <= 1e-9:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+        reference_dir = reference_dir / reference_norm
+
+        min_dot = self.scenario.tracking.magnetic_shadow_progress_alignment_min_dot
+        scored_candidates = []
+        motion_weight = max(0.0, float(self.scenario.tracking.magnetic_shadow_task_score_motion_weight))
+        progress_weight = max(0.0, float(self.scenario.tracking.magnetic_shadow_task_score_progress_weight))
+        total_weight = motion_weight + progress_weight
+        if total_weight <= 1e-9:
+            motion_weight = 1.0
+            progress_weight = 0.0
+            total_weight = 1.0
+        motion_weight /= total_weight
+        progress_weight /= total_weight
+        for candidate in shadow_axis_selection.candidates:
+            candidate_dir = np.asarray(candidate.direction_xy, dtype=float)
+            candidate_norm = float(np.linalg.norm(candidate_dir))
+            if candidate_norm <= 1e-9:
+                continue
+            task_progress_dot = float(np.dot(candidate_dir / candidate_norm, reference_dir))
+            if task_progress_dot >= min_dot:
+                task_score = float(np.clip(task_progress_dot, 0.0, 1.0))
+                combined_score = motion_weight * candidate.score + progress_weight * task_score
+                scored_candidates.append((candidate, task_progress_dot, task_score, combined_score))
+
+        diagnostics["aligned_candidate_count"] = float(len(scored_candidates))
+        if not scored_candidates:
+            diagnostics["reason_code"] = 6.0
+            return diagnostics
+
+        scored_candidates.sort(key=lambda item: item[3], reverse=True)
+        selected, selected_dot, selected_task_score, selected_combined_score = scored_candidates[0]
+        runner_up_score = scored_candidates[1][3] if len(scored_candidates) > 1 else 0.0
+        diagnostics["valid"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        diagnostics["selected_sign"] = float(selected.axis_sign)
+        diagnostics["selected_score"] = float(np.clip(selected.score, 0.0, 1.0))
+        diagnostics["task_score"] = selected_task_score
+        diagnostics["combined_score"] = float(np.clip(selected_combined_score, 0.0, 1.0))
+        diagnostics["score_margin"] = float(np.clip(selected_combined_score - runner_up_score, 0.0, 1.0))
+        diagnostics["task_progress_dot"] = selected_dot
         return diagnostics
 
     def _magnetic_lookahead_feed_diagnostics(

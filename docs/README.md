@@ -129,6 +129,16 @@
    - 记录 case1-6 与 case1v-6v 探针回归
    - 明确纯磁观测必须绑定历史多帧和横向激励，不能直接替代无先验定位
 
+13. **[Lookahead Feed 诊断](18_lookahead_feed_diagnostics.md)**
+   - 记录 `case_maze_sonar_dropout` 中 magnetic lookahead 到 local path 的 feed 门控诊断
+   - 汇总 p25-p47、D0-D5、shadow hypothesis、cycle burial 等阶段实验结果
+   - 明确 p36 基线、p47 负例，以及旁路多假设 selector 的下一步方向
+
+14. **[声呐 + 磁传感长期闭环剪枝计划](19_声呐磁传感长期闭环剪枝计划.md)**
+   - 收束“声呐 wrapper 位置 + 磁传感器”条件下的跟踪与埋深反演长期路线
+   - 定义观测、候选、任务层选择、控制消费的 API 边界
+   - 列出已证伪方案、保留接口和下一步最小执行包
+
 **读完你将能够**：
 - 独立配置和运行仿真场景
 - 诊断性能问题并进行针对性调优

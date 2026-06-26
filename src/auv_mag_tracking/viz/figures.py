@@ -241,10 +241,35 @@ def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> 
     ax = fig.add_subplot(gs[5, 1])
     ax.plot(t, record["zigzag_probe_signed_cross_track_m"], color=_C_AUV, lw=0.9, label="Signed XT [m]")
     ax.plot(t, record["zigzag_probe_leg_sign"], color=_C_WARN, lw=0.9, drawstyle="steps-post", label="Leg sign")
+    ax.plot(t, record["zigzag_probe_leg_route_delta_m"], color=_C_GOOD, lw=0.8, alpha=0.8, label="Leg route delta [m]")
+    ax.plot(
+        t,
+        record["zigzag_probe_forward_phase_active"],
+        color=_C_MAGNETIC,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Forward phase",
+    )
+    ax.plot(
+        t,
+        record["shadow_forward_zigzag_forward_dot"],
+        color=_C_FIT,
+        lw=0.8,
+        alpha=0.8,
+        label="Shadow forward dot",
+    )
     flip_idx = np.where(record["zigzag_probe_leg_flip_event"] > 0.5)[0]
     if flip_idx.size:
         ax.scatter(t[flip_idx], record["zigzag_probe_signed_cross_track_m"][flip_idx],
                    color=_C_BAD, s=12, zorder=5, label="Leg flip")
+    forward_cross_idx = np.where(record["zigzag_probe_magnetic_crossing_forward_leg_event"] > 0.5)[0]
+    backward_cross_idx = np.where(record["zigzag_probe_magnetic_crossing_backward_leg_event"] > 0.5)[0]
+    if forward_cross_idx.size:
+        ax.scatter(t[forward_cross_idx], record["zigzag_probe_signed_cross_track_m"][forward_cross_idx],
+                   color=_C_GOOD, s=18, marker="^", zorder=6, label="Crossing on forward leg")
+    if backward_cross_idx.size:
+        ax.scatter(t[backward_cross_idx], record["zigzag_probe_signed_cross_track_m"][backward_cross_idx],
+                   color=_C_BAD, s=18, marker="v", zorder=6, label="Crossing on backward leg")
     ax.set_xlabel("Time [s]"); ax.set_title("(10) Zig-zag probe cycle")
     ax.legend(loc="upper right")
 
@@ -267,12 +292,130 @@ def render_detail(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> 
     return out_path
 
 
+def render_selector_sync(record: RunRecord, metrics: HealthMetrics, out_path: Path) -> Path:
+    """Render shadow-selector timing against route progress and feed gates."""
+    _apply_style()
+    t = record["time_s"]
+    fig = plt.figure(figsize=(16, 12))
+    fig.suptitle(
+        f"Shadow Selector Timing — {record.case_name}",
+        fontsize=15,
+        fontweight="bold",
+    )
+    gs = fig.add_gridspec(4, 1, hspace=0.34, left=0.07, right=0.97, top=0.92, bottom=0.07)
+
+    ax = fig.add_subplot(gs[0, 0])
+    _shade_modes(ax, t, record.modes)
+    ax.plot(t, record["route_progress_m"], color=_C_GOOD, lw=1.4, label="Route progress")
+    ax.set_ylabel("Progress [m]")
+    ax.set_title("(1) Route progress")
+    ax.legend(loc="upper left")
+
+    ax = fig.add_subplot(gs[1, 0], sharex=ax)
+    _shade_modes(ax, t, record.modes)
+    ax.plot(t, record["route_progress_rate_mps"], color=_C_AUV, lw=1.0, label="Progress rate")
+    ax.axhline(0.0, color=_C_TRUTH, lw=0.8)
+    ax.axhline(0.6, color=_C_GOOD, lw=0.8, ls="--", label="Readiness full-credit")
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_ylabel("Rate [m/s]")
+    ax.set_title("(2) Route progress rate")
+    ax.legend(loc="upper right")
+
+    ax = fig.add_subplot(gs[2, 0], sharex=ax)
+    _shade_modes(ax, t, record.modes)
+    ax.plot(t, record["shadow_axis_hypothesis_valid"], color=_C_FIT, lw=0.9, drawstyle="steps-post", label="Hypothesis valid")
+    ax.plot(t, record["shadow_axis_validation_passed"], color=_C_GOOD, lw=1.0, drawstyle="steps-post", label="Validation pass")
+    ax.plot(t, record["magnetic_lookahead_feed_allowed"], color=_C_WARN, lw=0.9, drawstyle="steps-post", label="Feed allowed")
+    ax.plot(t, record["shadow_axis_dual_gate_passed"], color=_C_BAD, lw=1.0, drawstyle="steps-post", label="Dual gate pass")
+    ax.plot(
+        t,
+        record["shadow_axis_progress_aligned_dual_gate_passed"],
+        color=_C_TRUTH,
+        lw=1.0,
+        drawstyle="steps-post",
+        label="Progress-aligned dual",
+    )
+    ax.plot(
+        t,
+        record["shadow_axis_progress_aligned_candidate_valid"],
+        color=_C_MAGNETIC,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Aligned candidate",
+    )
+    ax.set_ylim(-0.1, 1.25)
+    ax.set_ylabel("Gate")
+    ax.set_title(
+        "(3) Selector/feed overlap  |  "
+        f"dual pass {metrics.shadow_axis_dual_gate_pass_fraction*100:.1f}%, "
+        f"validation reject {metrics.shadow_axis_dual_gate_reject_validation_fraction*100:.1f}%, "
+        f"feed reject {metrics.shadow_axis_dual_gate_reject_feed_fraction*100:.1f}%"
+    )
+    ax.legend(loc="upper right", ncol=4)
+
+    ax = fig.add_subplot(gs[3, 0], sharex=ax)
+    _shade_modes(ax, t, record.modes)
+    ax.plot(t, record["shadow_axis_validation_reason_code"], color=_C_FIT, lw=0.9, drawstyle="steps-post", label="Validation reason")
+    ax.plot(t, record["shadow_axis_dual_gate_reason_code"], color=_C_BAD, lw=0.9, drawstyle="steps-post", label="Dual gate reason")
+    ax.plot(
+        t,
+        record["shadow_axis_progress_alignment_reason_code"],
+        color=_C_GOOD,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Progress reason",
+    )
+    ax.plot(
+        t,
+        record["shadow_axis_progress_aligned_candidate_reason_code"],
+        color=_C_MAGNETIC,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Aligned select reason",
+    )
+    ax.plot(
+        t,
+        record["shadow_axis_progress_proxy_valid"],
+        color=_C_AUV,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Progress proxy valid",
+    )
+    ax.plot(
+        t,
+        record["shadow_axis_progress_aligned_candidate_combined_score"],
+        color=_C_TRUTH,
+        lw=0.8,
+        alpha=0.8,
+        label="Aligned combined score",
+    )
+    ax.plot(
+        t,
+        record["shadow_axis_route_bound_proxy_valid"],
+        color=_C_WARN,
+        lw=0.8,
+        drawstyle="steps-post",
+        label="Route-bound proxy valid",
+    )
+    ax.plot(t, record["magnetic_lookahead_feed_reason_code"], color=_C_WARN, lw=0.7, alpha=0.8, drawstyle="steps-post", label="Feed reason")
+    ax.set_yticks([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    ax.set_yticklabels(["pass/ok", "no hyp/val", "cands/feed", "score", "margin/age", "stale/phase", "expired/resid", "head", "innov"])
+    ax.set_xlabel("Time [s]")
+    ax.set_title("(4) Reject reason codes")
+    ax.legend(loc="upper right", ncol=3)
+
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
 def render_run(record: RunRecord, metrics: HealthMetrics, fig_dir: Path) -> Dict[str, Path]:
     """渲染单次运行的 overview + detail 两版图，返回路径字典。"""
     fig_dir.mkdir(parents=True, exist_ok=True)
     return {
         "overview": render_overview(record, metrics, fig_dir / f"{record.case_name}_overview.png"),
         "detail": render_detail(record, metrics, fig_dir / f"{record.case_name}_detail.png"),
+        "selector_sync": render_selector_sync(record, metrics, fig_dir / f"{record.case_name}_selector_sync.png"),
     }
 
 

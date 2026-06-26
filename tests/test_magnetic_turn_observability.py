@@ -15,8 +15,10 @@ from auv_mag_tracking.config import build_default_scenarios
 from auv_mag_tracking.environment import CableEnvironment
 from auv_mag_tracking.math_utils import smallest_angle_error_deg
 from auv_mag_tracking.perception import (
+    LocalCableState,
     LocalCableStateEstimator,
     MagneticCablePerception,
+    MagneticLookaheadHypothesis,
     MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
     MagneticPathObservationBuilder,
@@ -285,8 +287,11 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertIsNotNone(selected)
         assert selected is not None
         self.assertEqual(selected.candidate_count, 2)
+        self.assertEqual(len(selected.candidates), 2)
+        self.assertTrue(all(isinstance(candidate, MagneticLookaheadHypothesis) for candidate in selected.candidates))
         self.assertGreater(selected.selected_sign, 0.0)
         self.assertGreater(selected.score_margin, 0.1)
+        self.assertGreater(selected.positive_score, selected.negative_score)
         np.testing.assert_allclose(selected.target_xy_m, np.array([8.0, 0.0]), atol=1e-6)
 
     def test_shadow_hypothesis_selector_can_choose_negative_axis(self) -> None:
@@ -316,6 +321,8 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertIsNotNone(selected)
         assert selected is not None
         self.assertLess(selected.selected_sign, 0.0)
+        self.assertLess(selected.negative_score, 1.01)
+        self.assertGreater(selected.negative_score, selected.positive_score)
         self.assertAlmostEqual(abs(selected.heading_deg), 180.0)
 
     def test_shadow_axis_validation_reports_pass_and_reject_reasons(self) -> None:
@@ -405,6 +412,227 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         )
         self.assertEqual(feed_reject["reason_code"], 3.0)
         self.assertEqual(feed_reject["passed"], 0.0)
+
+    def test_shadow_axis_progress_alignment_rejects_reverse_candidate(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_progress_alignment_enabled = True
+        perception = MagneticCablePerception(scenario)
+        reverse_candidate = MagneticLookaheadHypothesis(
+            hypothesis_id="reverse",
+            axis_sign=-1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([-1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([-20.0, 0.0], dtype=float),
+            heading_deg=180.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.9,
+            progress_score=1.0,
+            heading_score=1.0,
+            freshness_score=1.0,
+        )
+        selection = SimpleNamespace(selected_candidate=reverse_candidate)
+        local_state = LocalCableState(
+            model="line",
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            tangent_xy=np.array([1.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            residual_m=0.1,
+            confidence=0.8,
+            latest_time_s=10.0,
+        )
+        proxy = perception._update_shadow_progress_proxy_diagnostics(10.0, None, local_state)
+        self.assertEqual(proxy["valid"], 1.0)
+        self.assertEqual(proxy["source_code"], 2.0)
+
+        rejected = perception._shadow_axis_progress_alignment_diagnostics(selection, 10.0, proxy)
+        self.assertEqual(rejected["enabled"], 1.0)
+        self.assertEqual(rejected["reason_code"], 6.0)
+        self.assertLess(rejected["alignment_dot"], 0.0)
+
+        forward_candidate = MagneticLookaheadHypothesis(
+            hypothesis_id="forward",
+            axis_sign=1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([20.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.9,
+            progress_score=1.0,
+            heading_score=1.0,
+            freshness_score=1.0,
+        )
+        passed = perception._shadow_axis_progress_alignment_diagnostics(
+            SimpleNamespace(selected_candidate=forward_candidate),
+            10.0,
+              proxy,
+        )
+        self.assertEqual(passed["reason_code"], 1.0)
+        self.assertEqual(passed["passed"], 1.0)
+
+        selection = SimpleNamespace(candidates=(reverse_candidate, forward_candidate))
+        selected = perception._shadow_axis_progress_aligned_candidate_selection_diagnostics(
+            selection,
+            10.0,
+              proxy,
+        )
+        self.assertEqual(selected["reason_code"], 1.0)
+        self.assertEqual(selected["valid"], 1.0)
+        self.assertGreater(selected["selected_sign"], 0.0)
+        self.assertAlmostEqual(selected["selected_score"], forward_candidate.score)
+        self.assertAlmostEqual(selected["task_progress_dot"], 1.0)
+        self.assertAlmostEqual(selected["task_score"], 1.0)
+        self.assertGreater(selected["combined_score"], selected["selected_score"])
+
+    def test_shadow_progress_aligned_selection_can_prioritize_task_score(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_progress_alignment_enabled = True
+        scenario.tracking.magnetic_shadow_progress_alignment_min_dot = -1.0
+        scenario.tracking.magnetic_shadow_task_score_motion_weight = 0.2
+        scenario.tracking.magnetic_shadow_task_score_progress_weight = 0.8
+        perception = MagneticCablePerception(scenario)
+        local_state = LocalCableState(
+            model="line",
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            tangent_xy=np.array([1.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            residual_m=0.1,
+            confidence=0.8,
+            latest_time_s=10.0,
+        )
+        proxy = perception._update_shadow_progress_proxy_diagnostics(10.0, None, local_state)
+        high_motion_reverse = MagneticLookaheadHypothesis(
+            hypothesis_id="reverse",
+            axis_sign=-1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([-1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([-20.0, 0.0], dtype=float),
+            heading_deg=180.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.95,
+            progress_score=1.0,
+            heading_score=1.0,
+            freshness_score=1.0,
+        )
+        low_motion_forward = MagneticLookaheadHypothesis(
+            hypothesis_id="forward",
+            axis_sign=1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([20.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.30,
+            progress_score=0.2,
+            heading_score=0.2,
+            freshness_score=1.0,
+        )
+
+        selected = perception._shadow_axis_progress_aligned_candidate_selection_diagnostics(
+            SimpleNamespace(candidates=(high_motion_reverse, low_motion_forward)),
+            10.0,
+            proxy,
+        )
+        self.assertGreater(selected["selected_sign"], 0.0)
+        self.assertAlmostEqual(selected["selected_score"], 0.30)
+        self.assertAlmostEqual(selected["task_score"], 1.0)
+        self.assertGreater(selected["combined_score"], 0.80)
+
+    def test_shadow_progress_proxy_holds_last_direction(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_progress_alignment_enabled = True
+        scenario.tracking.magnetic_shadow_progress_proxy_hold_enabled = True
+        scenario.tracking.magnetic_shadow_progress_alignment_max_age_s = 20.0
+        perception = MagneticCablePerception(scenario)
+        local_state = LocalCableState(
+            model="line",
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            tangent_xy=np.array([1.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            residual_m=0.1,
+            confidence=0.8,
+            latest_time_s=10.0,
+        )
+
+        fresh = perception._update_shadow_progress_proxy_diagnostics(10.0, None, local_state)
+        self.assertEqual(fresh["valid"], 1.0)
+        self.assertEqual(fresh["source_code"], 2.0)
+
+        low_conf_state = LocalCableState(
+            model="line",
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            tangent_xy=np.array([0.0, 1.0], dtype=float),
+            heading_deg=90.0,
+            residual_m=0.1,
+            confidence=0.1,
+            latest_time_s=11.0,
+        )
+        held = perception._update_shadow_progress_proxy_diagnostics(15.0, None, low_conf_state)
+        self.assertEqual(held["valid"], 1.0)
+        self.assertEqual(held["source_code"], 1.0)
+        np.testing.assert_allclose(held["direction_xy"], np.array([1.0, 0.0]), atol=1e-9)
+
+    def test_route_bound_progress_proxy_uses_nominal_route_direction(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_progress_alignment_enabled = True
+        scenario.tracking.magnetic_shadow_route_bound_progress_proxy_enabled = True
+        perception = MagneticCablePerception(scenario)
+        route_proxy = perception._shadow_route_bound_progress_proxy_diagnostics(
+            np.array([5.0, 3.0], dtype=float),
+            None,
+            None,
+        )
+        self.assertEqual(route_proxy["valid"], 1.0)
+        self.assertEqual(route_proxy["source_code"], 2.0)
+        self.assertGreater(route_proxy["progress_m"], 0.0)
+        self.assertGreater(route_proxy["direction_xy"][0], 0.0)
+
+        forward_candidate = MagneticLookaheadHypothesis(
+            hypothesis_id="forward",
+            axis_sign=1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([20.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.4,
+            progress_score=0.2,
+            heading_score=0.2,
+            freshness_score=1.0,
+        )
+        reverse_candidate = MagneticLookaheadHypothesis(
+            hypothesis_id="reverse",
+            axis_sign=-1.0,
+            anchor_xy_m=np.array([0.0, 0.0], dtype=float),
+            direction_xy=np.array([-1.0, 0.0], dtype=float),
+            cable_point_xy_m=np.array([0.0, 0.0], dtype=float),
+            lookahead_xy_m=np.array([-20.0, 0.0], dtype=float),
+            heading_deg=180.0,
+            confidence=0.9,
+            age_s=1.0,
+            score=0.9,
+            progress_score=1.0,
+            heading_score=1.0,
+            freshness_score=1.0,
+        )
+        selected = perception._shadow_axis_progress_aligned_candidate_selection_diagnostics(
+            SimpleNamespace(candidates=(reverse_candidate, forward_candidate)),
+            10.0,
+            route_proxy,
+        )
+        self.assertEqual(selected["valid"], 1.0)
+        self.assertGreater(selected["selected_sign"], 0.0)
+        self.assertAlmostEqual(selected["task_progress_dot"], 1.0)
 
     def test_zigzag_phase_detector_reports_reject_reasons(self) -> None:
         detector = MagneticZigzagPhaseDetector(

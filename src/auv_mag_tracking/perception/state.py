@@ -166,6 +166,8 @@ class PerceptionState:
     shadow_axis_selected_sign: float = 0.0
     shadow_axis_selected_score: float = 0.0
     shadow_axis_score_margin: float = 0.0
+    shadow_axis_positive_score: float = float("nan")
+    shadow_axis_negative_score: float = float("nan")
     shadow_axis_target_xy_m: Optional[np.ndarray] = None
     shadow_axis_heading_deg: Optional[float] = None
     shadow_axis_age_s: float = float("inf")
@@ -178,6 +180,34 @@ class PerceptionState:
     shadow_axis_dual_gate_enabled: bool = False
     shadow_axis_dual_gate_passed: bool = False
     shadow_axis_dual_gate_reason_code: float = 0.0
+    # --- D4 progress-aligned shadow gate diagnostics ---
+    shadow_axis_progress_alignment_enabled: bool = False
+    shadow_axis_progress_alignment_passed: bool = False
+    shadow_axis_progress_alignment_reason_code: float = 0.0
+    shadow_axis_progress_alignment_dot: float = float("nan")
+    shadow_axis_progress_alignment_reference_age_s: float = float("inf")
+    shadow_axis_progress_aligned_dual_gate_passed: bool = False
+    shadow_axis_progress_aligned_dual_gate_reason_code: float = 0.0
+    shadow_axis_progress_aligned_candidate_valid: bool = False
+    shadow_axis_progress_aligned_candidate_reason_code: float = 0.0
+    shadow_axis_progress_aligned_candidate_sign: float = 0.0
+    shadow_axis_progress_aligned_candidate_score: float = 0.0
+    shadow_axis_progress_aligned_candidate_task_score: float = 0.0
+    shadow_axis_progress_aligned_candidate_combined_score: float = 0.0
+    shadow_axis_progress_aligned_candidate_margin: float = 0.0
+    shadow_axis_progress_aligned_candidate_dot: float = float("nan")
+    shadow_axis_progress_aligned_candidate_count: int = 0
+    shadow_axis_progress_proxy_valid: bool = False
+    shadow_axis_progress_proxy_source_code: float = 0.0
+    shadow_axis_progress_proxy_age_s: float = float("inf")
+    shadow_axis_progress_proxy_confidence: float = 0.0
+    shadow_axis_progress_proxy_heading_deg: Optional[float] = None
+    shadow_axis_route_bound_proxy_valid: bool = False
+    shadow_axis_route_bound_proxy_source_code: float = 0.0
+    shadow_axis_route_bound_proxy_progress_m: float = float("nan")
+    shadow_axis_route_bound_proxy_distance_m: float = float("nan")
+    shadow_axis_route_bound_proxy_heading_deg: Optional[float] = None
+    shadow_axis_route_bound_candidate_dot: float = float("nan")
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

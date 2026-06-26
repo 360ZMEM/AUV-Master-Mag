@@ -100,6 +100,8 @@ _NUMERIC_CHANNELS = (
     "shadow_axis_selected_sign",
     "shadow_axis_selected_score",
     "shadow_axis_score_margin",
+    "shadow_axis_positive_score",
+    "shadow_axis_negative_score",
     "shadow_axis_target_x_m",
     "shadow_axis_target_y_m",
     "shadow_axis_heading_deg",
@@ -112,12 +114,84 @@ _NUMERIC_CHANNELS = (
     "shadow_axis_dual_gate_enabled",
     "shadow_axis_dual_gate_passed",
     "shadow_axis_dual_gate_reason_code",
+    "shadow_axis_progress_alignment_enabled",
+    "shadow_axis_progress_alignment_passed",
+    "shadow_axis_progress_alignment_reason_code",
+    "shadow_axis_progress_alignment_dot",
+    "shadow_axis_progress_alignment_reference_age_s",
+    "shadow_axis_progress_aligned_dual_gate_passed",
+    "shadow_axis_progress_aligned_dual_gate_reason_code",
+    "shadow_axis_progress_aligned_candidate_valid",
+    "shadow_axis_progress_aligned_candidate_reason_code",
+    "shadow_axis_progress_aligned_candidate_sign",
+    "shadow_axis_progress_aligned_candidate_score",
+    "shadow_axis_progress_aligned_candidate_task_score",
+    "shadow_axis_progress_aligned_candidate_combined_score",
+    "shadow_axis_progress_aligned_candidate_margin",
+    "shadow_axis_progress_aligned_candidate_dot",
+    "shadow_axis_progress_aligned_candidate_count",
+    "shadow_axis_progress_proxy_valid",
+    "shadow_axis_progress_proxy_source_code",
+    "shadow_axis_progress_proxy_age_s",
+    "shadow_axis_progress_proxy_confidence",
+    "shadow_axis_progress_proxy_heading_deg",
+    "shadow_axis_route_bound_proxy_valid",
+    "shadow_axis_route_bound_proxy_source_code",
+    "shadow_axis_route_bound_proxy_progress_m",
+    "shadow_axis_route_bound_proxy_distance_m",
+    "shadow_axis_route_bound_proxy_heading_deg",
+    "shadow_axis_route_bound_candidate_dot",
     "zigzag_probe_active",
     "zigzag_probe_cycle_id",
     "zigzag_probe_leg_sign",
     "zigzag_probe_cycle_age_s",
     "zigzag_probe_leg_flip_event",
     "zigzag_probe_magnetic_crossing_event",
+    "zigzag_probe_leg_route_delta_m",
+    "zigzag_probe_completed_leg_route_delta_m",
+    "zigzag_probe_forward_leg_event",
+    "zigzag_probe_backward_leg_event",
+    "zigzag_probe_stall_leg_event",
+    "zigzag_probe_magnetic_crossing_forward_leg_event",
+    "zigzag_probe_magnetic_crossing_backward_leg_event",
+    "zigzag_probe_magnetic_crossing_stall_leg_event",
+    "zigzag_probe_forward_phase_active",
+    "zigzag_probe_forward_phase_magnetic_crossing_event",
+    "zigzag_probe_forward_phase_magnetic_path_valid",
+    "zigzag_probe_forward_phase_magnetic_phase_valid",
+    "zigzag_probe_forward_phase_lookahead_valid",
+    "zigzag_probe_forward_phase_candidate_valid",
+    "shadow_forward_zigzag_valid",
+    "shadow_forward_zigzag_feasible",
+    "shadow_forward_zigzag_heading_deg",
+    "shadow_forward_zigzag_forward_dot",
+    "shadow_forward_zigzag_lateral_dot_abs",
+    "shadow_forward_zigzag_forward_rate_mps",
+    "shadow_forward_zigzag_lateral_rate_mps",
+    "shadow_forward_zigzag_completed_leg_route_delta_m",
+    "shadow_forward_zigzag_completed_leg_lateral_sweep_m",
+    "shadow_forward_zigzag_completed_leg_feasible_event",
+    "shadow_decoupled_lateral_valid",
+    "shadow_decoupled_lateral_feasible",
+    "shadow_decoupled_lateral_heading_deg",
+    "shadow_decoupled_lateral_forward_dot",
+    "shadow_decoupled_lateral_targeting_dot",
+    "shadow_decoupled_lateral_error_m",
+    "shadow_decoupled_lateral_forward_rate_mps",
+    "shadow_decoupled_lateral_targeting_rate_mps",
+    "shadow_decoupled_lateral_completed_leg_route_delta_m",
+    "shadow_decoupled_lateral_completed_leg_sweep_m",
+    "shadow_decoupled_lateral_completed_leg_feasible_event",
+    "probe_burst_manager_state_code",
+    "probe_burst_manager_burst_active",
+    "probe_burst_manager_recovery_active",
+    "probe_burst_manager_reason_code",
+    "probe_burst_manager_state_elapsed_s",
+    "probe_burst_manager_route_delta_m",
+    "probe_burst_manager_evidence_count",
+    "probe_burst_manager_control_allowed",
+    "probe_burst_manager_reacquire_safe_control_allowed",
+    "probe_burst_manager_entry_abs_cross_track_m",
     "magnetic_crossing_probe_wait_s",
     "magnetic_crossing_probe_missed_count",
     "magnetic_crossing_probe_forced_flip",
@@ -231,10 +305,33 @@ def _optional(value: Optional[float]) -> float:
     return float(value) if value is not None else np.nan
 
 
+def _heading_from_direction_xy(direction_xy: np.ndarray) -> float:
+    return float(np.rad2deg(np.arctan2(direction_xy[1], direction_xy[0])))
+
+
 def _signal_current_rms_a(scenario: ScenarioConfig) -> float:
     if scenario.signal.mode == "dc":
         return abs(float(scenario.signal.dc_current_a))
     return abs(float(scenario.signal.ac_current_amplitude_a)) / np.sqrt(2.0)
+
+
+_PROBE_BURST_STATE_CODES = {
+    "IDLE_BASELINE": 1.0,
+    "BURST_COLLECT_EVIDENCE": 2.0,
+    "RECOVER_ROUTE": 3.0,
+    "COOLDOWN": 4.0,
+}
+
+_PROBE_BURST_REASON_CODES = {
+    "disabled": 1.0,
+    "hold": 2.0,
+    "enter_burst": 3.0,
+    "evidence_target": 4.0,
+    "burst_timeout": 5.0,
+    "recovery_complete": 6.0,
+    "recovery_timeout": 7.0,
+    "cooldown_complete": 8.0,
+}
 
 
 def simulate_run(
@@ -291,6 +388,11 @@ def simulate_run(
         )
     probe_cycle_burial_estimate = None
     probe_last_magnetic_offset_sign = 0
+    probe_leg_start_route_progress_m: Optional[float] = None
+    shadow_forward_zigzag_leg_route_delta_m = 0.0
+    shadow_forward_zigzag_leg_lateral_sweep_m = 0.0
+    shadow_decoupled_lateral_leg_route_delta_m = 0.0
+    shadow_decoupled_lateral_leg_sweep_m = 0.0
     previous_route_progress_m: Optional[float] = None
     previous_time_s: Optional[float] = None
     for step_index in range(total_steps):
@@ -332,6 +434,7 @@ def simulate_run(
         command = sim.controller.update(sim.pose, perception)
         if command.mode.value == "track" and track_entry_time_s is None:
             track_entry_time_s = time_s
+        probe_burst_decision = sim.controller.probe_burst_decision
 
         nearest_xy, route_tangent_xy, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
         estimated_cable_xy = perception.estimated_cable_point_xy_m
@@ -360,11 +463,26 @@ def simulate_run(
         probe_active = bool(probe_configured and command.mode.value in {"align", "track"})
         probe_leg_flip_event = 0.0
         probe_magnetic_crossing_event = 0.0
+        probe_completed_leg_route_delta_m = np.nan
+        probe_forward_leg_event = 0.0
+        probe_backward_leg_event = 0.0
+        probe_stall_leg_event = 0.0
+        probe_crossing_forward_leg_event = 0.0
+        probe_crossing_backward_leg_event = 0.0
+        probe_crossing_stall_leg_event = 0.0
+        probe_forward_phase_active = 0.0
+        shadow_forward_zigzag_completed_leg_route_delta_m = np.nan
+        shadow_forward_zigzag_completed_leg_lateral_sweep_m = np.nan
+        shadow_forward_zigzag_completed_leg_feasible_event = 0.0
+        shadow_decoupled_lateral_completed_leg_route_delta_m = np.nan
+        shadow_decoupled_lateral_completed_leg_sweep_m = np.nan
+        shadow_decoupled_lateral_completed_leg_feasible_event = 0.0
         probe_leg_sign = float(sim.controller.leg_sign)
         if probe_active:
             if probe_cycle_start_time_s is None:
                 probe_cycle_start_time_s = time_s
                 probe_last_leg_sign = probe_leg_sign
+                probe_leg_start_route_progress_m = float(truth.progress_m)
                 probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
                 probe_cycle_phase_count = 0
                 if probe_cycle_burial_estimator is not None:
@@ -372,9 +490,51 @@ def simulate_run(
                 probe_cycle_burial_estimate = None
             elif probe_last_leg_sign is not None and probe_leg_sign != probe_last_leg_sign:
                 probe_leg_flip_event = 1.0
+                shadow_forward_zigzag_completed_leg_route_delta_m = (
+                    shadow_forward_zigzag_leg_route_delta_m
+                )
+                shadow_forward_zigzag_completed_leg_lateral_sweep_m = (
+                    shadow_forward_zigzag_leg_lateral_sweep_m
+                )
+                if (
+                    shadow_forward_zigzag_completed_leg_route_delta_m
+                    > scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+                    and shadow_forward_zigzag_completed_leg_lateral_sweep_m
+                    >= scenario.tracking.min_zigzag_half_band_width_m
+                ):
+                    shadow_forward_zigzag_completed_leg_feasible_event = 1.0
+                shadow_forward_zigzag_leg_route_delta_m = 0.0
+                shadow_forward_zigzag_leg_lateral_sweep_m = 0.0
+                shadow_decoupled_lateral_completed_leg_route_delta_m = (
+                    shadow_decoupled_lateral_leg_route_delta_m
+                )
+                shadow_decoupled_lateral_completed_leg_sweep_m = (
+                    shadow_decoupled_lateral_leg_sweep_m
+                )
+                if (
+                    shadow_decoupled_lateral_completed_leg_route_delta_m
+                    > scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+                    and shadow_decoupled_lateral_completed_leg_sweep_m
+                    >= scenario.tracking.min_zigzag_half_band_width_m
+                ):
+                    shadow_decoupled_lateral_completed_leg_feasible_event = 1.0
+                shadow_decoupled_lateral_leg_route_delta_m = 0.0
+                shadow_decoupled_lateral_leg_sweep_m = 0.0
+                if probe_leg_start_route_progress_m is not None:
+                    probe_completed_leg_route_delta_m = (
+                        float(truth.progress_m) - probe_leg_start_route_progress_m
+                    )
+                    progress_eps_m = scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+                    if probe_completed_leg_route_delta_m > progress_eps_m:
+                        probe_forward_leg_event = 1.0
+                    elif probe_completed_leg_route_delta_m < -progress_eps_m:
+                        probe_backward_leg_event = 1.0
+                    else:
+                        probe_stall_leg_event = 1.0
                 probe_last_cycle_duration_s = time_s - probe_cycle_start_time_s
                 probe_cycle_id += 1
                 probe_cycle_start_time_s = time_s
+                probe_leg_start_route_progress_m = float(truth.progress_m)
                 probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
                 probe_cycle_phase_count = 0
                 if probe_cycle_burial_estimator is not None:
@@ -403,6 +563,19 @@ def simulate_run(
                 probe_magnetic_crossing_event = 1.0
             if magnetic_offset_sign != 0:
                 probe_last_magnetic_offset_sign = magnetic_offset_sign
+            probe_leg_route_delta_m = (
+                float(truth.progress_m) - probe_leg_start_route_progress_m
+                if probe_leg_start_route_progress_m is not None
+                else np.nan
+            )
+            if probe_magnetic_crossing_event > 0.5:
+                progress_eps_m = scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+                if probe_leg_route_delta_m > progress_eps_m:
+                    probe_crossing_forward_leg_event = 1.0
+                elif probe_leg_route_delta_m < -progress_eps_m:
+                    probe_crossing_backward_leg_event = 1.0
+                else:
+                    probe_crossing_stall_leg_event = 1.0
             if probe_cycle_burial_estimator is not None and perception.magnetic_path_observation_valid:
                 lateral_for_burial_m = perception.magnetic_cross_track_offset_m
                 if lateral_for_burial_m is not None and np.isfinite(lateral_for_burial_m):
@@ -422,6 +595,150 @@ def simulate_run(
                 probe_cycle_burial_estimator.reset()
             probe_cycle_burial_estimate = None
             probe_last_magnetic_offset_sign = 0
+            probe_leg_start_route_progress_m = None
+            shadow_forward_zigzag_leg_route_delta_m = 0.0
+            shadow_forward_zigzag_leg_lateral_sweep_m = 0.0
+            shadow_decoupled_lateral_leg_route_delta_m = 0.0
+            shadow_decoupled_lateral_leg_sweep_m = 0.0
+        probe_leg_route_delta_m = (
+            float(truth.progress_m) - probe_leg_start_route_progress_m
+            if probe_active and probe_leg_start_route_progress_m is not None
+            else np.nan
+        )
+        shadow_forward_zigzag_valid = 0.0
+        shadow_forward_zigzag_feasible = 0.0
+        shadow_forward_zigzag_heading_deg = np.nan
+        shadow_forward_zigzag_forward_dot = np.nan
+        shadow_forward_zigzag_lateral_dot_abs = np.nan
+        shadow_forward_zigzag_forward_rate_mps = np.nan
+        shadow_forward_zigzag_lateral_rate_mps = np.nan
+        shadow_decoupled_lateral_valid = 0.0
+        shadow_decoupled_lateral_feasible = 0.0
+        shadow_decoupled_lateral_heading_deg = np.nan
+        shadow_decoupled_lateral_forward_dot = np.nan
+        shadow_decoupled_lateral_targeting_dot = np.nan
+        shadow_decoupled_lateral_error_m = np.nan
+        shadow_decoupled_lateral_forward_rate_mps = np.nan
+        shadow_decoupled_lateral_targeting_rate_mps = np.nan
+        if probe_active:
+            half_band_m = 0.5 * max(
+                perception.zigzag_width_m,
+                scenario.tracking.min_zigzag_half_band_width_m,
+            )
+            lateral_target_m = probe_leg_sign * half_band_m
+            lateral_error_m = lateral_target_m - signed_route_cross_track_m
+            lookahead_m = scenario.tracking.magnetic_shadow_decoupled_lateral_lookahead_m
+            shadow_target_xy = (
+                nearest_xy
+                + lookahead_m * route_tangent_xy
+                + lateral_target_m * route_normal_xy
+            )
+            shadow_to_target_xy = shadow_target_xy - sim.pose.position_ned_m[:2]
+            shadow_to_target_norm = float(np.linalg.norm(shadow_to_target_xy))
+            if shadow_to_target_norm > 1e-9:
+                shadow_decoupled_direction_xy = shadow_to_target_xy / shadow_to_target_norm
+                shadow_decoupled_lateral_valid = 1.0
+                shadow_decoupled_lateral_heading_deg = _heading_from_direction_xy(
+                    shadow_decoupled_direction_xy
+                )
+                shadow_decoupled_lateral_forward_dot = float(
+                    np.dot(shadow_decoupled_direction_xy, route_tangent_xy)
+                )
+                lateral_target_sign = 1.0 if lateral_error_m >= 0.0 else -1.0
+                shadow_decoupled_lateral_targeting_dot = (
+                    float(np.dot(shadow_decoupled_direction_xy, route_normal_xy))
+                    * lateral_target_sign
+                )
+                shadow_decoupled_lateral_error_m = float(lateral_error_m)
+                shadow_decoupled_lateral_forward_rate_mps = (
+                    command.speed_mps * shadow_decoupled_lateral_forward_dot
+                )
+                shadow_decoupled_lateral_targeting_rate_mps = (
+                    command.speed_mps * shadow_decoupled_lateral_targeting_dot
+                )
+                if (
+                    shadow_decoupled_lateral_forward_dot
+                    >= scenario.tracking.magnetic_shadow_forward_zigzag_min_forward_dot
+                    and shadow_decoupled_lateral_targeting_dot
+                    >= scenario.tracking.magnetic_shadow_forward_zigzag_min_lateral_dot
+                ):
+                    shadow_decoupled_lateral_feasible = 1.0
+                shadow_decoupled_lateral_leg_route_delta_m += (
+                    max(shadow_decoupled_lateral_forward_rate_mps, 0.0) * scenario.dt_s
+                )
+                shadow_decoupled_lateral_leg_sweep_m += (
+                    max(shadow_decoupled_lateral_targeting_rate_mps, 0.0) * scenario.dt_s
+                )
+            crossing_angle_deg = (
+                scenario.tracking.curve_track_crossing_angle_deg
+                if perception.local_path_tracking_state == "curve_track"
+                else scenario.tracking.track_active_zigzag_angle_deg
+            )
+            if crossing_angle_deg <= 0.0:
+                crossing_angle_deg = max(
+                    scenario.tracking.track_active_zigzag_angle_deg,
+                    scenario.tracking.curve_track_crossing_angle_deg,
+                )
+            if crossing_angle_deg > 0.0:
+                theta_rad = np.deg2rad(crossing_angle_deg)
+                shadow_direction_xy = (
+                    np.cos(theta_rad) * route_tangent_xy
+                    + probe_leg_sign * np.sin(theta_rad) * route_normal_xy
+                )
+                norm = float(np.linalg.norm(shadow_direction_xy))
+                if norm > 1e-9:
+                    shadow_direction_xy = shadow_direction_xy / norm
+                    shadow_forward_zigzag_valid = 1.0
+                    shadow_forward_zigzag_heading_deg = _heading_from_direction_xy(shadow_direction_xy)
+                    shadow_forward_zigzag_forward_dot = float(np.dot(shadow_direction_xy, route_tangent_xy))
+                    shadow_forward_zigzag_lateral_dot_abs = abs(float(np.dot(shadow_direction_xy, route_normal_xy)))
+                    shadow_forward_zigzag_forward_rate_mps = (
+                        command.speed_mps * shadow_forward_zigzag_forward_dot
+                    )
+                    shadow_forward_zigzag_lateral_rate_mps = (
+                        command.speed_mps * shadow_forward_zigzag_lateral_dot_abs
+                    )
+                    if (
+                        shadow_forward_zigzag_forward_dot
+                        >= scenario.tracking.magnetic_shadow_forward_zigzag_min_forward_dot
+                        and shadow_forward_zigzag_lateral_dot_abs
+                        >= scenario.tracking.magnetic_shadow_forward_zigzag_min_lateral_dot
+                    ):
+                        shadow_forward_zigzag_feasible = 1.0
+                    shadow_forward_zigzag_leg_route_delta_m += (
+                        max(shadow_forward_zigzag_forward_rate_mps, 0.0) * scenario.dt_s
+                    )
+                    shadow_forward_zigzag_leg_lateral_sweep_m += (
+                        shadow_forward_zigzag_lateral_rate_mps * scenario.dt_s
+                    )
+        if (
+            probe_active
+            and np.isfinite(probe_leg_route_delta_m)
+            and probe_leg_route_delta_m > scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+        ):
+            probe_forward_phase_active = 1.0
+        probe_forward_phase_crossing_event = (
+            1.0 if probe_forward_phase_active > 0.5 and probe_magnetic_crossing_event > 0.5 else 0.0
+        )
+        probe_forward_phase_magnetic_path_valid = (
+            1.0
+            if probe_forward_phase_active > 0.5 and perception.magnetic_path_observation_valid
+            else 0.0
+        )
+        probe_forward_phase_magnetic_phase_valid = (
+            1.0
+            if probe_forward_phase_active > 0.5 and perception.magnetic_phase_observation_valid
+            else 0.0
+        )
+        probe_forward_phase_lookahead_valid = (
+            1.0 if probe_forward_phase_active > 0.5 and perception.magnetic_lookahead_valid else 0.0
+        )
+        probe_forward_phase_candidate_valid = (
+            1.0
+            if probe_forward_phase_active > 0.5
+            and perception.shadow_axis_progress_aligned_candidate_valid
+            else 0.0
+        )
         probe_cycle_age_s = (
             time_s - probe_cycle_start_time_s
             if probe_active and probe_cycle_start_time_s is not None
@@ -569,6 +886,8 @@ def simulate_run(
             shadow_axis_selected_sign=perception.shadow_axis_selected_sign,
             shadow_axis_selected_score=perception.shadow_axis_selected_score,
             shadow_axis_score_margin=perception.shadow_axis_score_margin,
+            shadow_axis_positive_score=perception.shadow_axis_positive_score,
+            shadow_axis_negative_score=perception.shadow_axis_negative_score,
             shadow_axis_target_x_m=(
                 np.nan if perception.shadow_axis_target_xy_m is None else perception.shadow_axis_target_xy_m[0]
             ),
@@ -585,12 +904,150 @@ def simulate_run(
             shadow_axis_dual_gate_enabled=1.0 if perception.shadow_axis_dual_gate_enabled else 0.0,
             shadow_axis_dual_gate_passed=1.0 if perception.shadow_axis_dual_gate_passed else 0.0,
             shadow_axis_dual_gate_reason_code=perception.shadow_axis_dual_gate_reason_code,
+            shadow_axis_progress_alignment_enabled=(
+                1.0 if perception.shadow_axis_progress_alignment_enabled else 0.0
+            ),
+            shadow_axis_progress_alignment_passed=(
+                1.0 if perception.shadow_axis_progress_alignment_passed else 0.0
+            ),
+            shadow_axis_progress_alignment_reason_code=perception.shadow_axis_progress_alignment_reason_code,
+            shadow_axis_progress_alignment_dot=perception.shadow_axis_progress_alignment_dot,
+            shadow_axis_progress_alignment_reference_age_s=(
+                perception.shadow_axis_progress_alignment_reference_age_s
+            ),
+            shadow_axis_progress_aligned_dual_gate_passed=(
+                1.0 if perception.shadow_axis_progress_aligned_dual_gate_passed else 0.0
+            ),
+            shadow_axis_progress_aligned_dual_gate_reason_code=(
+                perception.shadow_axis_progress_aligned_dual_gate_reason_code
+            ),
+            shadow_axis_progress_aligned_candidate_valid=(
+                1.0 if perception.shadow_axis_progress_aligned_candidate_valid else 0.0
+            ),
+            shadow_axis_progress_aligned_candidate_reason_code=(
+                perception.shadow_axis_progress_aligned_candidate_reason_code
+            ),
+            shadow_axis_progress_aligned_candidate_sign=perception.shadow_axis_progress_aligned_candidate_sign,
+            shadow_axis_progress_aligned_candidate_score=perception.shadow_axis_progress_aligned_candidate_score,
+            shadow_axis_progress_aligned_candidate_task_score=(
+                perception.shadow_axis_progress_aligned_candidate_task_score
+            ),
+            shadow_axis_progress_aligned_candidate_combined_score=(
+                perception.shadow_axis_progress_aligned_candidate_combined_score
+            ),
+            shadow_axis_progress_aligned_candidate_margin=perception.shadow_axis_progress_aligned_candidate_margin,
+            shadow_axis_progress_aligned_candidate_dot=perception.shadow_axis_progress_aligned_candidate_dot,
+            shadow_axis_progress_aligned_candidate_count=(
+                float(perception.shadow_axis_progress_aligned_candidate_count)
+            ),
+            shadow_axis_progress_proxy_valid=1.0 if perception.shadow_axis_progress_proxy_valid else 0.0,
+            shadow_axis_progress_proxy_source_code=perception.shadow_axis_progress_proxy_source_code,
+            shadow_axis_progress_proxy_age_s=perception.shadow_axis_progress_proxy_age_s,
+            shadow_axis_progress_proxy_confidence=perception.shadow_axis_progress_proxy_confidence,
+            shadow_axis_progress_proxy_heading_deg=(
+                np.nan
+                if perception.shadow_axis_progress_proxy_heading_deg is None
+                else perception.shadow_axis_progress_proxy_heading_deg
+            ),
+            shadow_axis_route_bound_proxy_valid=(
+                1.0 if perception.shadow_axis_route_bound_proxy_valid else 0.0
+            ),
+            shadow_axis_route_bound_proxy_source_code=perception.shadow_axis_route_bound_proxy_source_code,
+            shadow_axis_route_bound_proxy_progress_m=perception.shadow_axis_route_bound_proxy_progress_m,
+            shadow_axis_route_bound_proxy_distance_m=perception.shadow_axis_route_bound_proxy_distance_m,
+            shadow_axis_route_bound_proxy_heading_deg=(
+                np.nan
+                if perception.shadow_axis_route_bound_proxy_heading_deg is None
+                else perception.shadow_axis_route_bound_proxy_heading_deg
+            ),
+            shadow_axis_route_bound_candidate_dot=perception.shadow_axis_route_bound_candidate_dot,
             zigzag_probe_active=1.0 if probe_active else 0.0,
             zigzag_probe_cycle_id=float(probe_cycle_id) if probe_active else np.nan,
             zigzag_probe_leg_sign=probe_leg_sign if probe_active else np.nan,
             zigzag_probe_cycle_age_s=probe_cycle_age_s,
             zigzag_probe_leg_flip_event=probe_leg_flip_event,
             zigzag_probe_magnetic_crossing_event=probe_magnetic_crossing_event,
+            zigzag_probe_leg_route_delta_m=probe_leg_route_delta_m,
+            zigzag_probe_completed_leg_route_delta_m=probe_completed_leg_route_delta_m,
+            zigzag_probe_forward_leg_event=probe_forward_leg_event,
+            zigzag_probe_backward_leg_event=probe_backward_leg_event,
+            zigzag_probe_stall_leg_event=probe_stall_leg_event,
+            zigzag_probe_magnetic_crossing_forward_leg_event=probe_crossing_forward_leg_event,
+            zigzag_probe_magnetic_crossing_backward_leg_event=probe_crossing_backward_leg_event,
+            zigzag_probe_magnetic_crossing_stall_leg_event=probe_crossing_stall_leg_event,
+            zigzag_probe_forward_phase_active=probe_forward_phase_active,
+            zigzag_probe_forward_phase_magnetic_crossing_event=probe_forward_phase_crossing_event,
+            zigzag_probe_forward_phase_magnetic_path_valid=probe_forward_phase_magnetic_path_valid,
+            zigzag_probe_forward_phase_magnetic_phase_valid=probe_forward_phase_magnetic_phase_valid,
+            zigzag_probe_forward_phase_lookahead_valid=probe_forward_phase_lookahead_valid,
+            zigzag_probe_forward_phase_candidate_valid=probe_forward_phase_candidate_valid,
+            shadow_forward_zigzag_valid=shadow_forward_zigzag_valid,
+            shadow_forward_zigzag_feasible=shadow_forward_zigzag_feasible,
+            shadow_forward_zigzag_heading_deg=shadow_forward_zigzag_heading_deg,
+            shadow_forward_zigzag_forward_dot=shadow_forward_zigzag_forward_dot,
+            shadow_forward_zigzag_lateral_dot_abs=shadow_forward_zigzag_lateral_dot_abs,
+            shadow_forward_zigzag_forward_rate_mps=shadow_forward_zigzag_forward_rate_mps,
+            shadow_forward_zigzag_lateral_rate_mps=shadow_forward_zigzag_lateral_rate_mps,
+            shadow_forward_zigzag_completed_leg_route_delta_m=(
+                shadow_forward_zigzag_completed_leg_route_delta_m
+            ),
+            shadow_forward_zigzag_completed_leg_lateral_sweep_m=(
+                shadow_forward_zigzag_completed_leg_lateral_sweep_m
+            ),
+            shadow_forward_zigzag_completed_leg_feasible_event=(
+                shadow_forward_zigzag_completed_leg_feasible_event
+            ),
+            shadow_decoupled_lateral_valid=shadow_decoupled_lateral_valid,
+            shadow_decoupled_lateral_feasible=shadow_decoupled_lateral_feasible,
+            shadow_decoupled_lateral_heading_deg=shadow_decoupled_lateral_heading_deg,
+            shadow_decoupled_lateral_forward_dot=shadow_decoupled_lateral_forward_dot,
+            shadow_decoupled_lateral_targeting_dot=shadow_decoupled_lateral_targeting_dot,
+            shadow_decoupled_lateral_error_m=shadow_decoupled_lateral_error_m,
+            shadow_decoupled_lateral_forward_rate_mps=shadow_decoupled_lateral_forward_rate_mps,
+            shadow_decoupled_lateral_targeting_rate_mps=shadow_decoupled_lateral_targeting_rate_mps,
+            shadow_decoupled_lateral_completed_leg_route_delta_m=(
+                shadow_decoupled_lateral_completed_leg_route_delta_m
+            ),
+            shadow_decoupled_lateral_completed_leg_sweep_m=(
+                shadow_decoupled_lateral_completed_leg_sweep_m
+            ),
+            shadow_decoupled_lateral_completed_leg_feasible_event=(
+                shadow_decoupled_lateral_completed_leg_feasible_event
+            ),
+            probe_burst_manager_state_code=(
+                np.nan
+                if probe_burst_decision is None
+                else _PROBE_BURST_STATE_CODES.get(probe_burst_decision.state.value, np.nan)
+            ),
+            probe_burst_manager_burst_active=(
+                1.0 if probe_burst_decision is not None and probe_burst_decision.burst_active else 0.0
+            ),
+            probe_burst_manager_recovery_active=(
+                1.0 if probe_burst_decision is not None and probe_burst_decision.recovery_active else 0.0
+            ),
+            probe_burst_manager_reason_code=(
+                np.nan
+                if probe_burst_decision is None
+                else _PROBE_BURST_REASON_CODES.get(probe_burst_decision.reason, np.nan)
+            ),
+            probe_burst_manager_state_elapsed_s=(
+                np.nan if probe_burst_decision is None else probe_burst_decision.state_elapsed_s
+            ),
+            probe_burst_manager_route_delta_m=(
+                np.nan if probe_burst_decision is None else probe_burst_decision.route_delta_in_state_m
+            ),
+            probe_burst_manager_evidence_count=(
+                np.nan if probe_burst_decision is None else float(probe_burst_decision.evidence_count_in_state)
+            ),
+            probe_burst_manager_control_allowed=(
+                1.0 if probe_burst_decision is not None and probe_burst_decision.control_allowed else 0.0
+            ),
+            probe_burst_manager_reacquire_safe_control_allowed=(
+                1.0 if sim.controller.probe_burst_reacquire_safe_control_allowed else 0.0
+            ),
+            probe_burst_manager_entry_abs_cross_track_m=(
+                np.nan if probe_burst_decision is None else probe_burst_decision.entry_abs_cross_track_m
+            ),
             magnetic_crossing_probe_wait_s=perception.magnetic_crossing_probe_wait_s,
             magnetic_crossing_probe_missed_count=float(perception.magnetic_crossing_probe_missed_count),
             magnetic_crossing_probe_forced_flip=(
@@ -666,6 +1123,10 @@ def simulate_run(
             "route_completion_ratio": final_progress_m / max(float(route_length_m), 1e-9),
             "endpoint_goal_enabled": float(scenario.stop_at_cable_endpoint),
             "endpoint_completed": float(endpoint_completed),
+            "zigzag_lateral_sweep_min_m": float(scenario.tracking.min_zigzag_half_band_width_m),
+            "shadow_probe_forward_delta_min_m": float(
+                scenario.tracking.magnetic_shadow_probe_forward_delta_min_m
+            ),
             "stop_reason": "endpoint" if endpoint_completed else "duration",
         }
     )

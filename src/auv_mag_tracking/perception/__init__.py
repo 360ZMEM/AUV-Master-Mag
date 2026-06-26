@@ -19,13 +19,13 @@ from .filters import (
     StreamingBandpassFilter,
 )
 from .fitter import WeightedSlidingWindowFitter
+from .hypotheses import MagneticLookaheadHypothesis, MagneticShadowHypothesisSelection, ZigzagProbeCycleSummary
 from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
 from .magnetic_path import (
     MagneticLookaheadTarget,
     MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
     MagneticPathObservationBuilder,
-    MagneticShadowHypothesisSelection,
     MagneticShadowHypothesisSelector,
     MagneticZigzagPhaseDetector,
     MagneticZigzagPhaseObservation,
@@ -60,6 +60,7 @@ __all__ = [
     "MagneticBurialInverter",
     "MagneticBurialCycleEstimator",
     "MagneticCablePerception",
+    "MagneticLookaheadHypothesis",
     "MagneticLookaheadTarget",
     "MagneticLookaheadTargetBuilder",
     "MagneticShadowHypothesisSelection",
@@ -79,4 +80,5 @@ __all__ = [
     "StreamingBandpassFilter",
     "StreamingVectorPCAFitter",
     "WeightedSlidingWindowFitter",
+    "ZigzagProbeCycleSummary",
 ]
