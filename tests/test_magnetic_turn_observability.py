@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -15,6 +16,7 @@ from auv_mag_tracking.environment import CableEnvironment
 from auv_mag_tracking.math_utils import smallest_angle_error_deg
 from auv_mag_tracking.perception import (
     LocalCableStateEstimator,
+    MagneticCablePerception,
     MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
     MagneticPathObservationBuilder,
@@ -315,6 +317,53 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         assert selected is not None
         self.assertLess(selected.selected_sign, 0.0)
         self.assertAlmostEqual(abs(selected.heading_deg), 180.0)
+
+    def test_shadow_axis_validation_reports_pass_and_reject_reasons(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_hypothesis_enabled = True
+        scenario.tracking.magnetic_shadow_validation_min_score = 0.70
+        scenario.tracking.magnetic_shadow_validation_min_margin = 0.25
+        scenario.tracking.magnetic_shadow_validation_max_age_s = 10.0
+        perception = MagneticCablePerception(scenario)
+
+        no_hypothesis = perception._shadow_axis_validation_diagnostics(None)
+        self.assertEqual(no_hypothesis["reason_code"], 2.0)
+
+        low_score = perception._shadow_axis_validation_diagnostics(SimpleNamespace(
+            candidate_count=2,
+            selected_score=0.60,
+            score_margin=0.50,
+            age_s=1.0,
+        ))
+        self.assertEqual(low_score["reason_code"], 4.0)
+        self.assertAlmostEqual(low_score["score_deficit"], 0.10)
+
+        low_margin = perception._shadow_axis_validation_diagnostics(SimpleNamespace(
+            candidate_count=2,
+            selected_score=0.80,
+            score_margin=0.10,
+            age_s=1.0,
+        ))
+        self.assertEqual(low_margin["reason_code"], 5.0)
+        self.assertAlmostEqual(low_margin["margin_deficit"], 0.15)
+
+        stale = perception._shadow_axis_validation_diagnostics(SimpleNamespace(
+            candidate_count=2,
+            selected_score=0.80,
+            score_margin=0.50,
+            age_s=12.0,
+        ))
+        self.assertEqual(stale["reason_code"], 6.0)
+        self.assertAlmostEqual(stale["age_over_s"], 2.0)
+
+        passed = perception._shadow_axis_validation_diagnostics(SimpleNamespace(
+            candidate_count=2,
+            selected_score=0.80,
+            score_margin=0.50,
+            age_s=1.0,
+        ))
+        self.assertEqual(passed["reason_code"], 1.0)
+        self.assertEqual(passed["passed"], 1.0)
 
 
 if __name__ == "__main__":

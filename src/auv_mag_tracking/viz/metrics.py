@@ -104,6 +104,15 @@ class HealthMetrics:
     shadow_axis_mean_margin: float = float("nan")
     shadow_axis_positive_fraction: float = 0.0
     shadow_axis_mean_age_s: float = float("nan")
+    shadow_axis_validation_pass_fraction: float = 0.0
+    shadow_axis_validation_reject_no_hypothesis_fraction: float = 0.0
+    shadow_axis_validation_reject_insufficient_candidates_fraction: float = 0.0
+    shadow_axis_validation_reject_low_score_fraction: float = 0.0
+    shadow_axis_validation_reject_low_margin_fraction: float = 0.0
+    shadow_axis_validation_reject_stale_age_fraction: float = 0.0
+    shadow_axis_validation_mean_score_deficit: float = float("nan")
+    shadow_axis_validation_mean_margin_deficit: float = float("nan")
+    shadow_axis_validation_mean_age_over_s: float = float("nan")
     zigzag_probe_active_fraction: float = 0.0
     zigzag_probe_cycle_count: int = 0
     zigzag_probe_leg_flip_count: int = 0
@@ -452,6 +461,36 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     shadow_axis_ages = record["shadow_axis_age_s"][shadow_axis_valid]
     shadow_axis_ages = shadow_axis_ages[np.isfinite(shadow_axis_ages)]
     shadow_axis_mean_age = float(np.mean(shadow_axis_ages)) if shadow_axis_ages.size else float("nan")
+    shadow_axis_validation_codes = record["shadow_axis_validation_reason_code"]
+    validation_active = shadow_axis_validation_codes > 0.5
+    validation_denominator = max(int(np.sum(validation_active)), 1)
+    shadow_axis_validation_pass_fraction = float(
+        np.sum(shadow_axis_validation_codes == 1.0) / validation_denominator
+    )
+    shadow_axis_validation_reject_no_hypothesis_fraction = float(
+        np.sum(shadow_axis_validation_codes == 2.0) / validation_denominator
+    )
+    shadow_axis_validation_reject_insufficient_candidates_fraction = float(
+        np.sum(shadow_axis_validation_codes == 3.0) / validation_denominator
+    )
+    shadow_axis_validation_reject_low_score_fraction = float(
+        np.sum(shadow_axis_validation_codes == 4.0) / validation_denominator
+    )
+    shadow_axis_validation_reject_low_margin_fraction = float(
+        np.sum(shadow_axis_validation_codes == 5.0) / validation_denominator
+    )
+    shadow_axis_validation_reject_stale_age_fraction = float(
+        np.sum(shadow_axis_validation_codes == 6.0) / validation_denominator
+    )
+
+    def _finite_mean_for_validation(name: str) -> float:
+        values = record[name][validation_active]
+        values = values[np.isfinite(values)]
+        return float(np.mean(values)) if values.size else float("nan")
+
+    shadow_axis_validation_mean_score_deficit = _finite_mean_for_validation("shadow_axis_validation_score_deficit")
+    shadow_axis_validation_mean_margin_deficit = _finite_mean_for_validation("shadow_axis_validation_margin_deficit")
+    shadow_axis_validation_mean_age_over = _finite_mean_for_validation("shadow_axis_validation_age_over_s")
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -521,6 +560,17 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_mean_margin=shadow_axis_mean_margin,
         shadow_axis_positive_fraction=shadow_axis_positive_fraction,
         shadow_axis_mean_age_s=shadow_axis_mean_age,
+        shadow_axis_validation_pass_fraction=shadow_axis_validation_pass_fraction,
+        shadow_axis_validation_reject_no_hypothesis_fraction=shadow_axis_validation_reject_no_hypothesis_fraction,
+        shadow_axis_validation_reject_insufficient_candidates_fraction=(
+            shadow_axis_validation_reject_insufficient_candidates_fraction
+        ),
+        shadow_axis_validation_reject_low_score_fraction=shadow_axis_validation_reject_low_score_fraction,
+        shadow_axis_validation_reject_low_margin_fraction=shadow_axis_validation_reject_low_margin_fraction,
+        shadow_axis_validation_reject_stale_age_fraction=shadow_axis_validation_reject_stale_age_fraction,
+        shadow_axis_validation_mean_score_deficit=shadow_axis_validation_mean_score_deficit,
+        shadow_axis_validation_mean_margin_deficit=shadow_axis_validation_mean_margin_deficit,
+        shadow_axis_validation_mean_age_over_s=shadow_axis_validation_mean_age_over,
         zigzag_probe_active_fraction=zigzag_probe_active_fraction,
         zigzag_probe_cycle_count=zigzag_probe_cycle_count,
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,

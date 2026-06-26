@@ -588,6 +588,7 @@ class MagneticCablePerception:
         magnetic_phase_observation = None
         magnetic_lookahead_target = None
         magnetic_shadow_hypothesis_selection = None
+        shadow_axis_validation_diag = self._shadow_axis_validation_diagnostics(None)
         magnetic_lookahead_feed_diag = self._magnetic_lookahead_feed_diagnostics(
             None,
             reading.time_s,
@@ -716,6 +717,9 @@ class MagneticCablePerception:
                 vehicle_heading_deg=pose_measurement.heading_deg,
                 time_s=reading.time_s,
                 phase_observation=magnetic_phase_observation,
+            )
+            shadow_axis_validation_diag = self._shadow_axis_validation_diagnostics(
+                magnetic_shadow_hypothesis_selection
             )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
@@ -1156,6 +1160,11 @@ class MagneticCablePerception:
             shadow_axis_age_s=(
                 float("inf") if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.age_s
             ),
+            shadow_axis_validation_passed=shadow_axis_validation_diag["passed"] > 0.5,
+            shadow_axis_validation_reason_code=shadow_axis_validation_diag["reason_code"],
+            shadow_axis_validation_score_deficit=shadow_axis_validation_diag["score_deficit"],
+            shadow_axis_validation_margin_deficit=shadow_axis_validation_diag["margin_deficit"],
+            shadow_axis_validation_age_over_s=shadow_axis_validation_diag["age_over_s"],
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,
@@ -1213,6 +1222,54 @@ class MagneticCablePerception:
         )
         self.last_magnetic_lookahead_feed_heading_deg = smoothed_heading_deg
         return smoothed_heading_deg
+
+    def _shadow_axis_validation_diagnostics(self, shadow_axis_selection) -> dict:
+        """Diagnose the D3 shadow selector gate without changing control state.
+
+        Reason code:
+        0 none/disabled, 1 passed, 2 no hypothesis, 3 insufficient candidates,
+        4 low score, 5 low margin, 6 stale age.
+        """
+        diagnostics = {
+            "passed": 0.0,
+            "reason_code": 0.0,
+            "score_deficit": 0.0,
+            "margin_deficit": 0.0,
+            "age_over_s": 0.0,
+        }
+        if not self.scenario.tracking.magnetic_shadow_hypothesis_enabled:
+            return diagnostics
+        if shadow_axis_selection is None:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if shadow_axis_selection.candidate_count < 2:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
+
+        min_score = self.scenario.tracking.magnetic_shadow_validation_min_score
+        score_deficit = max(0.0, min_score - shadow_axis_selection.selected_score)
+        diagnostics["score_deficit"] = score_deficit
+        if score_deficit > 0.0:
+            diagnostics["reason_code"] = 4.0
+            return diagnostics
+
+        min_margin = self.scenario.tracking.magnetic_shadow_validation_min_margin
+        margin_deficit = max(0.0, min_margin - shadow_axis_selection.score_margin)
+        diagnostics["margin_deficit"] = margin_deficit
+        if margin_deficit > 0.0:
+            diagnostics["reason_code"] = 5.0
+            return diagnostics
+
+        max_age_s = self.scenario.tracking.magnetic_shadow_validation_max_age_s
+        age_over_s = max(0.0, shadow_axis_selection.age_s - max_age_s)
+        diagnostics["age_over_s"] = age_over_s
+        if age_over_s > 0.0:
+            diagnostics["reason_code"] = 6.0
+            return diagnostics
+
+        diagnostics["passed"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        return diagnostics
 
     def _magnetic_lookahead_feed_diagnostics(
         self,

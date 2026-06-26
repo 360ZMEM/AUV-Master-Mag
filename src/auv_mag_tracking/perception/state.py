@@ -166,6 +166,11 @@ class PerceptionState:
     shadow_axis_target_xy_m: Optional[np.ndarray] = None
     shadow_axis_heading_deg: Optional[float] = None
     shadow_axis_age_s: float = float("inf")
+    shadow_axis_validation_passed: bool = False
+    shadow_axis_validation_reason_code: float = 0.0
+    shadow_axis_validation_score_deficit: float = 0.0
+    shadow_axis_validation_margin_deficit: float = 0.0
+    shadow_axis_validation_age_over_s: float = 0.0
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

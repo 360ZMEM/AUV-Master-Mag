@@ -272,6 +272,9 @@ class TrackingConfig:
         local_path_min_observation_spacing_m: 局部路径观测进入滑窗的最小空间间隔。
         magnetic_shadow_hypothesis_enabled: 是否启用旁路 +/- axis shadow hypothesis selector。
         magnetic_shadow_hypothesis_min_progress_m: selector 认为短窗推进有方向证据所需的最小位移。
+        magnetic_shadow_validation_min_score: D3 影子验证通过所需的最低 selector score。
+        magnetic_shadow_validation_min_margin: D3 影子验证通过所需的最低正反候选分差。
+        magnetic_shadow_validation_max_age_s: D3 影子验证允许的最大 selector age。
         consecutive_miss_threshold: 连续漏检后触发退化策略的次数阈值。
         spiral_radius_growth_mps: 螺旋搜索半径增长速度。
         spiral_max_radius_m: 螺旋搜索最大半径。
@@ -424,6 +427,9 @@ class TrackingConfig:
     magnetic_lookahead_feed_heading_max_step_deg: float = 12.0
     magnetic_shadow_hypothesis_enabled: bool = False
     magnetic_shadow_hypothesis_min_progress_m: float = 3.0
+    magnetic_shadow_validation_min_score: float = 0.70
+    magnetic_shadow_validation_min_margin: float = 0.25
+    magnetic_shadow_validation_max_age_s: float = 30.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
