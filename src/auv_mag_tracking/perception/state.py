@@ -157,6 +157,15 @@ class PerceptionState:
     magnetic_lookahead_feed_innovation_m: float = float("nan")
     magnetic_lookahead_feed_axis_delta_deg: float = float("nan")
     magnetic_lookahead_feed_local_residual_m: float = float("nan")
+    # --- D2 shadow +/- axis hypothesis selector diagnostics ---
+    shadow_axis_hypothesis_valid: bool = False
+    shadow_axis_hypothesis_count: int = 0
+    shadow_axis_selected_sign: float = 0.0
+    shadow_axis_selected_score: float = 0.0
+    shadow_axis_score_margin: float = 0.0
+    shadow_axis_target_xy_m: Optional[np.ndarray] = None
+    shadow_axis_heading_deg: Optional[float] = None
+    shadow_axis_age_s: float = float("inf")
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

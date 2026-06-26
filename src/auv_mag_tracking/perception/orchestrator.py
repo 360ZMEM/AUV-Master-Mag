@@ -30,6 +30,7 @@ from .local_path import LocalCableStateEstimator, LocalPathTrackingState
 from .magnetic_path import (
     MagneticLookaheadTargetBuilder,
     MagneticPathObservationBuilder,
+    MagneticShadowHypothesisSelector,
     MagneticZigzagPhaseDetector,
 )
 from .peaks import PeakDetector
@@ -158,6 +159,15 @@ class MagneticCablePerception:
                 axis_score_decay=scenario.tracking.magnetic_lookahead_axis_score_decay,
             )
             if scenario.tracking.magnetic_lookahead_enabled
+            else None
+        )
+        self.magnetic_shadow_hypothesis_selector = (
+            MagneticShadowHypothesisSelector(
+                max_age_s=scenario.tracking.magnetic_lookahead_max_age_s,
+                lookahead_distance_m=scenario.tracking.magnetic_lookahead_distance_m,
+                min_progress_m=scenario.tracking.magnetic_shadow_hypothesis_min_progress_m,
+            )
+            if scenario.tracking.magnetic_shadow_hypothesis_enabled
             else None
         )
         self.last_magnetic_lookahead_feed_heading_deg: Optional[float] = None
@@ -577,6 +587,7 @@ class MagneticCablePerception:
         magnetic_path_observation = None
         magnetic_phase_observation = None
         magnetic_lookahead_target = None
+        magnetic_shadow_hypothesis_selection = None
         magnetic_lookahead_feed_diag = self._magnetic_lookahead_feed_diagnostics(
             None,
             reading.time_s,
@@ -699,6 +710,13 @@ class MagneticCablePerception:
                     confidence=extrapolated_confidence,
                     heading_deg=feed_heading_deg,
                 )
+        if self.magnetic_shadow_hypothesis_selector is not None:
+            magnetic_shadow_hypothesis_selection = self.magnetic_shadow_hypothesis_selector.update(
+                vehicle_position_xy_m=np.asarray(vehicle_position_xy_m, dtype=float),
+                vehicle_heading_deg=pose_measurement.heading_deg,
+                time_s=reading.time_s,
+                phase_observation=magnetic_phase_observation,
+            )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
@@ -1116,6 +1134,28 @@ class MagneticCablePerception:
             magnetic_lookahead_feed_innovation_m=magnetic_lookahead_feed_diag["innovation_m"],
             magnetic_lookahead_feed_axis_delta_deg=magnetic_lookahead_feed_diag["axis_delta_deg"],
             magnetic_lookahead_feed_local_residual_m=magnetic_lookahead_feed_diag["local_residual_m"],
+            shadow_axis_hypothesis_valid=magnetic_shadow_hypothesis_selection is not None,
+            shadow_axis_hypothesis_count=(
+                0 if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.candidate_count
+            ),
+            shadow_axis_selected_sign=(
+                0.0 if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.selected_sign
+            ),
+            shadow_axis_selected_score=(
+                0.0 if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.selected_score
+            ),
+            shadow_axis_score_margin=(
+                0.0 if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.score_margin
+            ),
+            shadow_axis_target_xy_m=(
+                None if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.target_xy_m.copy()
+            ),
+            shadow_axis_heading_deg=(
+                None if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.heading_deg
+            ),
+            shadow_axis_age_s=(
+                float("inf") if magnetic_shadow_hypothesis_selection is None else magnetic_shadow_hypothesis_selection.age_s
+            ),
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,

@@ -157,6 +157,8 @@ class ProgressComparisonTest(unittest.TestCase):
         self.assertIn("zigzag_probe_cycle_burial_depth_m", record.channels)
         self.assertIn("shadow_hypothesis_readiness_score", record.channels)
         self.assertIn("shadow_hypothesis_bottleneck_code", record.channels)
+        self.assertIn("shadow_axis_hypothesis_valid", record.channels)
+        self.assertIn("shadow_axis_score_margin", record.channels)
         self.assertGreater(np.count_nonzero(record["zigzag_probe_active"] > 0.5), 0)
         self.assertGreater(np.count_nonzero(np.isfinite(record["zigzag_probe_cycle_age_s"])), 0)
 

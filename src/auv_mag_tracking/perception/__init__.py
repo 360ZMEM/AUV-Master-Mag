@@ -25,6 +25,8 @@ from .magnetic_path import (
     MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
     MagneticPathObservationBuilder,
+    MagneticShadowHypothesisSelection,
+    MagneticShadowHypothesisSelector,
     MagneticZigzagPhaseDetector,
     MagneticZigzagPhaseObservation,
 )
@@ -60,6 +62,8 @@ __all__ = [
     "MagneticCablePerception",
     "MagneticLookaheadTarget",
     "MagneticLookaheadTargetBuilder",
+    "MagneticShadowHypothesisSelection",
+    "MagneticShadowHypothesisSelector",
     "MagneticZigzagPhaseDetector",
     "MagneticZigzagPhaseObservation",
     "MagneticVectorAnalyzer",

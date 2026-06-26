@@ -17,9 +17,10 @@ from auv_mag_tracking.perception import (
     LocalCableStateEstimator,
     MagneticLookaheadTargetBuilder,
     MagneticPathObservation,
-    MagneticZigzagPhaseObservation,
     MagneticPathObservationBuilder,
+    MagneticShadowHypothesisSelector,
     MagneticZigzagPhaseDetector,
+    MagneticZigzagPhaseObservation,
 )
 
 
@@ -254,6 +255,66 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertIsNotNone(target)
         assert target is not None
         self.assertAlmostEqual(target.heading_deg, 0.0, delta=1e-6)
+
+    def test_shadow_hypothesis_selector_keeps_both_axes_and_selects_progress(self) -> None:
+        selector = MagneticShadowHypothesisSelector(
+            max_age_s=10.0,
+            lookahead_distance_m=5.0,
+            min_progress_m=2.0,
+        )
+        phase_observation = MagneticZigzagPhaseObservation(
+            observation=MagneticPathObservation(
+                position_xy_m=np.array([0.0, 0.0], dtype=float),
+                heading_deg=0.0,
+                cross_track_offset_m=0.0,
+                confidence=0.8,
+            ),
+            amplitude_m=2.0,
+            duration_s=4.0,
+        )
+
+        selected = selector.update(
+            vehicle_position_xy_m=np.array([3.0, 0.0], dtype=float),
+            vehicle_heading_deg=0.0,
+            time_s=0.0,
+            phase_observation=phase_observation,
+        )
+
+        self.assertIsNotNone(selected)
+        assert selected is not None
+        self.assertEqual(selected.candidate_count, 2)
+        self.assertGreater(selected.selected_sign, 0.0)
+        self.assertGreater(selected.score_margin, 0.1)
+        np.testing.assert_allclose(selected.target_xy_m, np.array([8.0, 0.0]), atol=1e-6)
+
+    def test_shadow_hypothesis_selector_can_choose_negative_axis(self) -> None:
+        selector = MagneticShadowHypothesisSelector(
+            max_age_s=10.0,
+            lookahead_distance_m=5.0,
+            min_progress_m=2.0,
+        )
+        phase_observation = MagneticZigzagPhaseObservation(
+            observation=MagneticPathObservation(
+                position_xy_m=np.array([0.0, 0.0], dtype=float),
+                heading_deg=0.0,
+                cross_track_offset_m=0.0,
+                confidence=0.8,
+            ),
+            amplitude_m=2.0,
+            duration_s=4.0,
+        )
+
+        selected = selector.update(
+            vehicle_position_xy_m=np.array([-3.0, 0.0], dtype=float),
+            vehicle_heading_deg=180.0,
+            time_s=0.0,
+            phase_observation=phase_observation,
+        )
+
+        self.assertIsNotNone(selected)
+        assert selected is not None
+        self.assertLess(selected.selected_sign, 0.0)
+        self.assertAlmostEqual(abs(selected.heading_deg), 180.0)
 
 
 if __name__ == "__main__":

@@ -45,6 +45,19 @@ class MagneticLookaheadTarget:
     age_s: float
 
 
+@dataclass(frozen=True)
+class MagneticShadowHypothesisSelection:
+    """Shadow-only +/- axis selection from a phase anchor."""
+
+    candidate_count: int
+    selected_sign: float
+    selected_score: float
+    score_margin: float
+    target_xy_m: np.ndarray
+    heading_deg: float
+    age_s: float
+
+
 class MagneticPathObservationBuilder:
     """Build local cable observations from magnetic anomaly history.
 
@@ -390,3 +403,105 @@ class MagneticLookaheadTargetBuilder:
     def _direction_from_heading(heading_deg: float) -> np.ndarray:
         heading_rad = np.deg2rad(heading_deg)
         return unit(np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float))
+
+
+class MagneticShadowHypothesisSelector:
+    """Keep +/- cable-axis hypotheses as a diagnostic side channel.
+
+    The selector deliberately does not feed local path or controller state. It
+    scores both axis directions against short-window vehicle progress and current
+    heading, then reports the better candidate and margin.
+    """
+
+    def __init__(
+        self,
+        max_age_s: float = 60.0,
+        lookahead_distance_m: float = 20.0,
+        min_progress_m: float = 3.0,
+    ) -> None:
+        self.max_age_s = max(1.0, float(max_age_s))
+        self.lookahead_distance_m = max(0.0, float(lookahead_distance_m))
+        self.min_progress_m = max(0.1, float(min_progress_m))
+        self._anchor_xy_m: Optional[np.ndarray] = None
+        self._axis_xy: Optional[np.ndarray] = None
+        self._phase_vehicle_xy_m: Optional[np.ndarray] = None
+        self._confidence: float = 0.0
+        self._last_update_time_s: float = -1e9
+
+    def reset(self) -> None:
+        self._anchor_xy_m = None
+        self._axis_xy = None
+        self._phase_vehicle_xy_m = None
+        self._confidence = 0.0
+        self._last_update_time_s = -1e9
+
+    def update(
+        self,
+        vehicle_position_xy_m: np.ndarray,
+        vehicle_heading_deg: float,
+        time_s: float,
+        phase_observation: Optional[MagneticZigzagPhaseObservation] = None,
+    ) -> Optional[MagneticShadowHypothesisSelection]:
+        vehicle_xy = np.asarray(vehicle_position_xy_m, dtype=float)
+        if phase_observation is not None:
+            self._accept_phase_observation(phase_observation, vehicle_xy, float(time_s))
+
+        if self._anchor_xy_m is None or self._axis_xy is None or self._phase_vehicle_xy_m is None:
+            return None
+        age_s = float(time_s) - self._last_update_time_s
+        if age_s < 0.0 or age_s > self.max_age_s:
+            return None
+
+        positive = self._score_candidate(self._axis_xy, vehicle_xy, vehicle_heading_deg, age_s)
+        negative = self._score_candidate(-self._axis_xy, vehicle_xy, vehicle_heading_deg, age_s)
+        selected_sign = 1.0 if positive >= negative else -1.0
+        selected_score = max(positive, negative)
+        score_margin = abs(positive - negative)
+        direction_xy = self._axis_xy if selected_sign > 0.0 else -self._axis_xy
+        along_track_m = float(np.dot(vehicle_xy - self._anchor_xy_m, direction_xy))
+        cable_point_xy = self._anchor_xy_m + along_track_m * direction_xy
+        target_xy = cable_point_xy + self.lookahead_distance_m * direction_xy
+        heading_deg = heading_from_direction_xy(direction_xy)
+        if heading_deg is None:
+            return None
+        return MagneticShadowHypothesisSelection(
+            candidate_count=2,
+            selected_sign=selected_sign,
+            selected_score=float(np.clip(selected_score, 0.0, 1.0)),
+            score_margin=float(np.clip(score_margin, 0.0, 1.0)),
+            target_xy_m=target_xy,
+            heading_deg=heading_deg,
+            age_s=age_s,
+        )
+
+    def _accept_phase_observation(
+        self,
+        phase_observation: MagneticZigzagPhaseObservation,
+        vehicle_xy_m: np.ndarray,
+        time_s: float,
+    ) -> None:
+        observation = phase_observation.observation
+        self._anchor_xy_m = np.asarray(observation.position_xy_m, dtype=float).copy()
+        self._axis_xy = MagneticLookaheadTargetBuilder._direction_from_heading(observation.heading_deg)
+        self._phase_vehicle_xy_m = np.asarray(vehicle_xy_m, dtype=float).copy()
+        self._confidence = float(np.clip(observation.confidence, 0.05, 0.95))
+        self._last_update_time_s = float(time_s)
+
+    def _score_candidate(
+        self,
+        direction_xy: np.ndarray,
+        vehicle_xy_m: np.ndarray,
+        vehicle_heading_deg: float,
+        age_s: float,
+    ) -> float:
+        assert self._phase_vehicle_xy_m is not None
+        progress_m = float(np.dot(vehicle_xy_m - self._phase_vehicle_xy_m, direction_xy))
+        progress_credit = float(np.clip(0.5 + 0.5 * progress_m / self.min_progress_m, 0.0, 1.0))
+        heading_xy = np.array([
+            np.cos(np.deg2rad(vehicle_heading_deg)),
+            np.sin(np.deg2rad(vehicle_heading_deg)),
+        ], dtype=float)
+        heading_credit = float(np.clip(0.5 + 0.5 * np.dot(heading_xy, direction_xy), 0.0, 1.0))
+        freshness_credit = float(np.exp(-age_s / self.max_age_s))
+        confidence_credit = self._confidence * freshness_credit
+        return 0.45 * progress_credit + 0.35 * heading_credit + 0.20 * confidence_credit

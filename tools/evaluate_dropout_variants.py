@@ -733,6 +733,26 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("d2_shadow_axis_selector", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            shadow_hypothesis=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -784,12 +804,14 @@ def _zigzag_probe(
     lookahead_feed_heading_max_step_deg: float = 12.0,
     curve_track_flip_to_vehicle: bool = False,
     magnetic_crossing_probe_control: bool = False,
+    shadow_hypothesis: bool = False,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
     scenario.tracking.curve_track_crossing_angle_deg = angle_deg
     scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled = curve_track_flip_to_vehicle
     scenario.tracking.magnetic_crossing_probe_control_enabled = magnetic_crossing_probe_control
+    scenario.tracking.magnetic_shadow_hypothesis_enabled = shadow_hypothesis
     scenario.tracking.magnetic_path_observation_enabled = magnetic_path
     scenario.tracking.magnetic_path_feed_local_path = feed_local_path
     scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
@@ -873,6 +895,7 @@ def main() -> None:
         "probe_cycle_burial_cov,probe_cycle_burial_mae,probe_cycle_burial_sigma,probe_cycle_burial_quality,"
         "shadow_supply,shadow_selection,shadow_consumption,shadow_ready,"
         "shadow_bottleneck_supply,shadow_bottleneck_selection,shadow_bottleneck_consumption,"
+        "shadow_axis_pct,shadow_axis_score,shadow_axis_margin,shadow_axis_pos_pct,shadow_axis_age,"
         "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
         "lookahead_feed_pct,feed_reject_age,feed_reject_phase_age,feed_reject_residual,"
         "feed_reject_heading,feed_reject_innovation,feed_phase_age,feed_innovation,"
@@ -982,6 +1005,11 @@ def main() -> None:
             f"{metrics.shadow_hypothesis_bottleneck_supply_fraction * 100.0:.1f},"
             f"{metrics.shadow_hypothesis_bottleneck_selection_fraction * 100.0:.1f},"
             f"{metrics.shadow_hypothesis_bottleneck_consumption_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_hypothesis_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_mean_score:.3f},"
+            f"{metrics.shadow_axis_mean_margin:.3f},"
+            f"{metrics.shadow_axis_positive_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_mean_age_s:.1f},"
             f"{metrics.magnetic_lookahead_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"

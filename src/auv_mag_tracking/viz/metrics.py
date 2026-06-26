@@ -99,6 +99,11 @@ class HealthMetrics:
     magnetic_lookahead_feed_mean_innovation_m: float = float("nan")
     magnetic_lookahead_feed_mean_axis_delta_deg: float = float("nan")
     magnetic_lookahead_feed_mean_local_residual_m: float = float("nan")
+    shadow_axis_hypothesis_fraction: float = 0.0
+    shadow_axis_mean_score: float = float("nan")
+    shadow_axis_mean_margin: float = float("nan")
+    shadow_axis_positive_fraction: float = 0.0
+    shadow_axis_mean_age_s: float = float("nan")
     zigzag_probe_active_fraction: float = 0.0
     zigzag_probe_cycle_count: int = 0
     zigzag_probe_leg_flip_count: int = 0
@@ -431,6 +436,22 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     bottleneck_supply_fraction = float(np.sum(bottleneck_codes == 2.0) / bottleneck_denominator)
     bottleneck_selection_fraction = float(np.sum(bottleneck_codes == 3.0) / bottleneck_denominator)
     bottleneck_consumption_fraction = float(np.sum(bottleneck_codes == 4.0) / bottleneck_denominator)
+    shadow_axis_valid = record["shadow_axis_hypothesis_valid"] > 0.5
+    shadow_axis_hypothesis_fraction = float(np.mean(shadow_axis_valid)) if n else 0.0
+    shadow_axis_scores = record["shadow_axis_selected_score"][shadow_axis_valid]
+    shadow_axis_scores = shadow_axis_scores[np.isfinite(shadow_axis_scores)]
+    shadow_axis_mean_score = float(np.mean(shadow_axis_scores)) if shadow_axis_scores.size else float("nan")
+    shadow_axis_margins = record["shadow_axis_score_margin"][shadow_axis_valid]
+    shadow_axis_margins = shadow_axis_margins[np.isfinite(shadow_axis_margins)]
+    shadow_axis_mean_margin = float(np.mean(shadow_axis_margins)) if shadow_axis_margins.size else float("nan")
+    shadow_axis_signs = record["shadow_axis_selected_sign"][shadow_axis_valid]
+    shadow_axis_signs = shadow_axis_signs[np.isfinite(shadow_axis_signs)]
+    shadow_axis_positive_fraction = (
+        float(np.mean(shadow_axis_signs > 0.0)) if shadow_axis_signs.size else 0.0
+    )
+    shadow_axis_ages = record["shadow_axis_age_s"][shadow_axis_valid]
+    shadow_axis_ages = shadow_axis_ages[np.isfinite(shadow_axis_ages)]
+    shadow_axis_mean_age = float(np.mean(shadow_axis_ages)) if shadow_axis_ages.size else float("nan")
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -495,6 +516,11 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_lookahead_feed_mean_innovation_m=magnetic_lookahead_feed_mean_innovation,
         magnetic_lookahead_feed_mean_axis_delta_deg=magnetic_lookahead_feed_mean_axis_delta,
         magnetic_lookahead_feed_mean_local_residual_m=magnetic_lookahead_feed_mean_local_residual,
+        shadow_axis_hypothesis_fraction=shadow_axis_hypothesis_fraction,
+        shadow_axis_mean_score=shadow_axis_mean_score,
+        shadow_axis_mean_margin=shadow_axis_mean_margin,
+        shadow_axis_positive_fraction=shadow_axis_positive_fraction,
+        shadow_axis_mean_age_s=shadow_axis_mean_age,
         zigzag_probe_active_fraction=zigzag_probe_active_fraction,
         zigzag_probe_cycle_count=zigzag_probe_cycle_count,
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,

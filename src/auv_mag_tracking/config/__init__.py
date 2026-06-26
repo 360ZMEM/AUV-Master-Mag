@@ -270,6 +270,8 @@ class TrackingConfig:
         local_path_max_age_s: 局部路径参与融合允许的最大观测年龄。
         local_path_curve_residual_relax: 曲线跟踪态下局部路径残差门控的放宽倍数。
         local_path_min_observation_spacing_m: 局部路径观测进入滑窗的最小空间间隔。
+        magnetic_shadow_hypothesis_enabled: 是否启用旁路 +/- axis shadow hypothesis selector。
+        magnetic_shadow_hypothesis_min_progress_m: selector 认为短窗推进有方向证据所需的最小位移。
         consecutive_miss_threshold: 连续漏检后触发退化策略的次数阈值。
         spiral_radius_growth_mps: 螺旋搜索半径增长速度。
         spiral_max_radius_m: 螺旋搜索最大半径。
@@ -420,6 +422,8 @@ class TrackingConfig:
     magnetic_lookahead_feed_extrapolated_confidence_scale: float = 1.0
     magnetic_lookahead_feed_heading_smoothing_enabled: bool = False
     magnetic_lookahead_feed_heading_max_step_deg: float = 12.0
+    magnetic_shadow_hypothesis_enabled: bool = False
+    magnetic_shadow_hypothesis_min_progress_m: float = 3.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
