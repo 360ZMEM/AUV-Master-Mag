@@ -775,6 +775,28 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("d3_shadow_axis_dual_gate_shadow", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.5,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            shadow_hypothesis=True,
+            shadow_validation_max_age_s=45.0,
+            shadow_dual_gate_shadow=True,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -828,6 +850,7 @@ def _zigzag_probe(
     magnetic_crossing_probe_control: bool = False,
     shadow_hypothesis: bool = False,
     shadow_validation_max_age_s: float | None = None,
+    shadow_dual_gate_shadow: bool = False,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
@@ -837,6 +860,7 @@ def _zigzag_probe(
     scenario.tracking.magnetic_shadow_hypothesis_enabled = shadow_hypothesis
     if shadow_validation_max_age_s is not None:
         scenario.tracking.magnetic_shadow_validation_max_age_s = shadow_validation_max_age_s
+    scenario.tracking.magnetic_shadow_dual_gate_shadow_enabled = shadow_dual_gate_shadow
     scenario.tracking.magnetic_path_observation_enabled = magnetic_path
     scenario.tracking.magnetic_path_feed_local_path = feed_local_path
     scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
@@ -924,6 +948,8 @@ def main() -> None:
         "shadow_axis_pass,shadow_axis_reject_nohyp,shadow_axis_reject_candidates,shadow_axis_reject_score,"
         "shadow_axis_reject_margin,shadow_axis_reject_age,shadow_axis_reject_selector_expired,"
         "shadow_axis_score_def,shadow_axis_margin_def,shadow_axis_age_over,"
+        "shadow_axis_supply_pct,shadow_axis_validation_pct,shadow_axis_selection_pct,shadow_axis_consumption_pct,"
+        "shadow_dual_active_pct,shadow_dual_pass_pct,shadow_dual_reject_val_pct,shadow_dual_reject_feed_pct,"
         "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
         "lookahead_feed_pct,feed_reject_age,feed_reject_phase_age,feed_reject_residual,"
         "feed_reject_heading,feed_reject_innovation,feed_phase_age,feed_innovation,"
@@ -1048,6 +1074,14 @@ def main() -> None:
             f"{metrics.shadow_axis_validation_mean_score_deficit:.3f},"
             f"{metrics.shadow_axis_validation_mean_margin_deficit:.3f},"
             f"{metrics.shadow_axis_validation_mean_age_over_s:.1f},"
+            f"{metrics.shadow_axis_supply_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_validation_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_selection_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_consumption_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_dual_gate_active_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_dual_gate_pass_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_dual_gate_reject_validation_fraction * 100.0:.1f},"
+            f"{metrics.shadow_axis_dual_gate_reject_feed_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"

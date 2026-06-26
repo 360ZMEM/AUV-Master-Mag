@@ -171,6 +171,10 @@ class PerceptionState:
     shadow_axis_validation_score_deficit: float = 0.0
     shadow_axis_validation_margin_deficit: float = 0.0
     shadow_axis_validation_age_over_s: float = 0.0
+    # --- D3 shadow dual gate (selector validation + lookahead feed) diagnostics ---
+    shadow_axis_dual_gate_enabled: bool = False
+    shadow_axis_dual_gate_passed: bool = False
+    shadow_axis_dual_gate_reason_code: float = 0.0
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

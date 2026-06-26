@@ -723,6 +723,11 @@ class MagneticCablePerception:
                 reading.time_s,
             )
 
+        shadow_axis_dual_gate_diag = self._shadow_axis_dual_gate_diagnostics(
+            shadow_axis_validation_diag,
+            magnetic_lookahead_feed_diag,
+        )
+
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
             self.safe_lock_until_s = -1e9
             self.last_confirmed_peak_strength_nt = 0.0
@@ -1166,6 +1171,9 @@ class MagneticCablePerception:
             shadow_axis_validation_score_deficit=shadow_axis_validation_diag["score_deficit"],
             shadow_axis_validation_margin_deficit=shadow_axis_validation_diag["margin_deficit"],
             shadow_axis_validation_age_over_s=shadow_axis_validation_diag["age_over_s"],
+            shadow_axis_dual_gate_enabled=shadow_axis_dual_gate_diag["enabled"] > 0.5,
+            shadow_axis_dual_gate_passed=shadow_axis_dual_gate_diag["passed"] > 0.5,
+            shadow_axis_dual_gate_reason_code=shadow_axis_dual_gate_diag["reason_code"],
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,
@@ -1276,6 +1284,34 @@ class MagneticCablePerception:
             diagnostics["reason_code"] = 6.0
             return diagnostics
 
+        diagnostics["passed"] = 1.0
+        diagnostics["reason_code"] = 1.0
+        return diagnostics
+
+    def _shadow_axis_dual_gate_diagnostics(
+        self,
+        shadow_axis_validation_diag: dict,
+        magnetic_lookahead_feed_diag: dict,
+    ) -> dict:
+        """Side-channel dual gate combining D3 validation and lookahead feed.
+
+        Reason code:
+        0 disabled, 1 dual gate passed, 2 validation rejected, 3 feed rejected.
+        """
+        diagnostics = {
+            "enabled": 0.0,
+            "passed": 0.0,
+            "reason_code": 0.0,
+        }
+        if not self.scenario.tracking.magnetic_shadow_dual_gate_shadow_enabled:
+            return diagnostics
+        diagnostics["enabled"] = 1.0
+        if shadow_axis_validation_diag["passed"] <= 0.5:
+            diagnostics["reason_code"] = 2.0
+            return diagnostics
+        if magnetic_lookahead_feed_diag["allowed"] <= 0.5:
+            diagnostics["reason_code"] = 3.0
+            return diagnostics
         diagnostics["passed"] = 1.0
         diagnostics["reason_code"] = 1.0
         return diagnostics

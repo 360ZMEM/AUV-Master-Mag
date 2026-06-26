@@ -370,6 +370,42 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertEqual(passed["reason_code"], 1.0)
         self.assertEqual(passed["passed"], 1.0)
 
+    def test_shadow_axis_dual_gate_combines_validation_and_feed(self) -> None:
+        scenario = build_default_scenarios()["case1"]
+        scenario.tracking.magnetic_shadow_dual_gate_shadow_enabled = True
+        perception = MagneticCablePerception(scenario)
+
+        disabled = perception._shadow_axis_dual_gate_diagnostics(
+            {"passed": 1.0, "reason_code": 1.0},
+            {"allowed": 1.0, "reason_code": 1.0},
+        )
+        self.assertEqual(disabled["enabled"], 1.0)
+        self.assertEqual(disabled["reason_code"], 1.0)
+        self.assertEqual(disabled["passed"], 1.0)
+
+        scenario.tracking.magnetic_shadow_dual_gate_shadow_enabled = False
+        off = perception._shadow_axis_dual_gate_diagnostics(
+            {"passed": 1.0, "reason_code": 1.0},
+            {"allowed": 1.0, "reason_code": 1.0},
+        )
+        self.assertEqual(off["enabled"], 0.0)
+        self.assertEqual(off["reason_code"], 0.0)
+
+        scenario.tracking.magnetic_shadow_dual_gate_shadow_enabled = True
+        validation_reject = perception._shadow_axis_dual_gate_diagnostics(
+            {"passed": 0.0, "reason_code": 4.0},
+            {"allowed": 1.0, "reason_code": 1.0},
+        )
+        self.assertEqual(validation_reject["reason_code"], 2.0)
+        self.assertEqual(validation_reject["passed"], 0.0)
+
+        feed_reject = perception._shadow_axis_dual_gate_diagnostics(
+            {"passed": 1.0, "reason_code": 1.0},
+            {"allowed": 0.0, "reason_code": 5.0},
+        )
+        self.assertEqual(feed_reject["reason_code"], 3.0)
+        self.assertEqual(feed_reject["passed"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

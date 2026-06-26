@@ -114,6 +114,14 @@ class HealthMetrics:
     shadow_axis_validation_mean_score_deficit: float = float("nan")
     shadow_axis_validation_mean_margin_deficit: float = float("nan")
     shadow_axis_validation_mean_age_over_s: float = float("nan")
+    shadow_axis_supply_fraction: float = 0.0
+    shadow_axis_validation_fraction: float = 0.0
+    shadow_axis_selection_fraction: float = 0.0
+    shadow_axis_consumption_fraction: float = 0.0
+    shadow_axis_dual_gate_active_fraction: float = 0.0
+    shadow_axis_dual_gate_pass_fraction: float = 0.0
+    shadow_axis_dual_gate_reject_validation_fraction: float = 0.0
+    shadow_axis_dual_gate_reject_feed_fraction: float = 0.0
     zigzag_probe_active_fraction: float = 0.0
     zigzag_probe_cycle_count: int = 0
     zigzag_probe_leg_flip_count: int = 0
@@ -496,6 +504,38 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     shadow_axis_validation_mean_margin_deficit = _finite_mean_for_validation("shadow_axis_validation_margin_deficit")
     shadow_axis_validation_mean_age_over = _finite_mean_for_validation("shadow_axis_validation_age_over_s")
 
+    shadow_axis_supply_fraction = (
+        shadow_axis_validation_reject_no_hypothesis_fraction
+        + shadow_axis_validation_reject_insufficient_candidates_fraction
+    )
+    shadow_axis_validation_fraction = (
+        shadow_axis_validation_reject_stale_age_fraction
+        + shadow_axis_validation_reject_selector_expired_fraction
+    )
+    shadow_axis_selection_fraction = (
+        shadow_axis_validation_reject_low_score_fraction
+        + shadow_axis_validation_reject_low_margin_fraction
+    )
+    dual_gate_active_mask = record["shadow_axis_dual_gate_enabled"] > 0.5
+    dual_gate_active_count = int(np.sum(dual_gate_active_mask))
+    if dual_gate_active_count > 0:
+        dual_gate_reason = record["shadow_axis_dual_gate_reason_code"][dual_gate_active_mask]
+        shadow_axis_dual_gate_active_fraction = (
+            dual_gate_active_count / n if n else 0.0
+        )
+        shadow_axis_dual_gate_pass_fraction = float(np.sum(dual_gate_reason == 1.0) / dual_gate_active_count)
+        shadow_axis_dual_gate_reject_validation_fraction = float(np.sum(dual_gate_reason == 2.0) / dual_gate_active_count)
+        shadow_axis_dual_gate_reject_feed_fraction = float(np.sum(dual_gate_reason == 3.0) / dual_gate_active_count)
+        shadow_axis_consumption_fraction = (
+            shadow_axis_validation_pass_fraction * shadow_axis_dual_gate_reject_feed_fraction
+        )
+    else:
+        shadow_axis_dual_gate_active_fraction = 0.0
+        shadow_axis_dual_gate_pass_fraction = 0.0
+        shadow_axis_dual_gate_reject_validation_fraction = 0.0
+        shadow_axis_dual_gate_reject_feed_fraction = 0.0
+        shadow_axis_consumption_fraction = 0.0
+
     return HealthMetrics(
         case_name=record.case_name,
         deployment_mode=record.deployment_mode,
@@ -578,6 +618,14 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_validation_mean_score_deficit=shadow_axis_validation_mean_score_deficit,
         shadow_axis_validation_mean_margin_deficit=shadow_axis_validation_mean_margin_deficit,
         shadow_axis_validation_mean_age_over_s=shadow_axis_validation_mean_age_over,
+        shadow_axis_supply_fraction=shadow_axis_supply_fraction,
+        shadow_axis_validation_fraction=shadow_axis_validation_fraction,
+        shadow_axis_selection_fraction=shadow_axis_selection_fraction,
+        shadow_axis_consumption_fraction=shadow_axis_consumption_fraction,
+        shadow_axis_dual_gate_active_fraction=shadow_axis_dual_gate_active_fraction,
+        shadow_axis_dual_gate_pass_fraction=shadow_axis_dual_gate_pass_fraction,
+        shadow_axis_dual_gate_reject_validation_fraction=shadow_axis_dual_gate_reject_validation_fraction,
+        shadow_axis_dual_gate_reject_feed_fraction=shadow_axis_dual_gate_reject_feed_fraction,
         zigzag_probe_active_fraction=zigzag_probe_active_fraction,
         zigzag_probe_cycle_count=zigzag_probe_cycle_count,
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,

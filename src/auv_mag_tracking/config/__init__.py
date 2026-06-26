@@ -275,6 +275,7 @@ class TrackingConfig:
         magnetic_shadow_validation_min_score: D3 影子验证通过所需的最低 selector score。
         magnetic_shadow_validation_min_margin: D3 影子验证通过所需的最低正反候选分差。
         magnetic_shadow_validation_max_age_s: D3 影子验证允许的最大 selector age。
+        magnetic_shadow_dual_gate_shadow_enabled: 是否在影子层记录"validation 通过 + lookahead feed 通过"的双门控诊断（不接入控制）。
         consecutive_miss_threshold: 连续漏检后触发退化策略的次数阈值。
         spiral_radius_growth_mps: 螺旋搜索半径增长速度。
         spiral_max_radius_m: 螺旋搜索最大半径。
@@ -430,6 +431,7 @@ class TrackingConfig:
     magnetic_shadow_validation_min_score: float = 0.70
     magnetic_shadow_validation_min_margin: float = 0.25
     magnetic_shadow_validation_max_age_s: float = 45.0
+    magnetic_shadow_dual_gate_shadow_enabled: bool = False
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0
