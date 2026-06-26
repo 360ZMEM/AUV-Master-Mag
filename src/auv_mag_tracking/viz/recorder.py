@@ -78,6 +78,9 @@ _NUMERIC_CHANNELS = (
     "magnetic_phase_amplitude_m",
     "magnetic_phase_duration_s",
     "magnetic_phase_confidence",
+    "magnetic_phase_detector_reason_code",
+    "magnetic_phase_detector_candidate_duration_s",
+    "magnetic_phase_detector_axis_delta_deg",
     "magnetic_lookahead_valid",
     "magnetic_lookahead_cable_x_m",
     "magnetic_lookahead_cable_y_m",
@@ -528,6 +531,9 @@ def simulate_run(
             magnetic_phase_amplitude_m=perception.magnetic_phase_amplitude_m,
             magnetic_phase_duration_s=perception.magnetic_phase_duration_s,
             magnetic_phase_confidence=perception.magnetic_phase_confidence,
+            magnetic_phase_detector_reason_code=perception.magnetic_phase_detector_reason_code,
+            magnetic_phase_detector_candidate_duration_s=perception.magnetic_phase_detector_candidate_duration_s,
+            magnetic_phase_detector_axis_delta_deg=perception.magnetic_phase_detector_axis_delta_deg,
             magnetic_lookahead_valid=1.0 if perception.magnetic_lookahead_valid else 0.0,
             magnetic_lookahead_cable_x_m=(
                 np.nan

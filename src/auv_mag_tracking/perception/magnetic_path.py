@@ -167,25 +167,36 @@ class MagneticZigzagPhaseDetector:
         self._previous_extreme: Optional[tuple[float, MagneticPathObservation]] = None
         self._current_sign: int = 0
         self._current_extreme: Optional[tuple[float, MagneticPathObservation]] = None
+        self.last_reason_code: float = 0.0
+        self.last_duration_s: float = float("nan")
+        self.last_axis_delta_deg: float = float("nan")
 
     def reset(self) -> None:
         self._previous_extreme = None
         self._current_sign = 0
         self._current_extreme = None
+        self.last_reason_code = 0.0
+        self.last_duration_s = float("nan")
+        self.last_axis_delta_deg = float("nan")
 
     def update(
         self,
         observation: MagneticPathObservation,
         time_s: float,
     ) -> Optional[MagneticZigzagPhaseObservation]:
+        self.last_reason_code = 10.0
+        self.last_duration_s = float("nan")
+        self.last_axis_delta_deg = float("nan")
         offset_m = float(observation.cross_track_offset_m)
         sign = 1 if offset_m > 0.0 else -1 if offset_m < 0.0 else 0
         if sign == 0:
+            self.last_reason_code = 2.0
             return None
 
         if self._current_sign == 0:
             self._current_sign = sign
             self._current_extreme = (float(time_s), observation)
+            self.last_reason_code = 3.0
             return None
 
         if sign != self._current_sign:
@@ -193,6 +204,7 @@ class MagneticZigzagPhaseDetector:
                 self._previous_extreme = self._current_extreme
             self._current_sign = sign
             self._current_extreme = (float(time_s), observation)
+            self.last_reason_code = 4.0
             return None
 
         if (
@@ -202,13 +214,20 @@ class MagneticZigzagPhaseDetector:
             self._current_extreme = (float(time_s), observation)
 
         if self._previous_extreme is None or self._current_extreme is None:
+            self.last_reason_code = 5.0
             return None
         previous_time_s, previous_observation = self._previous_extreme
         current_time_s, current_observation = self._current_extreme
         if abs(current_observation.cross_track_offset_m) < self.min_offset_m:
+            self.last_reason_code = 6.0
             return None
         duration_s = current_time_s - previous_time_s
-        if duration_s < self.min_duration_s or duration_s > self.max_duration_s:
+        self.last_duration_s = duration_s
+        if duration_s < self.min_duration_s:
+            self.last_reason_code = 7.0
+            return None
+        if duration_s > self.max_duration_s:
+            self.last_reason_code = 8.0
             return None
 
         axis_delta_deg = abs(smallest_angle_error_deg(
@@ -216,7 +235,9 @@ class MagneticZigzagPhaseDetector:
             previous_observation.heading_deg,
         ))
         axis_delta_deg = min(axis_delta_deg, abs(180.0 - axis_delta_deg))
+        self.last_axis_delta_deg = axis_delta_deg
         if axis_delta_deg > self.max_axis_delta_deg:
+            self.last_reason_code = 9.0
             return None
 
         position_xy = 0.5 * (previous_observation.position_xy_m + current_observation.position_xy_m)
@@ -231,6 +252,7 @@ class MagneticZigzagPhaseDetector:
             0.95,
         ))
         self._previous_extreme = self._current_extreme
+        self.last_reason_code = 1.0
         return MagneticZigzagPhaseObservation(
             observation=MagneticPathObservation(
                 position_xy_m=position_xy,

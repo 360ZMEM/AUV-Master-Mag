@@ -161,6 +161,9 @@ class ProgressComparisonTest(unittest.TestCase):
         self.assertIn("shadow_axis_score_margin", record.channels)
         self.assertIn("shadow_axis_validation_reason_code", record.channels)
         self.assertIn("shadow_axis_validation_margin_deficit", record.channels)
+        self.assertIn("magnetic_phase_detector_reason_code", record.channels)
+        self.assertIn("magnetic_phase_detector_candidate_duration_s", record.channels)
+        self.assertIn("magnetic_phase_detector_axis_delta_deg", record.channels)
         self.assertGreater(np.count_nonzero(record["zigzag_probe_active"] > 0.5), 0)
         self.assertGreater(np.count_nonzero(np.isfinite(record["zigzag_probe_cycle_age_s"])), 0)
 

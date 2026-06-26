@@ -1124,6 +1124,15 @@ class MagneticCablePerception:
             magnetic_phase_confidence=(
                 0.0 if magnetic_phase_observation is None else magnetic_phase_observation.observation.confidence
             ),
+            magnetic_phase_detector_reason_code=(
+                0.0 if self.magnetic_phase_detector is None else self.magnetic_phase_detector.last_reason_code
+            ),
+            magnetic_phase_detector_candidate_duration_s=(
+                float("nan") if self.magnetic_phase_detector is None else self.magnetic_phase_detector.last_duration_s
+            ),
+            magnetic_phase_detector_axis_delta_deg=(
+                float("nan") if self.magnetic_phase_detector is None else self.magnetic_phase_detector.last_axis_delta_deg
+            ),
             magnetic_lookahead_valid=magnetic_lookahead_target is not None,
             magnetic_lookahead_cable_point_xy_m=(
                 None if magnetic_lookahead_target is None else magnetic_lookahead_target.cable_point_xy_m.copy()

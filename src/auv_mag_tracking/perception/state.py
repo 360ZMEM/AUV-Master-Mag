@@ -144,6 +144,9 @@ class PerceptionState:
     magnetic_phase_amplitude_m: float = 0.0
     magnetic_phase_duration_s: float = 0.0
     magnetic_phase_confidence: float = 0.0
+    magnetic_phase_detector_reason_code: float = 0.0
+    magnetic_phase_detector_candidate_duration_s: float = float("nan")
+    magnetic_phase_detector_axis_delta_deg: float = float("nan")
     # --- Magnetic lookahead target diagnostics ---
     magnetic_lookahead_valid: bool = False
     magnetic_lookahead_cable_point_xy_m: Optional[np.ndarray] = None

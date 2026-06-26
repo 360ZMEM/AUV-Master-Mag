@@ -85,6 +85,14 @@ class HealthMetrics:
     magnetic_phase_mean_axis_error_deg: float = float("nan")
     magnetic_phase_mean_position_error_m: float = float("nan")
     magnetic_phase_mean_amplitude_m: float = float("nan")
+    magnetic_phase_detector_emit_fraction: float = 0.0
+    magnetic_phase_detector_reject_no_pair_fraction: float = 0.0
+    magnetic_phase_detector_reject_offset_fraction: float = 0.0
+    magnetic_phase_detector_reject_duration_fraction: float = 0.0
+    magnetic_phase_detector_reject_axis_fraction: float = 0.0
+    magnetic_phase_detector_waiting_fraction: float = 0.0
+    magnetic_phase_detector_mean_candidate_duration_s: float = float("nan")
+    magnetic_phase_detector_mean_axis_delta_deg: float = float("nan")
     magnetic_lookahead_fraction: float = 0.0
     magnetic_lookahead_mean_axis_error_deg: float = float("nan")
     magnetic_lookahead_mean_position_error_m: float = float("nan")
@@ -403,6 +411,35 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         if np.any(zigzag_probe_active)
         else 0.0
     )
+    phase_detector_codes = record["magnetic_phase_detector_reason_code"]
+    phase_detector_active = phase_detector_codes > 0.5
+    phase_detector_denominator = max(int(np.sum(phase_detector_active)), 1)
+    magnetic_phase_detector_emit_fraction = float(
+        np.sum(phase_detector_codes == 1.0) / phase_detector_denominator
+    )
+    magnetic_phase_detector_reject_no_pair_fraction = float(
+        np.sum(np.isin(phase_detector_codes, [3.0, 4.0, 5.0])) / phase_detector_denominator
+    )
+    magnetic_phase_detector_reject_offset_fraction = float(
+        np.sum(phase_detector_codes == 6.0) / phase_detector_denominator
+    )
+    magnetic_phase_detector_reject_duration_fraction = float(
+        np.sum(np.isin(phase_detector_codes, [7.0, 8.0])) / phase_detector_denominator
+    )
+    magnetic_phase_detector_reject_axis_fraction = float(
+        np.sum(phase_detector_codes == 9.0) / phase_detector_denominator
+    )
+    magnetic_phase_detector_waiting_fraction = float(
+        np.sum(phase_detector_codes == 10.0) / phase_detector_denominator
+    )
+    magnetic_phase_detector_mean_candidate_duration = _finite_mean_for_mask(
+        "magnetic_phase_detector_candidate_duration_s",
+        phase_detector_active,
+    )
+    magnetic_phase_detector_mean_axis_delta = _finite_mean_for_mask(
+        "magnetic_phase_detector_axis_delta_deg",
+        phase_detector_active,
+    )
     field_ratio = record["zigzag_probe_field_ratio"][zigzag_probe_active]
     field_ratio = field_ratio[np.isfinite(field_ratio)]
     zigzag_probe_mean_abs_field_ratio = (
@@ -585,6 +622,14 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         magnetic_phase_mean_axis_error_deg=magnetic_phase_mean_axis_error,
         magnetic_phase_mean_position_error_m=magnetic_phase_mean_position_error,
         magnetic_phase_mean_amplitude_m=magnetic_phase_mean_amplitude,
+        magnetic_phase_detector_emit_fraction=magnetic_phase_detector_emit_fraction,
+        magnetic_phase_detector_reject_no_pair_fraction=magnetic_phase_detector_reject_no_pair_fraction,
+        magnetic_phase_detector_reject_offset_fraction=magnetic_phase_detector_reject_offset_fraction,
+        magnetic_phase_detector_reject_duration_fraction=magnetic_phase_detector_reject_duration_fraction,
+        magnetic_phase_detector_reject_axis_fraction=magnetic_phase_detector_reject_axis_fraction,
+        magnetic_phase_detector_waiting_fraction=magnetic_phase_detector_waiting_fraction,
+        magnetic_phase_detector_mean_candidate_duration_s=magnetic_phase_detector_mean_candidate_duration,
+        magnetic_phase_detector_mean_axis_delta_deg=magnetic_phase_detector_mean_axis_delta,
         magnetic_lookahead_fraction=magnetic_lookahead_fraction,
         magnetic_lookahead_mean_axis_error_deg=magnetic_lookahead_mean_axis_error,
         magnetic_lookahead_mean_position_error_m=magnetic_lookahead_mean_position_error,

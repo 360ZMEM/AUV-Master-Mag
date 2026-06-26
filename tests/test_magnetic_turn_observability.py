@@ -406,6 +406,37 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         self.assertEqual(feed_reject["reason_code"], 3.0)
         self.assertEqual(feed_reject["passed"], 0.0)
 
+    def test_zigzag_phase_detector_reports_reject_reasons(self) -> None:
+        detector = MagneticZigzagPhaseDetector(
+            min_offset_m=1.0,
+            min_duration_s=2.0,
+            max_duration_s=5.0,
+            max_axis_delta_deg=20.0,
+        )
+
+        def obs(offset_m: float, heading_deg: float = 0.0) -> MagneticPathObservation:
+            return MagneticPathObservation(
+                position_xy_m=np.array([0.0, offset_m], dtype=float),
+                heading_deg=heading_deg,
+                cross_track_offset_m=offset_m,
+                confidence=0.8,
+            )
+
+        self.assertIsNone(detector.update(obs(0.0), 0.0))
+        self.assertEqual(detector.last_reason_code, 2.0)
+        self.assertIsNone(detector.update(obs(1.2), 0.0))
+        self.assertEqual(detector.last_reason_code, 3.0)
+        self.assertIsNone(detector.update(obs(-1.2), 1.0))
+        self.assertEqual(detector.last_reason_code, 4.0)
+        self.assertIsNone(detector.update(obs(-1.3), 1.5))
+        self.assertEqual(detector.last_reason_code, 7.0)
+        self.assertAlmostEqual(detector.last_duration_s, 1.5)
+        self.assertIsNone(detector.update(obs(-1.4, heading_deg=35.0), 3.0))
+        self.assertEqual(detector.last_reason_code, 9.0)
+        self.assertAlmostEqual(detector.last_axis_delta_deg, 35.0)
+        self.assertIsNotNone(detector.update(obs(-1.5, heading_deg=0.0), 3.2))
+        self.assertEqual(detector.last_reason_code, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
