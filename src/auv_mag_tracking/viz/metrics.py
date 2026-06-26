@@ -102,6 +102,8 @@ class HealthMetrics:
     zigzag_probe_active_fraction: float = 0.0
     zigzag_probe_cycle_count: int = 0
     zigzag_probe_leg_flip_count: int = 0
+    zigzag_probe_magnetic_crossing_count: int = 0
+    zigzag_probe_magnetic_crossings_per_cycle: float = 0.0
     zigzag_probe_mean_cycle_duration_s: float = float("nan")
     zigzag_probe_mean_peak_abs_cross_track_m: float = float("nan")
     zigzag_probe_phase_events_per_cycle: float = 0.0
@@ -113,6 +115,13 @@ class HealthMetrics:
     zigzag_probe_cycle_burial_mae_m: float = float("nan")
     zigzag_probe_cycle_burial_mean_sigma_m: float = float("nan")
     zigzag_probe_cycle_burial_mean_quality: float = float("nan")
+    shadow_hypothesis_mean_supply_score: float = float("nan")
+    shadow_hypothesis_mean_selection_score: float = float("nan")
+    shadow_hypothesis_mean_consumption_score: float = float("nan")
+    shadow_hypothesis_mean_readiness_score: float = float("nan")
+    shadow_hypothesis_bottleneck_supply_fraction: float = 0.0
+    shadow_hypothesis_bottleneck_selection_fraction: float = 0.0
+    shadow_hypothesis_bottleneck_consumption_fraction: float = 0.0
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -319,6 +328,11 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         values = values[np.isfinite(values)]
         return float(np.mean(values)) if values.size else float("nan")
 
+    def _finite_mean_for_mask(name: str, mask: np.ndarray) -> float:
+        values = record[name][mask]
+        values = values[np.isfinite(values)]
+        return float(np.mean(values)) if values.size else float("nan")
+
     magnetic_lookahead_feed_mean_phase_age = _finite_mean("magnetic_lookahead_feed_phase_age_s")
     magnetic_lookahead_feed_mean_innovation = _finite_mean("magnetic_lookahead_feed_innovation_m")
     magnetic_lookahead_feed_mean_axis_delta = _finite_mean("magnetic_lookahead_feed_axis_delta_deg")
@@ -327,9 +341,15 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     zigzag_probe_active = record["zigzag_probe_active"] > 0.5
     zigzag_probe_active_fraction = float(np.mean(zigzag_probe_active)) if n else 0.0
     zigzag_probe_leg_flip_count = int(np.nansum(record["zigzag_probe_leg_flip_event"]))
+    zigzag_probe_magnetic_crossing_count = int(np.nansum(record["zigzag_probe_magnetic_crossing_event"]))
     cycle_ids = record["zigzag_probe_cycle_id"][zigzag_probe_active]
     finite_cycle_ids = cycle_ids[np.isfinite(cycle_ids)]
     zigzag_probe_cycle_count = int(np.max(finite_cycle_ids) + 1) if finite_cycle_ids.size else 0
+    zigzag_probe_magnetic_crossings_per_cycle = (
+        float(zigzag_probe_magnetic_crossing_count / max(zigzag_probe_cycle_count, 1))
+        if zigzag_probe_cycle_count > 0
+        else 0.0
+    )
     cycle_duration_at_flip = record["zigzag_probe_last_cycle_duration_s"][
         record["zigzag_probe_leg_flip_event"] > 0.5
     ]
@@ -388,6 +408,17 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     zigzag_probe_cycle_burial_mean_quality = (
         float(np.mean(cycle_burial_quality)) if cycle_burial_quality.size else float("nan")
     )
+    shadow_mask = track_mask if np.any(track_mask) else np.ones(n, dtype=bool)
+    shadow_mean_supply = _finite_mean_for_mask("shadow_hypothesis_supply_score", shadow_mask)
+    shadow_mean_selection = _finite_mean_for_mask("shadow_hypothesis_selection_score", shadow_mask)
+    shadow_mean_consumption = _finite_mean_for_mask("shadow_hypothesis_consumption_score", shadow_mask)
+    shadow_mean_readiness = _finite_mean_for_mask("shadow_hypothesis_readiness_score", shadow_mask)
+    bottleneck_codes = record["shadow_hypothesis_bottleneck_code"][shadow_mask]
+    bottleneck_codes = bottleneck_codes[np.isfinite(bottleneck_codes)]
+    bottleneck_denominator = max(bottleneck_codes.size, 1)
+    bottleneck_supply_fraction = float(np.sum(bottleneck_codes == 2.0) / bottleneck_denominator)
+    bottleneck_selection_fraction = float(np.sum(bottleneck_codes == 3.0) / bottleneck_denominator)
+    bottleneck_consumption_fraction = float(np.sum(bottleneck_codes == 4.0) / bottleneck_denominator)
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -455,6 +486,8 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         zigzag_probe_active_fraction=zigzag_probe_active_fraction,
         zigzag_probe_cycle_count=zigzag_probe_cycle_count,
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,
+        zigzag_probe_magnetic_crossing_count=zigzag_probe_magnetic_crossing_count,
+        zigzag_probe_magnetic_crossings_per_cycle=zigzag_probe_magnetic_crossings_per_cycle,
         zigzag_probe_mean_cycle_duration_s=zigzag_probe_mean_cycle_duration,
         zigzag_probe_mean_peak_abs_cross_track_m=zigzag_probe_mean_peak_abs_cross_track,
         zigzag_probe_phase_events_per_cycle=phase_events_per_cycle,
@@ -466,6 +499,13 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         zigzag_probe_cycle_burial_mae_m=zigzag_probe_cycle_burial_mae,
         zigzag_probe_cycle_burial_mean_sigma_m=zigzag_probe_cycle_burial_mean_sigma,
         zigzag_probe_cycle_burial_mean_quality=zigzag_probe_cycle_burial_mean_quality,
+        shadow_hypothesis_mean_supply_score=shadow_mean_supply,
+        shadow_hypothesis_mean_selection_score=shadow_mean_selection,
+        shadow_hypothesis_mean_consumption_score=shadow_mean_consumption,
+        shadow_hypothesis_mean_readiness_score=shadow_mean_readiness,
+        shadow_hypothesis_bottleneck_supply_fraction=bottleneck_supply_fraction,
+        shadow_hypothesis_bottleneck_selection_fraction=bottleneck_selection_fraction,
+        shadow_hypothesis_bottleneck_consumption_fraction=bottleneck_consumption_fraction,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )

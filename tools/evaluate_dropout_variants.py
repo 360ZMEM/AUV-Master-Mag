@@ -692,6 +692,27 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p46_probe10_relaxed_phase_supply", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=0.25,
+            phase_min_duration_s=1.0,
+            phase_max_axis_delta_deg=50.0,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -720,6 +741,8 @@ def _zigzag_probe(
     feed_max_axis_delta_deg: float | None = None,
     phase_gate: bool = False,
     phase_min_offset_m: float = 1.0,
+    phase_min_duration_s: float = 2.0,
+    phase_max_axis_delta_deg: float = 35.0,
     phase_latch_duration_s: float = 0.0,
     lookahead: bool = False,
     lookahead_max_age_s: float = 90.0,
@@ -761,9 +784,9 @@ def _zigzag_probe(
     if phase_gate:
         scenario.tracking.magnetic_path_phase_gate_enabled = True
         scenario.tracking.magnetic_path_phase_min_offset_m = phase_min_offset_m
-        scenario.tracking.magnetic_path_phase_min_duration_s = 2.0
+        scenario.tracking.magnetic_path_phase_min_duration_s = phase_min_duration_s
         scenario.tracking.magnetic_path_phase_max_duration_s = 45.0
-        scenario.tracking.magnetic_path_phase_max_axis_delta_deg = 35.0
+        scenario.tracking.magnetic_path_phase_max_axis_delta_deg = phase_max_axis_delta_deg
         scenario.tracking.magnetic_path_phase_latch_duration_s = phase_latch_duration_s
     if lookahead:
         scenario.tracking.magnetic_lookahead_enabled = True
@@ -821,9 +844,12 @@ def main() -> None:
         "name,health,mean_err,track_xt,track_vehicle_err,route,final_dist,"
         "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
         "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
-        "probe_active_pct,probe_cycles,probe_flips,probe_cycle_s,probe_peak_xt,probe_phase_per_cycle,"
+        "probe_active_pct,probe_cycles,probe_flips,probe_mag_crossings,probe_mag_cross_per_cycle,"
+        "probe_cycle_s,probe_peak_xt,probe_phase_per_cycle,"
         "probe_field_ratio,probe_bperp,probe_burial_cov,probe_burial_mae,"
         "probe_cycle_burial_cov,probe_cycle_burial_mae,probe_cycle_burial_sigma,probe_cycle_burial_quality,"
+        "shadow_supply,shadow_selection,shadow_consumption,shadow_ready,"
+        "shadow_bottleneck_supply,shadow_bottleneck_selection,shadow_bottleneck_consumption,"
         "mag_lookahead_pct,mag_lookahead_axis_err,mag_lookahead_pos_err,mag_lookahead_age,"
         "lookahead_feed_pct,feed_reject_age,feed_reject_phase_age,feed_reject_residual,"
         "feed_reject_heading,feed_reject_innovation,feed_phase_age,feed_innovation,"
@@ -884,6 +910,7 @@ def main() -> None:
             "p43_",
             "p44_",
             "p45_",
+            "p46_",
         )):
             continue
         scenario = build(base)
@@ -908,6 +935,8 @@ def main() -> None:
             f"{metrics.zigzag_probe_active_fraction * 100.0:.1f},"
             f"{metrics.zigzag_probe_cycle_count},"
             f"{metrics.zigzag_probe_leg_flip_count},"
+            f"{metrics.zigzag_probe_magnetic_crossing_count},"
+            f"{metrics.zigzag_probe_magnetic_crossings_per_cycle:.2f},"
             f"{metrics.zigzag_probe_mean_cycle_duration_s:.1f},"
             f"{metrics.zigzag_probe_mean_peak_abs_cross_track_m:.1f},"
             f"{metrics.zigzag_probe_phase_events_per_cycle:.2f},"
@@ -919,6 +948,13 @@ def main() -> None:
             f"{metrics.zigzag_probe_cycle_burial_mae_m:.3f},"
             f"{metrics.zigzag_probe_cycle_burial_mean_sigma_m:.3f},"
             f"{metrics.zigzag_probe_cycle_burial_mean_quality:.3f},"
+            f"{metrics.shadow_hypothesis_mean_supply_score:.3f},"
+            f"{metrics.shadow_hypothesis_mean_selection_score:.3f},"
+            f"{metrics.shadow_hypothesis_mean_consumption_score:.3f},"
+            f"{metrics.shadow_hypothesis_mean_readiness_score:.3f},"
+            f"{metrics.shadow_hypothesis_bottleneck_supply_fraction * 100.0:.1f},"
+            f"{metrics.shadow_hypothesis_bottleneck_selection_fraction * 100.0:.1f},"
+            f"{metrics.shadow_hypothesis_bottleneck_consumption_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_fraction * 100.0:.1f},"
             f"{metrics.magnetic_lookahead_mean_axis_error_deg:.1f},"
             f"{metrics.magnetic_lookahead_mean_position_error_m:.1f},"

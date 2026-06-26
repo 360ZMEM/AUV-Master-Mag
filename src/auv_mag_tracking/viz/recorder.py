@@ -21,6 +21,7 @@ from ..config import ScenarioConfig, build_default_scenarios
 from ..controller import apply_attitude_profile, propagate_vehicle
 from ..main_viz import AuvCableTrackingSimulation
 from ..perception import MagneticBurialCycleEstimator
+from .readiness import score_shadow_hypothesis_readiness
 
 # --- Numeric channels recorded each frame (column-store, binary friendly) ---
 _NUMERIC_CHANNELS = (
@@ -96,6 +97,7 @@ _NUMERIC_CHANNELS = (
     "zigzag_probe_leg_sign",
     "zigzag_probe_cycle_age_s",
     "zigzag_probe_leg_flip_event",
+    "zigzag_probe_magnetic_crossing_event",
     "zigzag_probe_signed_cross_track_m",
     "zigzag_probe_cycle_peak_abs_cross_track_m",
     "zigzag_probe_phase_count",
@@ -111,6 +113,12 @@ _NUMERIC_CHANNELS = (
     "zigzag_probe_cycle_burial_quality",
     "zigzag_probe_cycle_burial_samples",
     "zigzag_probe_cycle_burial_error_m",
+    "shadow_hypothesis_supply_score",
+    "shadow_hypothesis_selection_score",
+    "shadow_hypothesis_consumption_score",
+    "shadow_hypothesis_readiness_score",
+    "shadow_hypothesis_bottleneck_code",
+    "route_progress_rate_mps",
     "vector_consistency",
     "peak_detected",
     "safe_lock_active",
@@ -259,6 +267,9 @@ def simulate_run(
             max_lateral_offset_m=max(scenario.burial_inversion.max_lateral_offset_m, 6.0),
         )
     probe_cycle_burial_estimate = None
+    probe_last_magnetic_offset_sign = 0
+    previous_route_progress_m: Optional[float] = None
+    previous_time_s: Optional[float] = None
     for step_index in range(total_steps):
         time_s = step_index * scenario.dt_s
         apply_attitude_profile(sim.pose, scenario, time_s)
@@ -302,6 +313,12 @@ def simulate_run(
         nearest_xy, route_tangent_xy, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
         estimated_cable_xy = perception.estimated_cable_point_xy_m
         route_normal_xy = np.array([-route_tangent_xy[1], route_tangent_xy[0]], dtype=float)
+        route_progress_rate_mps = 0.0
+        if previous_route_progress_m is not None and previous_time_s is not None:
+            dt_progress_s = max(time_s - previous_time_s, 1e-9)
+            route_progress_rate_mps = float((truth.progress_m - previous_route_progress_m) / dt_progress_s)
+        previous_route_progress_m = float(truth.progress_m)
+        previous_time_s = float(time_s)
         signed_route_cross_track_m = float(np.dot(sim.pose.position_ned_m[:2] - nearest_xy, route_normal_xy))
         b_down_nt = float(perception.anomaly_ned_nt[2])
         b_perp_nt = float(np.dot(perception.anomaly_ned_nt[:2], route_normal_xy))
@@ -317,8 +334,9 @@ def simulate_run(
             if burial_valid
             else np.nan
         )
-        probe_active = bool(probe_configured and command.mode.value == "track")
+        probe_active = bool(probe_configured and command.mode.value in {"align", "track"})
         probe_leg_flip_event = 0.0
+        probe_magnetic_crossing_event = 0.0
         probe_leg_sign = float(sim.controller.leg_sign)
         if probe_active:
             if probe_cycle_start_time_s is None:
@@ -348,6 +366,20 @@ def simulate_run(
                 probe_last_leg_sign = probe_leg_sign
             if perception.magnetic_phase_observation_valid:
                 probe_cycle_phase_count += 1
+            magnetic_offset_m = perception.magnetic_path_cross_track_offset_m
+            magnetic_offset_sign = (
+                1 if magnetic_offset_m is not None and magnetic_offset_m > 0.0
+                else -1 if magnetic_offset_m is not None and magnetic_offset_m < 0.0
+                else 0
+            )
+            if (
+                magnetic_offset_sign != 0
+                and probe_last_magnetic_offset_sign != 0
+                and magnetic_offset_sign != probe_last_magnetic_offset_sign
+            ):
+                probe_magnetic_crossing_event = 1.0
+            if magnetic_offset_sign != 0:
+                probe_last_magnetic_offset_sign = magnetic_offset_sign
             if probe_cycle_burial_estimator is not None and perception.magnetic_path_observation_valid:
                 lateral_for_burial_m = perception.magnetic_cross_track_offset_m
                 if lateral_for_burial_m is not None and np.isfinite(lateral_for_burial_m):
@@ -366,6 +398,7 @@ def simulate_run(
             if probe_cycle_burial_estimator is not None:
                 probe_cycle_burial_estimator.reset()
             probe_cycle_burial_estimate = None
+            probe_last_magnetic_offset_sign = 0
         probe_cycle_age_s = (
             time_s - probe_cycle_start_time_s
             if probe_active and probe_cycle_start_time_s is not None
@@ -381,6 +414,29 @@ def simulate_run(
             float(probe_cycle_burial_estimate.depth_m - perception.true_burial_depth_m)
             if cycle_burial_valid and probe_cycle_burial_estimate is not None
             else np.nan
+        )
+        local_path_max_residual_m = scenario.tracking.local_path_max_residual_m
+        if perception.local_path_tracking_state == "curve_track":
+            local_path_max_residual_m *= scenario.tracking.local_path_curve_residual_relax
+        yaw_rate_abs_fraction = abs(command.yaw_rate_deg_s) / max(scenario.vehicle.max_yaw_rate_deg_s, 1e-6)
+        shadow_readiness = score_shadow_hypothesis_readiness(
+            magnetic_path_valid=perception.magnetic_path_observation_valid,
+            magnetic_phase_valid=perception.magnetic_phase_observation_valid,
+            magnetic_lookahead_valid=perception.magnetic_lookahead_valid,
+            magnetic_lookahead_confidence=perception.magnetic_lookahead_confidence,
+            lookahead_feed_allowed=perception.magnetic_lookahead_feed_allowed,
+            cycle_burial_valid=cycle_burial_valid,
+            cycle_burial_quality=(
+                probe_cycle_burial_estimate.fit_quality
+                if cycle_burial_valid and probe_cycle_burial_estimate is not None
+                else 0.0
+            ),
+            local_path_confidence=perception.local_path_confidence,
+            local_path_residual_m=perception.local_path_residual_m,
+            local_path_max_residual_m=local_path_max_residual_m,
+            guidance_source=command.guidance_source,
+            route_progress_rate_mps=route_progress_rate_mps,
+            yaw_rate_abs_fraction=yaw_rate_abs_fraction,
         )
         recorder.append(
             time_s=time_s,
@@ -487,6 +543,7 @@ def simulate_run(
             zigzag_probe_leg_sign=probe_leg_sign if probe_active else np.nan,
             zigzag_probe_cycle_age_s=probe_cycle_age_s,
             zigzag_probe_leg_flip_event=probe_leg_flip_event,
+            zigzag_probe_magnetic_crossing_event=probe_magnetic_crossing_event,
             zigzag_probe_signed_cross_track_m=signed_route_cross_track_m if probe_active else np.nan,
             zigzag_probe_cycle_peak_abs_cross_track_m=(
                 probe_cycle_peak_abs_cross_track_m if probe_active else np.nan
@@ -520,6 +577,12 @@ def simulate_run(
                 else np.nan
             ),
             zigzag_probe_cycle_burial_error_m=cycle_burial_error_m,
+            shadow_hypothesis_supply_score=shadow_readiness.supply,
+            shadow_hypothesis_selection_score=shadow_readiness.selection,
+            shadow_hypothesis_consumption_score=shadow_readiness.consumption,
+            shadow_hypothesis_readiness_score=shadow_readiness.total,
+            shadow_hypothesis_bottleneck_code=shadow_readiness.bottleneck_code,
+            route_progress_rate_mps=route_progress_rate_mps,
             vector_consistency=perception.vector_consistency_score,
             peak_detected=1.0 if perception.peak_detected else 0.0,
             safe_lock_active=1.0 if perception.safe_lock_active else 0.0,
