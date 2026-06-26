@@ -588,7 +588,7 @@ class MagneticCablePerception:
         magnetic_phase_observation = None
         magnetic_lookahead_target = None
         magnetic_shadow_hypothesis_selection = None
-        shadow_axis_validation_diag = self._shadow_axis_validation_diagnostics(None)
+        shadow_axis_validation_diag = self._shadow_axis_validation_diagnostics(None, reading.time_s)
         magnetic_lookahead_feed_diag = self._magnetic_lookahead_feed_diagnostics(
             None,
             reading.time_s,
@@ -719,7 +719,8 @@ class MagneticCablePerception:
                 phase_observation=magnetic_phase_observation,
             )
             shadow_axis_validation_diag = self._shadow_axis_validation_diagnostics(
-                magnetic_shadow_hypothesis_selection
+                magnetic_shadow_hypothesis_selection,
+                reading.time_s,
             )
 
         if detection_age_s > self.scenario.tracking.lost_timeout_s:
@@ -1223,12 +1224,12 @@ class MagneticCablePerception:
         self.last_magnetic_lookahead_feed_heading_deg = smoothed_heading_deg
         return smoothed_heading_deg
 
-    def _shadow_axis_validation_diagnostics(self, shadow_axis_selection) -> dict:
+    def _shadow_axis_validation_diagnostics(self, shadow_axis_selection, time_s: float = 0.0) -> dict:
         """Diagnose the D3 shadow selector gate without changing control state.
 
         Reason code:
         0 none/disabled, 1 passed, 2 no hypothesis, 3 insufficient candidates,
-        4 low score, 5 low margin, 6 stale age.
+        4 low score, 5 low margin, 6 stale age, 7 selector anchor expired.
         """
         diagnostics = {
             "passed": 0.0,
@@ -1240,6 +1241,14 @@ class MagneticCablePerception:
         if not self.scenario.tracking.magnetic_shadow_hypothesis_enabled:
             return diagnostics
         if shadow_axis_selection is None:
+            phase_age_s = float(time_s) - self.last_magnetic_phase_time_s
+            if (
+                self.last_magnetic_phase_time_s > -1e8
+                and phase_age_s > self.scenario.tracking.magnetic_lookahead_max_age_s
+            ):
+                diagnostics["reason_code"] = 7.0
+                diagnostics["age_over_s"] = phase_age_s - self.scenario.tracking.magnetic_lookahead_max_age_s
+                return diagnostics
             diagnostics["reason_code"] = 2.0
             return diagnostics
         if shadow_axis_selection.candidate_count < 2:

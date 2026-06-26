@@ -150,6 +150,7 @@ def save_run_report(metrics: HealthMetrics, fig_paths: Dict[str, Path], out_path
         f"| Shadow axis reject low score | {metrics.shadow_axis_validation_reject_low_score_fraction*100:.0f}% |",
         f"| Shadow axis reject low margin | {metrics.shadow_axis_validation_reject_low_margin_fraction*100:.0f}% |",
         f"| Shadow axis reject stale age | {metrics.shadow_axis_validation_reject_stale_age_fraction*100:.0f}% |",
+        f"| Shadow axis reject selector expired | {metrics.shadow_axis_validation_reject_selector_expired_fraction*100:.0f}% |",
         f"| Zig-zag probe active | {metrics.zigzag_probe_active_fraction*100:.0f}% |",
         f"| Zig-zag probe cycles | {metrics.zigzag_probe_cycle_count} |",
         f"| Zig-zag probe leg flips | {metrics.zigzag_probe_leg_flip_count} |",

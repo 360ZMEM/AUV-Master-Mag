@@ -110,6 +110,7 @@ class HealthMetrics:
     shadow_axis_validation_reject_low_score_fraction: float = 0.0
     shadow_axis_validation_reject_low_margin_fraction: float = 0.0
     shadow_axis_validation_reject_stale_age_fraction: float = 0.0
+    shadow_axis_validation_reject_selector_expired_fraction: float = 0.0
     shadow_axis_validation_mean_score_deficit: float = float("nan")
     shadow_axis_validation_mean_margin_deficit: float = float("nan")
     shadow_axis_validation_mean_age_over_s: float = float("nan")
@@ -482,6 +483,9 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     shadow_axis_validation_reject_stale_age_fraction = float(
         np.sum(shadow_axis_validation_codes == 6.0) / validation_denominator
     )
+    shadow_axis_validation_reject_selector_expired_fraction = float(
+        np.sum(shadow_axis_validation_codes == 7.0) / validation_denominator
+    )
 
     def _finite_mean_for_validation(name: str) -> float:
         values = record[name][validation_active]
@@ -568,6 +572,9 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         shadow_axis_validation_reject_low_score_fraction=shadow_axis_validation_reject_low_score_fraction,
         shadow_axis_validation_reject_low_margin_fraction=shadow_axis_validation_reject_low_margin_fraction,
         shadow_axis_validation_reject_stale_age_fraction=shadow_axis_validation_reject_stale_age_fraction,
+        shadow_axis_validation_reject_selector_expired_fraction=(
+            shadow_axis_validation_reject_selector_expired_fraction
+        ),
         shadow_axis_validation_mean_score_deficit=shadow_axis_validation_mean_score_deficit,
         shadow_axis_validation_mean_margin_deficit=shadow_axis_validation_mean_margin_deficit,
         shadow_axis_validation_mean_age_over_s=shadow_axis_validation_mean_age_over,

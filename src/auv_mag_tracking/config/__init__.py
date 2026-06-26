@@ -429,7 +429,7 @@ class TrackingConfig:
     magnetic_shadow_hypothesis_min_progress_m: float = 3.0
     magnetic_shadow_validation_min_score: float = 0.70
     magnetic_shadow_validation_min_margin: float = 0.25
-    magnetic_shadow_validation_max_age_s: float = 30.0
+    magnetic_shadow_validation_max_age_s: float = 45.0
     consecutive_miss_threshold: int = 3
     spiral_radius_growth_mps: float = 0.55
     spiral_max_radius_m: float = 20.0

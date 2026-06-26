@@ -326,8 +326,13 @@ class MagneticTurnObservabilityTest(unittest.TestCase):
         scenario.tracking.magnetic_shadow_validation_max_age_s = 10.0
         perception = MagneticCablePerception(scenario)
 
-        no_hypothesis = perception._shadow_axis_validation_diagnostics(None)
+        no_hypothesis = perception._shadow_axis_validation_diagnostics(None, time_s=0.0)
         self.assertEqual(no_hypothesis["reason_code"], 2.0)
+
+        perception.last_magnetic_phase_time_s = 0.0
+        expired_selector = perception._shadow_axis_validation_diagnostics(None, time_s=80.0)
+        self.assertEqual(expired_selector["reason_code"], 7.0)
+        self.assertAlmostEqual(expired_selector["age_over_s"], 20.0)
 
         low_score = perception._shadow_axis_validation_diagnostics(SimpleNamespace(
             candidate_count=2,
