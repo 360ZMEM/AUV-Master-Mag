@@ -99,6 +99,11 @@ _NUMERIC_CHANNELS = (
     "zigzag_probe_cycle_peak_abs_cross_track_m",
     "zigzag_probe_phase_count",
     "zigzag_probe_last_cycle_duration_s",
+    "zigzag_probe_b_down_nt",
+    "zigzag_probe_b_perp_nt",
+    "zigzag_probe_field_ratio",
+    "zigzag_probe_burial_valid",
+    "zigzag_probe_burial_error_m",
     "vector_consistency",
     "peak_detected",
     "safe_lock_active",
@@ -270,6 +275,20 @@ def simulate_run(
         estimated_cable_xy = perception.estimated_cable_point_xy_m
         route_normal_xy = np.array([-route_tangent_xy[1], route_tangent_xy[0]], dtype=float)
         signed_route_cross_track_m = float(np.dot(sim.pose.position_ned_m[:2] - nearest_xy, route_normal_xy))
+        b_down_nt = float(perception.anomaly_ned_nt[2])
+        b_perp_nt = float(np.dot(perception.anomaly_ned_nt[:2], route_normal_xy))
+        field_ratio = b_down_nt / b_perp_nt if abs(b_perp_nt) > 1e-9 else np.nan
+        burial_valid = (
+            perception.estimated_burial_depth_m is not None
+            and perception.true_burial_depth_m is not None
+            and np.isfinite(perception.estimated_burial_depth_m)
+            and np.isfinite(perception.true_burial_depth_m)
+        )
+        burial_error_m = (
+            float(perception.estimated_burial_depth_m - perception.true_burial_depth_m)
+            if burial_valid
+            else np.nan
+        )
         probe_active = bool(probe_configured and command.mode.value == "track")
         probe_leg_flip_event = 0.0
         probe_leg_sign = float(sim.controller.leg_sign)
@@ -416,6 +435,11 @@ def simulate_run(
             ),
             zigzag_probe_phase_count=float(probe_cycle_phase_count) if probe_active else np.nan,
             zigzag_probe_last_cycle_duration_s=probe_last_cycle_duration_s,
+            zigzag_probe_b_down_nt=b_down_nt if probe_active else np.nan,
+            zigzag_probe_b_perp_nt=b_perp_nt if probe_active else np.nan,
+            zigzag_probe_field_ratio=field_ratio if probe_active else np.nan,
+            zigzag_probe_burial_valid=1.0 if probe_active and burial_valid else 0.0,
+            zigzag_probe_burial_error_m=burial_error_m if probe_active else np.nan,
             vector_consistency=perception.vector_consistency_score,
             peak_detected=1.0 if perception.peak_detected else 0.0,
             safe_lock_active=1.0 if perception.safe_lock_active else 0.0,

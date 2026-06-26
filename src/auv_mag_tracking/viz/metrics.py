@@ -105,6 +105,10 @@ class HealthMetrics:
     zigzag_probe_mean_cycle_duration_s: float = float("nan")
     zigzag_probe_mean_peak_abs_cross_track_m: float = float("nan")
     zigzag_probe_phase_events_per_cycle: float = 0.0
+    zigzag_probe_mean_abs_field_ratio: float = float("nan")
+    zigzag_probe_mean_abs_b_perp_nt: float = float("nan")
+    zigzag_probe_burial_coverage: float = 0.0
+    zigzag_probe_burial_mae_m: float = float("nan")
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -340,6 +344,25 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         if np.any(zigzag_probe_active)
         else 0.0
     )
+    field_ratio = record["zigzag_probe_field_ratio"][zigzag_probe_active]
+    field_ratio = field_ratio[np.isfinite(field_ratio)]
+    zigzag_probe_mean_abs_field_ratio = (
+        float(np.mean(np.abs(field_ratio))) if field_ratio.size else float("nan")
+    )
+    b_perp = record["zigzag_probe_b_perp_nt"][zigzag_probe_active]
+    b_perp = b_perp[np.isfinite(b_perp)]
+    zigzag_probe_mean_abs_b_perp = float(np.mean(np.abs(b_perp))) if b_perp.size else float("nan")
+    burial_probe_valid = (record["zigzag_probe_burial_valid"] > 0.5) & zigzag_probe_active
+    zigzag_probe_burial_coverage = (
+        float(np.sum(burial_probe_valid) / max(np.sum(zigzag_probe_active), 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+    probe_burial_errors = np.abs(record["zigzag_probe_burial_error_m"][burial_probe_valid])
+    probe_burial_errors = probe_burial_errors[np.isfinite(probe_burial_errors)]
+    zigzag_probe_burial_mae = (
+        float(np.mean(probe_burial_errors)) if probe_burial_errors.size else float("nan")
+    )
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -410,6 +433,10 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         zigzag_probe_mean_cycle_duration_s=zigzag_probe_mean_cycle_duration,
         zigzag_probe_mean_peak_abs_cross_track_m=zigzag_probe_mean_peak_abs_cross_track,
         zigzag_probe_phase_events_per_cycle=phase_events_per_cycle,
+        zigzag_probe_mean_abs_field_ratio=zigzag_probe_mean_abs_field_ratio,
+        zigzag_probe_mean_abs_b_perp_nt=zigzag_probe_mean_abs_b_perp,
+        zigzag_probe_burial_coverage=zigzag_probe_burial_coverage,
+        zigzag_probe_burial_mae_m=zigzag_probe_burial_mae,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )
