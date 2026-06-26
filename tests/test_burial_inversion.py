@@ -9,7 +9,12 @@ SRC_ROOT = WORKSPACE_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from auv_mag_tracking.perception import BurialEstimate, MagneticBurialInverter
+from auv_mag_tracking.perception import (
+    BurialCycleEstimate,
+    BurialEstimate,
+    MagneticBurialCycleEstimator,
+    MagneticBurialInverter,
+)
 
 
 def _strength_for(burial_m: float, lateral_m: float, k: float, i_rms: float, altitude_m: float) -> float:
@@ -84,6 +89,63 @@ class MagneticBurialInverterTest(unittest.TestCase):
         self.assertIsNotNone(inv.update(strength_nt=b, lateral_offset_m=0.0, snr_db=20.0))
         inv.reset()
         self.assertIsNone(inv.update(strength_nt=b, lateral_offset_m=0.0, snr_db=20.0))
+
+
+class MagneticBurialCycleEstimatorTest(unittest.TestCase):
+    K = 11.4329
+    I_RMS = 800.0 / math.sqrt(2.0)
+    ALT = 6.0
+
+    def _cycle_estimator(self, **overrides) -> MagneticBurialCycleEstimator:
+        params = dict(
+            coupling_constant_nt_m_per_a_rms=self.K,
+            current_rms_a=self.I_RMS,
+            altitude_m=self.ALT,
+            snr_gate_db=6.0,
+            min_strength_nt=1.0,
+            min_samples=3,
+            max_lateral_offset_m=2.0,
+        )
+        params.update(overrides)
+        return MagneticBurialCycleEstimator(**params)
+
+    def test_cycle_estimator_converges_within_probe_cycle(self) -> None:
+        estimator = self._cycle_estimator(min_samples=3)
+        true_burial = 1.5
+        estimate = None
+        for lateral in (0.15, 0.25, 0.35, 0.45):
+            strength = _strength_for(true_burial, lateral, self.K, self.I_RMS, self.ALT)
+            estimate = estimator.update(strength_nt=strength, lateral_offset_m=lateral, snr_db=24.0)
+
+        self.assertIsInstance(estimate, BurialCycleEstimate)
+        assert estimate is not None
+        self.assertAlmostEqual(estimate.depth_m, true_burial, delta=0.05)
+        self.assertGreater(estimate.fit_quality, 0.0)
+        self.assertEqual(estimate.sample_count, 4)
+
+    def test_cycle_estimator_downweights_edge_outliers(self) -> None:
+        estimator = self._cycle_estimator(min_samples=3)
+        true_burial = 1.5
+        for lateral in (0.10, 0.15, 0.20, 0.25):
+            strength = _strength_for(true_burial, lateral, self.K, self.I_RMS, self.ALT)
+            estimate = estimator.update(strength_nt=strength, lateral_offset_m=lateral, snr_db=24.0)
+        for lateral in (1.85, 1.90, 1.95):
+            strength = _strength_for(6.0, lateral, self.K, self.I_RMS, self.ALT)
+            estimate = estimator.update(strength_nt=strength, lateral_offset_m=lateral, snr_db=7.0)
+
+        self.assertIsNotNone(estimate)
+        assert estimate is not None
+        self.assertLess(abs(estimate.depth_m - true_burial), 0.20)
+
+    def test_cycle_reset_starts_new_posterior(self) -> None:
+        estimator = self._cycle_estimator(min_samples=2)
+        strength = _strength_for(1.5, 0.1, self.K, self.I_RMS, self.ALT)
+        estimator.update(strength_nt=strength, lateral_offset_m=0.1, snr_db=20.0)
+        self.assertIsNotNone(estimator.update(strength_nt=strength, lateral_offset_m=0.1, snr_db=20.0))
+
+        estimator.reset()
+
+        self.assertIsNone(estimator.update(strength_nt=strength, lateral_offset_m=0.1, snr_db=20.0))
 
 
 if __name__ == "__main__":

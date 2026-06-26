@@ -5,7 +5,12 @@ symbols are re-exported here so existing imports (``from .perception import X``)
 keep working unchanged.
 """
 
-from .burial_inversion import BurialEstimate, MagneticBurialInverter
+from .burial_inversion import (
+    BurialCycleEstimate,
+    BurialEstimate,
+    MagneticBurialCycleEstimator,
+    MagneticBurialInverter,
+)
 from .confidence import ConfidenceEstimator
 from .filters import (
     LowPassFilter,
@@ -41,6 +46,7 @@ from .vector import (
 
 __all__ = [
     "BurialEstimate",
+    "BurialCycleEstimate",
     "ConfidenceEstimator",
     "EnvelopeGradientTracker",
     "FitResult",
@@ -50,6 +56,7 @@ __all__ = [
     "LocalPathObservation",
     "LocalPathTrackingState",
     "MagneticBurialInverter",
+    "MagneticBurialCycleEstimator",
     "MagneticCablePerception",
     "MagneticLookaheadTarget",
     "MagneticLookaheadTargetBuilder",

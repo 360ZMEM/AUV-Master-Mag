@@ -20,6 +20,7 @@ import numpy as np
 from ..config import ScenarioConfig, build_default_scenarios
 from ..controller import apply_attitude_profile, propagate_vehicle
 from ..main_viz import AuvCableTrackingSimulation
+from ..perception import MagneticBurialCycleEstimator
 
 # --- Numeric channels recorded each frame (column-store, binary friendly) ---
 _NUMERIC_CHANNELS = (
@@ -104,6 +105,12 @@ _NUMERIC_CHANNELS = (
     "zigzag_probe_field_ratio",
     "zigzag_probe_burial_valid",
     "zigzag_probe_burial_error_m",
+    "zigzag_probe_cycle_burial_valid",
+    "zigzag_probe_cycle_burial_depth_m",
+    "zigzag_probe_cycle_burial_sigma_m",
+    "zigzag_probe_cycle_burial_quality",
+    "zigzag_probe_cycle_burial_samples",
+    "zigzag_probe_cycle_burial_error_m",
     "vector_consistency",
     "peak_detected",
     "safe_lock_active",
@@ -193,6 +200,12 @@ def _optional(value: Optional[float]) -> float:
     return float(value) if value is not None else np.nan
 
 
+def _signal_current_rms_a(scenario: ScenarioConfig) -> float:
+    if scenario.signal.mode == "dc":
+        return abs(float(scenario.signal.dc_current_a))
+    return abs(float(scenario.signal.ac_current_amplitude_a)) / np.sqrt(2.0)
+
+
 def simulate_run(
     scenario: ScenarioConfig,
     deployment_mode: bool = False,
@@ -231,6 +244,21 @@ def simulate_run(
     probe_cycle_peak_abs_cross_track_m = 0.0
     probe_cycle_phase_count = 0
     probe_last_cycle_duration_s = np.nan
+    probe_cycle_burial_estimator = None
+    if (
+        scenario.burial_inversion.enabled
+        and scenario.burial_inversion.coupling_constant_nt_m_per_a_rms > 0.0
+    ):
+        probe_cycle_burial_estimator = MagneticBurialCycleEstimator(
+            coupling_constant_nt_m_per_a_rms=scenario.burial_inversion.coupling_constant_nt_m_per_a_rms,
+            current_rms_a=_signal_current_rms_a(scenario),
+            altitude_m=scenario.vehicle.altitude_above_seabed_m,
+            snr_gate_db=scenario.burial_inversion.snr_gate_db,
+            min_strength_nt=scenario.burial_inversion.min_strength_nt,
+            min_samples=max(3, min(scenario.burial_inversion.min_samples, 5)),
+            max_lateral_offset_m=max(scenario.burial_inversion.max_lateral_offset_m, 6.0),
+        )
+    probe_cycle_burial_estimate = None
     for step_index in range(total_steps):
         time_s = step_index * scenario.dt_s
         apply_attitude_profile(sim.pose, scenario, time_s)
@@ -298,6 +326,9 @@ def simulate_run(
                 probe_last_leg_sign = probe_leg_sign
                 probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
                 probe_cycle_phase_count = 0
+                if probe_cycle_burial_estimator is not None:
+                    probe_cycle_burial_estimator.reset()
+                probe_cycle_burial_estimate = None
             elif probe_last_leg_sign is not None and probe_leg_sign != probe_last_leg_sign:
                 probe_leg_flip_event = 1.0
                 probe_last_cycle_duration_s = time_s - probe_cycle_start_time_s
@@ -305,6 +336,9 @@ def simulate_run(
                 probe_cycle_start_time_s = time_s
                 probe_cycle_peak_abs_cross_track_m = abs(signed_route_cross_track_m)
                 probe_cycle_phase_count = 0
+                if probe_cycle_burial_estimator is not None:
+                    probe_cycle_burial_estimator.reset()
+                probe_cycle_burial_estimate = None
                 probe_last_leg_sign = probe_leg_sign
             else:
                 probe_cycle_peak_abs_cross_track_m = max(
@@ -314,14 +348,38 @@ def simulate_run(
                 probe_last_leg_sign = probe_leg_sign
             if perception.magnetic_phase_observation_valid:
                 probe_cycle_phase_count += 1
+            if probe_cycle_burial_estimator is not None and perception.magnetic_path_observation_valid:
+                lateral_for_burial_m = perception.magnetic_cross_track_offset_m
+                if lateral_for_burial_m is not None and np.isfinite(lateral_for_burial_m):
+                    maybe_estimate = probe_cycle_burial_estimator.update(
+                        strength_nt=perception.tracking_strength_nt,
+                        lateral_offset_m=float(lateral_for_burial_m),
+                        snr_db=perception.snr_db,
+                    )
+                    if maybe_estimate is not None:
+                        probe_cycle_burial_estimate = maybe_estimate
         else:
             probe_cycle_start_time_s = None
             probe_last_leg_sign = None
             probe_cycle_peak_abs_cross_track_m = 0.0
             probe_cycle_phase_count = 0
+            if probe_cycle_burial_estimator is not None:
+                probe_cycle_burial_estimator.reset()
+            probe_cycle_burial_estimate = None
         probe_cycle_age_s = (
             time_s - probe_cycle_start_time_s
             if probe_active and probe_cycle_start_time_s is not None
+            else np.nan
+        )
+        cycle_burial_valid = (
+            probe_active
+            and probe_cycle_burial_estimate is not None
+            and perception.true_burial_depth_m is not None
+            and np.isfinite(perception.true_burial_depth_m)
+        )
+        cycle_burial_error_m = (
+            float(probe_cycle_burial_estimate.depth_m - perception.true_burial_depth_m)
+            if cycle_burial_valid and probe_cycle_burial_estimate is not None
             else np.nan
         )
         recorder.append(
@@ -440,6 +498,28 @@ def simulate_run(
             zigzag_probe_field_ratio=field_ratio if probe_active else np.nan,
             zigzag_probe_burial_valid=1.0 if probe_active and burial_valid else 0.0,
             zigzag_probe_burial_error_m=burial_error_m if probe_active else np.nan,
+            zigzag_probe_cycle_burial_valid=1.0 if cycle_burial_valid else 0.0,
+            zigzag_probe_cycle_burial_depth_m=(
+                probe_cycle_burial_estimate.depth_m
+                if cycle_burial_valid and probe_cycle_burial_estimate is not None
+                else np.nan
+            ),
+            zigzag_probe_cycle_burial_sigma_m=(
+                probe_cycle_burial_estimate.sigma_m
+                if cycle_burial_valid and probe_cycle_burial_estimate is not None
+                else np.nan
+            ),
+            zigzag_probe_cycle_burial_quality=(
+                probe_cycle_burial_estimate.fit_quality
+                if cycle_burial_valid and probe_cycle_burial_estimate is not None
+                else np.nan
+            ),
+            zigzag_probe_cycle_burial_samples=(
+                float(probe_cycle_burial_estimate.sample_count)
+                if cycle_burial_valid and probe_cycle_burial_estimate is not None
+                else np.nan
+            ),
+            zigzag_probe_cycle_burial_error_m=cycle_burial_error_m,
             vector_consistency=perception.vector_consistency_score,
             peak_detected=1.0 if perception.peak_detected else 0.0,
             safe_lock_active=1.0 if perception.safe_lock_active else 0.0,

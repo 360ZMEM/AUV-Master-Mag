@@ -40,6 +40,16 @@ class BurialEstimate:
     fit_quality: float        # [0,1]，融合样本量与离散度的综合可信度
 
 
+@dataclass
+class BurialCycleEstimate:
+    """单个 zig-zag cycle 内的埋深后验估计（shadow 诊断）。"""
+
+    depth_m: float
+    sigma_m: float
+    fit_quality: float
+    sample_count: int
+
+
 class MagneticBurialInverter:
     """标定幅度法磁埋深反演器（累积稳健中位数融合）。"""
 
@@ -120,3 +130,108 @@ class MagneticBurialInverter:
         dispersion_credit = 1.0 / (1.0 + sigma_m)
         fit_quality = sample_credit * dispersion_credit
         return BurialEstimate(depth_m=depth_m, sigma_m=sigma_m, fit_quality=fit_quality)
+
+
+class MagneticBurialCycleEstimator:
+    """Cycle-local burial posterior for zig-zag probe diagnostics.
+
+    Unlike :class:`MagneticBurialInverter`, this estimator does not accumulate
+    across the whole run.  It answers a narrower D5 question: whether the current
+    zig-zag cycle itself contains enough near-crossing magnetic geometry to form
+    a stable burial posterior.  It is intentionally shadow-only; callers reset it
+    at cycle boundaries and must decide separately whether the result is mature
+    enough for any downstream use.
+    """
+
+    def __init__(
+        self,
+        coupling_constant_nt_m_per_a_rms: float,
+        current_rms_a: float,
+        altitude_m: float,
+        snr_gate_db: float = 6.0,
+        min_strength_nt: float = 1.0,
+        min_samples: int = 3,
+        max_lateral_offset_m: float = 2.0,
+    ) -> None:
+        self.coupling_constant_nt_m_per_a_rms = float(coupling_constant_nt_m_per_a_rms)
+        self.current_rms_a = float(current_rms_a)
+        self.altitude_m = float(altitude_m)
+        self.snr_gate_db = float(snr_gate_db)
+        self.min_strength_nt = max(float(min_strength_nt), 1e-6)
+        self.min_samples = max(int(min_samples), 1)
+        self.max_lateral_offset_m = max(float(max_lateral_offset_m), 1e-6)
+        self._samples: List[tuple[float, float]] = []
+
+    def reset(self) -> None:
+        self._samples.clear()
+
+    @property
+    def sample_count(self) -> int:
+        return len(self._samples)
+
+    def update(
+        self,
+        strength_nt: float,
+        lateral_offset_m: float,
+        snr_db: float,
+    ) -> Optional[BurialCycleEstimate]:
+        sample = self._sample(strength_nt, lateral_offset_m, snr_db)
+        if sample is not None:
+            self._samples.append(sample)
+        if len(self._samples) < self.min_samples:
+            return None
+        return self._fuse()
+
+    def _sample(
+        self,
+        strength_nt: float,
+        lateral_offset_m: float,
+        snr_db: float,
+    ) -> Optional[tuple[float, float]]:
+        if not (math.isfinite(strength_nt) and strength_nt >= self.min_strength_nt):
+            return None
+        if not (math.isfinite(snr_db) and snr_db >= self.snr_gate_db):
+            return None
+        lateral_m = abs(float(lateral_offset_m)) if math.isfinite(lateral_offset_m) else None
+        if lateral_m is None or lateral_m > self.max_lateral_offset_m:
+            return None
+        slant_range_m = self.coupling_constant_nt_m_per_a_rms * self.current_rms_a / strength_nt
+        if slant_range_m <= lateral_m:
+            return None
+        burial_m = math.sqrt(slant_range_m * slant_range_m - lateral_m * lateral_m) - self.altitude_m
+        if not math.isfinite(burial_m):
+            return None
+        lateral_credit = max(0.05, 1.0 - lateral_m / self.max_lateral_offset_m)
+        snr_credit = min(max((snr_db - self.snr_gate_db) / 18.0, 0.05), 1.0)
+        weight = lateral_credit * snr_credit
+        return burial_m, weight
+
+    def _fuse(self) -> BurialCycleEstimate:
+        values = sorted(self._samples, key=lambda item: item[0])
+        depth_m = self._weighted_quantile(values, 0.5)
+        q25 = self._weighted_quantile(values, 0.25)
+        q75 = self._weighted_quantile(values, 0.75)
+        sigma_m = max((q75 - q25) / 1.349, 0.0)
+        sample_credit = min(len(values) / float(max(self.min_samples * 2, 1)), 1.0)
+        dispersion_credit = 1.0 / (1.0 + sigma_m)
+        weight_credit = min(sum(weight for _, weight in values) / float(max(self.min_samples, 1)), 1.0)
+        fit_quality = sample_credit * dispersion_credit * weight_credit
+        return BurialCycleEstimate(
+            depth_m=depth_m,
+            sigma_m=sigma_m,
+            fit_quality=float(max(0.0, min(1.0, fit_quality))),
+            sample_count=len(values),
+        )
+
+    @staticmethod
+    def _weighted_quantile(sorted_values: List[tuple[float, float]], quantile: float) -> float:
+        total_weight = sum(max(weight, 0.0) for _, weight in sorted_values)
+        if total_weight <= 1e-12:
+            return sorted_values[len(sorted_values) // 2][0]
+        target = float(quantile) * total_weight
+        cumulative = 0.0
+        for value, weight in sorted_values:
+            cumulative += max(weight, 0.0)
+            if cumulative >= target:
+                return value
+        return sorted_values[-1][0]

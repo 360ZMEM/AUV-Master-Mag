@@ -109,6 +109,10 @@ class HealthMetrics:
     zigzag_probe_mean_abs_b_perp_nt: float = float("nan")
     zigzag_probe_burial_coverage: float = 0.0
     zigzag_probe_burial_mae_m: float = float("nan")
+    zigzag_probe_cycle_burial_coverage: float = 0.0
+    zigzag_probe_cycle_burial_mae_m: float = float("nan")
+    zigzag_probe_cycle_burial_mean_sigma_m: float = float("nan")
+    zigzag_probe_cycle_burial_mean_quality: float = float("nan")
     burial_inversion_coverage: float = 0.0
     # Per-frame heading error array (kept for plotting; excluded from JSON)
     heading_errors_deg: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -363,6 +367,27 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     zigzag_probe_burial_mae = (
         float(np.mean(probe_burial_errors)) if probe_burial_errors.size else float("nan")
     )
+    cycle_burial_valid = (record["zigzag_probe_cycle_burial_valid"] > 0.5) & zigzag_probe_active
+    zigzag_probe_cycle_burial_coverage = (
+        float(np.sum(cycle_burial_valid) / max(np.sum(zigzag_probe_active), 1))
+        if np.any(zigzag_probe_active)
+        else 0.0
+    )
+    cycle_burial_errors = np.abs(record["zigzag_probe_cycle_burial_error_m"][cycle_burial_valid])
+    cycle_burial_errors = cycle_burial_errors[np.isfinite(cycle_burial_errors)]
+    zigzag_probe_cycle_burial_mae = (
+        float(np.mean(cycle_burial_errors)) if cycle_burial_errors.size else float("nan")
+    )
+    cycle_burial_sigma = record["zigzag_probe_cycle_burial_sigma_m"][cycle_burial_valid]
+    cycle_burial_sigma = cycle_burial_sigma[np.isfinite(cycle_burial_sigma)]
+    zigzag_probe_cycle_burial_mean_sigma = (
+        float(np.mean(cycle_burial_sigma)) if cycle_burial_sigma.size else float("nan")
+    )
+    cycle_burial_quality = record["zigzag_probe_cycle_burial_quality"][cycle_burial_valid]
+    cycle_burial_quality = cycle_burial_quality[np.isfinite(cycle_burial_quality)]
+    zigzag_probe_cycle_burial_mean_quality = (
+        float(np.mean(cycle_burial_quality)) if cycle_burial_quality.size else float("nan")
+    )
 
     return HealthMetrics(
         case_name=record.case_name,
@@ -437,6 +462,10 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         zigzag_probe_mean_abs_b_perp_nt=zigzag_probe_mean_abs_b_perp,
         zigzag_probe_burial_coverage=zigzag_probe_burial_coverage,
         zigzag_probe_burial_mae_m=zigzag_probe_burial_mae,
+        zigzag_probe_cycle_burial_coverage=zigzag_probe_cycle_burial_coverage,
+        zigzag_probe_cycle_burial_mae_m=zigzag_probe_cycle_burial_mae,
+        zigzag_probe_cycle_burial_mean_sigma_m=zigzag_probe_cycle_burial_mean_sigma,
+        zigzag_probe_cycle_burial_mean_quality=zigzag_probe_cycle_burial_mean_quality,
         burial_inversion_coverage=burial_coverage,
         heading_errors_deg=heading_errors,
     )
