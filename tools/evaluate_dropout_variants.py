@@ -713,6 +713,26 @@ def _variants() -> List[Tuple[str, VariantBuilder]]:
             feed_max_innovation_m=20.0,
             feed_max_axis_delta_deg=45.0,
         )),
+        _variant("p47_probe10_magnetic_crossing_control", lambda s: _zigzag_probe(
+            s,
+            angle_deg=10.0,
+            magnetic_path=True,
+            local_age_s=180.0,
+            phase_gate=True,
+            phase_min_offset_m=1.0,
+            lookahead=True,
+            lookahead_feed_local_path=True,
+            lookahead_feed_extrapolated_scale=0.25,
+            lookahead_feed_max_age_s=60.0,
+            lookahead_feed_max_phase_age_s=60.0,
+            lookahead_feed_max_innovation_m=14.0,
+            lookahead_feed_max_axis_delta_deg=35.0,
+            lookahead_feed_max_local_residual_m=5.0,
+            local_path_guidance=True,
+            magnetic_crossing_probe_control=True,
+            feed_max_innovation_m=20.0,
+            feed_max_axis_delta_deg=45.0,
+        )),
     ]
 
 
@@ -763,11 +783,13 @@ def _zigzag_probe(
     lookahead_feed_heading_smoothing: bool = False,
     lookahead_feed_heading_max_step_deg: float = 12.0,
     curve_track_flip_to_vehicle: bool = False,
+    magnetic_crossing_probe_control: bool = False,
     local_path_guidance: bool | None = None,
 ) -> None:
     scenario.tracking.track_active_zigzag_angle_deg = angle_deg
     scenario.tracking.curve_track_crossing_angle_deg = angle_deg
     scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled = curve_track_flip_to_vehicle
+    scenario.tracking.magnetic_crossing_probe_control_enabled = magnetic_crossing_probe_control
     scenario.tracking.magnetic_path_observation_enabled = magnetic_path
     scenario.tracking.magnetic_path_feed_local_path = feed_local_path
     scenario.tracking.magnetic_path_min_horizontal_field_nt = 5.0
@@ -845,6 +867,7 @@ def main() -> None:
         "track_pct,switches,mag_probe_pct,mag_axis_err,mag_pos_err,mag_offset,"
         "mag_phase_pct,mag_phase_axis_err,mag_phase_pos_err,mag_phase_amp,"
         "probe_active_pct,probe_cycles,probe_flips,probe_mag_crossings,probe_mag_cross_per_cycle,"
+        "probe_forced_flips,probe_missed_crossings,probe_cross_wait_s,"
         "probe_cycle_s,probe_peak_xt,probe_phase_per_cycle,"
         "probe_field_ratio,probe_bperp,probe_burial_cov,probe_burial_mae,"
         "probe_cycle_burial_cov,probe_cycle_burial_mae,probe_cycle_burial_sigma,probe_cycle_burial_quality,"
@@ -911,6 +934,7 @@ def main() -> None:
             "p44_",
             "p45_",
             "p46_",
+            "p47_",
         )):
             continue
         scenario = build(base)
@@ -937,6 +961,9 @@ def main() -> None:
             f"{metrics.zigzag_probe_leg_flip_count},"
             f"{metrics.zigzag_probe_magnetic_crossing_count},"
             f"{metrics.zigzag_probe_magnetic_crossings_per_cycle:.2f},"
+            f"{metrics.magnetic_crossing_probe_forced_flip_count},"
+            f"{metrics.magnetic_crossing_probe_missed_count},"
+            f"{metrics.magnetic_crossing_probe_mean_wait_s:.1f},"
             f"{metrics.zigzag_probe_mean_cycle_duration_s:.1f},"
             f"{metrics.zigzag_probe_mean_peak_abs_cross_track_m:.1f},"
             f"{metrics.zigzag_probe_phase_events_per_cycle:.2f},"

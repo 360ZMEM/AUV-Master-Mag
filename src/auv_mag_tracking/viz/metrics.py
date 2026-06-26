@@ -104,6 +104,9 @@ class HealthMetrics:
     zigzag_probe_leg_flip_count: int = 0
     zigzag_probe_magnetic_crossing_count: int = 0
     zigzag_probe_magnetic_crossings_per_cycle: float = 0.0
+    magnetic_crossing_probe_forced_flip_count: int = 0
+    magnetic_crossing_probe_missed_count: int = 0
+    magnetic_crossing_probe_mean_wait_s: float = float("nan")
     zigzag_probe_mean_cycle_duration_s: float = float("nan")
     zigzag_probe_mean_peak_abs_cross_track_m: float = float("nan")
     zigzag_probe_phase_events_per_cycle: float = 0.0
@@ -342,6 +345,15 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     zigzag_probe_active_fraction = float(np.mean(zigzag_probe_active)) if n else 0.0
     zigzag_probe_leg_flip_count = int(np.nansum(record["zigzag_probe_leg_flip_event"]))
     zigzag_probe_magnetic_crossing_count = int(np.nansum(record["zigzag_probe_magnetic_crossing_event"]))
+    magnetic_crossing_probe_forced_flip_count = int(np.nansum(record["magnetic_crossing_probe_forced_flip"]))
+    missed_values = record["magnetic_crossing_probe_missed_count"]
+    missed_values = missed_values[np.isfinite(missed_values)]
+    magnetic_crossing_probe_missed_count = int(np.max(missed_values)) if missed_values.size else 0
+    magnetic_crossing_wait = record["magnetic_crossing_probe_wait_s"][zigzag_probe_active]
+    magnetic_crossing_wait = magnetic_crossing_wait[np.isfinite(magnetic_crossing_wait)]
+    magnetic_crossing_probe_mean_wait_s = (
+        float(np.mean(magnetic_crossing_wait)) if magnetic_crossing_wait.size else float("nan")
+    )
     cycle_ids = record["zigzag_probe_cycle_id"][zigzag_probe_active]
     finite_cycle_ids = cycle_ids[np.isfinite(cycle_ids)]
     zigzag_probe_cycle_count = int(np.max(finite_cycle_ids) + 1) if finite_cycle_ids.size else 0
@@ -488,6 +500,9 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         zigzag_probe_leg_flip_count=zigzag_probe_leg_flip_count,
         zigzag_probe_magnetic_crossing_count=zigzag_probe_magnetic_crossing_count,
         zigzag_probe_magnetic_crossings_per_cycle=zigzag_probe_magnetic_crossings_per_cycle,
+        magnetic_crossing_probe_forced_flip_count=magnetic_crossing_probe_forced_flip_count,
+        magnetic_crossing_probe_missed_count=magnetic_crossing_probe_missed_count,
+        magnetic_crossing_probe_mean_wait_s=magnetic_crossing_probe_mean_wait_s,
         zigzag_probe_mean_cycle_duration_s=zigzag_probe_mean_cycle_duration,
         zigzag_probe_mean_peak_abs_cross_track_m=zigzag_probe_mean_peak_abs_cross_track,
         zigzag_probe_phase_events_per_cycle=phase_events_per_cycle,

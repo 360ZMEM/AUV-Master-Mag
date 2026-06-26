@@ -27,6 +27,10 @@ def _perception_state(
     local_path_tracking_state: str = "line_track",
     deployment_reacquire_required: bool = False,
     estimated_cable_point_xy_m: Optional[np.ndarray] = None,
+    magnetic_cross_track_offset_m: Optional[float] = None,
+    magnetic_path_observation_valid: bool = False,
+    magnetic_path_heading_deg: Optional[float] = None,
+    magnetic_path_cross_track_offset_m: Optional[float] = None,
 ) -> PerceptionState:
     fit_direction = np.array([1.0, 0.0], dtype=float)
     return PerceptionState(
@@ -79,6 +83,10 @@ def _perception_state(
         local_path_residual_m=0.5,
         local_path_radius_m=60.0,
         local_path_tracking_state=local_path_tracking_state,
+        magnetic_cross_track_offset_m=magnetic_cross_track_offset_m,
+        magnetic_path_observation_valid=magnetic_path_observation_valid,
+        magnetic_path_heading_deg=magnetic_path_heading_deg,
+        magnetic_path_cross_track_offset_m=magnetic_path_cross_track_offset_m,
     )
 
 
@@ -160,6 +168,128 @@ class ZigZagControllerReacquireTest(unittest.TestCase):
         self.assertAlmostEqual(crossing_angle_deg, self.scenario.tracking.curve_track_crossing_angle_deg)
         self.assertAlmostEqual(command.speed_mps, self.scenario.vehicle.cruise_speed_mps * self.scenario.tracking.curve_track_speed_factor)
         self.assertLess(abs(smallest_angle_error_deg(command.desired_heading_deg, 45.0 + crossing_angle_deg)), 1.0)
+
+    def test_magnetic_crossing_probe_flips_on_magnetic_sign_change(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = False
+        self.scenario.tracking.magnetic_crossing_probe_control_enabled = True
+        self.scenario.tracking.magnetic_crossing_probe_min_flip_interval_s = 0.0
+        self.scenario.tracking.track_active_zigzag_angle_deg = 10.0
+        self.controller = ZigZagController(self.scenario)
+        pose = Pose(
+            position_ned_m=np.array([0.0, 0.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            pitch_deg=0.0,
+            roll_deg=0.0,
+            speed_mps=1.0,
+        )
+
+        self.controller.update(
+            pose,
+            _perception_state(
+                time_s=1.0,
+                magnetic_path_observation_valid=True,
+                magnetic_path_heading_deg=0.0,
+                magnetic_path_cross_track_offset_m=1.0,
+            ),
+        )
+        self.assertLess(self.controller.leg_sign, 0.0)
+
+        self.controller.update(
+            pose,
+            _perception_state(
+                time_s=2.0,
+                magnetic_path_observation_valid=True,
+                magnetic_path_heading_deg=0.0,
+                magnetic_path_cross_track_offset_m=-1.0,
+            ),
+        )
+
+        self.assertGreater(self.controller.leg_sign, 0.0)
+
+    def test_magnetic_crossing_probe_normalizes_offset_sign_to_base_heading(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = False
+        self.scenario.tracking.magnetic_crossing_probe_control_enabled = True
+        self.scenario.tracking.magnetic_crossing_probe_min_flip_interval_s = 0.0
+        self.controller = ZigZagController(self.scenario)
+        pose = Pose(
+            position_ned_m=np.array([0.0, 0.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            pitch_deg=0.0,
+            roll_deg=0.0,
+            speed_mps=1.0,
+        )
+
+        self.controller.update(
+            pose,
+            _perception_state(
+                time_s=1.0,
+                magnetic_path_observation_valid=True,
+                magnetic_path_heading_deg=180.0,
+                magnetic_path_cross_track_offset_m=1.0,
+            ),
+        )
+
+        self.assertGreater(self.controller.leg_sign, 0.0)
+
+    def test_magnetic_crossing_probe_prefers_continuous_ratio_offset(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = False
+        self.scenario.tracking.magnetic_crossing_probe_control_enabled = True
+        self.scenario.tracking.magnetic_crossing_probe_min_flip_interval_s = 0.0
+        self.controller = ZigZagController(self.scenario)
+        pose = Pose(
+            position_ned_m=np.array([0.0, 0.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            pitch_deg=0.0,
+            roll_deg=0.0,
+            speed_mps=1.0,
+        )
+
+        self.controller.update(
+            pose,
+            _perception_state(
+                time_s=1.0,
+                magnetic_cross_track_offset_m=-1.0,
+                magnetic_path_observation_valid=True,
+                magnetic_path_heading_deg=0.0,
+                magnetic_path_cross_track_offset_m=1.0,
+            ),
+        )
+
+        self.assertGreater(self.controller.leg_sign, 0.0)
+
+    def test_magnetic_crossing_probe_forces_flip_after_missed_crossing(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = False
+        self.scenario.tracking.magnetic_crossing_probe_control_enabled = True
+        self.scenario.tracking.magnetic_crossing_probe_forced_flip_multiplier = 1.0
+        self.scenario.tracking.magnetic_crossing_probe_max_wait_s = 2.0
+        self.controller = ZigZagController(self.scenario)
+        pose = Pose(
+            position_ned_m=np.array([0.0, 0.0, 0.0], dtype=float),
+            heading_deg=0.0,
+            pitch_deg=0.0,
+            roll_deg=0.0,
+            speed_mps=1.0,
+        )
+
+        self.controller.update(
+            pose,
+            _perception_state(
+                time_s=0.0,
+                magnetic_path_observation_valid=True,
+                magnetic_path_heading_deg=0.0,
+                magnetic_path_cross_track_offset_m=1.0,
+            ),
+        )
+        perception = _perception_state(
+            time_s=3.0,
+            magnetic_path_observation_valid=True,
+            magnetic_path_heading_deg=0.0,
+            magnetic_path_cross_track_offset_m=1.0,
+        )
+        self.controller.update(pose, perception)
+
+        self.assertTrue(perception.magnetic_crossing_probe_forced_flip)
+        self.assertEqual(perception.magnetic_crossing_probe_missed_count, 1)
 
 
 if __name__ == "__main__":

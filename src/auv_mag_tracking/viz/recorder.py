@@ -98,6 +98,9 @@ _NUMERIC_CHANNELS = (
     "zigzag_probe_cycle_age_s",
     "zigzag_probe_leg_flip_event",
     "zigzag_probe_magnetic_crossing_event",
+    "magnetic_crossing_probe_wait_s",
+    "magnetic_crossing_probe_missed_count",
+    "magnetic_crossing_probe_forced_flip",
     "zigzag_probe_signed_cross_track_m",
     "zigzag_probe_cycle_peak_abs_cross_track_m",
     "zigzag_probe_phase_count",
@@ -544,6 +547,11 @@ def simulate_run(
             zigzag_probe_cycle_age_s=probe_cycle_age_s,
             zigzag_probe_leg_flip_event=probe_leg_flip_event,
             zigzag_probe_magnetic_crossing_event=probe_magnetic_crossing_event,
+            magnetic_crossing_probe_wait_s=perception.magnetic_crossing_probe_wait_s,
+            magnetic_crossing_probe_missed_count=float(perception.magnetic_crossing_probe_missed_count),
+            magnetic_crossing_probe_forced_flip=(
+                1.0 if perception.magnetic_crossing_probe_forced_flip else 0.0
+            ),
             zigzag_probe_signed_cross_track_m=signed_route_cross_track_m if probe_active else np.nan,
             zigzag_probe_cycle_peak_abs_cross_track_m=(
                 probe_cycle_peak_abs_cross_track_m if probe_active else np.nan

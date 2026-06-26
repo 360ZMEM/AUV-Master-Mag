@@ -132,6 +132,10 @@ class PerceptionState:
     magnetic_path_heading_deg: Optional[float] = None
     magnetic_path_cross_track_offset_m: Optional[float] = None
     magnetic_path_confidence: float = 0.0
+    # --- Magnetic-crossing-aligned probe control diagnostics ---
+    magnetic_crossing_probe_wait_s: float = 0.0
+    magnetic_crossing_probe_missed_count: int = 0
+    magnetic_crossing_probe_forced_flip: bool = False
     # --- Zig-zag phase-confirmed pure-magnetic observation diagnostics ---
     magnetic_phase_observation_valid: bool = False
     magnetic_phase_x_m: Optional[float] = None

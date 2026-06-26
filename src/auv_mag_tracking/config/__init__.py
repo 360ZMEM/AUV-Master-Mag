@@ -341,6 +341,11 @@ class TrackingConfig:
         lookahead_min_distance_m: 交叉角前视距离的下限。
         crossing_width_periods: 一次电缆穿越对应的沿缆宽度数（用于扫描周期与看门狗翻腿时限）。
         watchdog_min_cross_time_s: 看门狗翻腿时限的下限，避免冷启动无电缆点时无法翻腿。
+        magnetic_crossing_probe_control_enabled: 是否用磁横偏过零事件对齐 probe 翻腿。
+        magnetic_crossing_probe_min_abs_offset_m: 判定磁横偏符号可靠所需的最小绝对偏移。
+        magnetic_crossing_probe_min_flip_interval_s: 两次磁跨线确认翻腿之间的最小间隔，用于抑制符号抖动。
+        magnetic_crossing_probe_forced_flip_multiplier: 等待磁跨线超过预期穿越时间多少倍后强制翻腿。
+        magnetic_crossing_probe_max_wait_s: 单条 probe leg 等待磁跨线的最长时间。
         fsm_cov_perp_converged_m2: LOCK->TRACK 的 PCA 垂直散布门限。
         fsm_yaw_err_converged_deg: LOCK->TRACK 的航向误差门限。
     """
@@ -499,6 +504,11 @@ class TrackingConfig:
     lookahead_min_distance_m: float = 10.0
     crossing_width_periods: float = 2.5
     watchdog_min_cross_time_s: float = 10.0
+    magnetic_crossing_probe_control_enabled: bool = False
+    magnetic_crossing_probe_min_abs_offset_m: float = 0.25
+    magnetic_crossing_probe_min_flip_interval_s: float = 10.0
+    magnetic_crossing_probe_forced_flip_multiplier: float = 1.5
+    magnetic_crossing_probe_max_wait_s: float = 45.0
     fsm_cov_perp_converged_m2: float = 1.0
     fsm_yaw_err_converged_deg: float = 5.0
 

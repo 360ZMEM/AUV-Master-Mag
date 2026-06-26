@@ -55,6 +55,9 @@ class ZigZagController:
         self.reacquire_anchor_xy_m: Optional[np.ndarray] = None
         self.reacquire_anchor_heading_deg: Optional[float] = None
         self.reacquire_leg_index: int = 0
+        self.last_magnetic_crossing_offset_sign: int = 0
+        self.magnetic_crossing_probe_missed_count: int = 0
+        self.magnetic_crossing_probe_forced_flip: bool = False
 
     def _build_mission_thresholds(self) -> MissionThresholds:
         """从场景配置组装任务层阈值（暂用默认 + 复用已有置信度阈值）。"""
@@ -244,6 +247,73 @@ class ZigZagController:
         self.reacquire_anchor_heading_deg = None
         self.reacquire_leg_index = 0
 
+    def _magnetic_crossing_offset_sign(self, perception: PerceptionState, base_heading_deg: float) -> int:
+        min_abs_offset_m = self.scenario.tracking.magnetic_crossing_probe_min_abs_offset_m
+        offset_m = perception.magnetic_cross_track_offset_m
+        if offset_m is not None and np.isfinite(offset_m):
+            if abs(offset_m) < min_abs_offset_m:
+                return 0
+            return 1 if offset_m > 0.0 else -1
+
+        offset_m = perception.magnetic_path_cross_track_offset_m
+        if offset_m is None or not np.isfinite(offset_m):
+            return 0
+        if abs(offset_m) < min_abs_offset_m:
+            return 0
+        sign = 1 if offset_m > 0.0 else -1
+        magnetic_heading_deg = perception.magnetic_path_heading_deg
+        if magnetic_heading_deg is not None and np.isfinite(magnetic_heading_deg):
+            if abs(smallest_angle_error_deg(magnetic_heading_deg, base_heading_deg)) > 90.0:
+                sign *= -1
+        return sign
+
+    def _update_magnetic_crossing_probe_leg(
+        self,
+        perception: PerceptionState,
+        expected_cross_time_s: float,
+        base_heading_deg: float,
+    ) -> bool:
+        """Use magnetic cross-track sign changes to align probe leg flips."""
+        tracking = self.scenario.tracking
+        if not tracking.magnetic_crossing_probe_control_enabled:
+            self.magnetic_crossing_probe_forced_flip = False
+            return False
+
+        self.magnetic_crossing_probe_forced_flip = False
+        current_sign = self._magnetic_crossing_offset_sign(perception, base_heading_deg)
+        if current_sign == 0:
+            return False
+
+        if self.last_magnetic_crossing_offset_sign == 0:
+            self.last_magnetic_crossing_offset_sign = current_sign
+            self.leg_sign = -float(current_sign)
+            self.last_leg_flip_time_s = perception.time_s
+            return True
+
+        time_since_flip_s = perception.time_s - self.last_leg_flip_time_s
+        min_flip_interval_s = max(0.0, tracking.magnetic_crossing_probe_min_flip_interval_s)
+        if current_sign != self.last_magnetic_crossing_offset_sign:
+            if time_since_flip_s < min_flip_interval_s:
+                return True
+            self.leg_sign = -float(current_sign)
+            self.last_leg_flip_time_s = perception.time_s
+            self.last_magnetic_crossing_offset_sign = current_sign
+            return True
+
+        max_wait_s = min(
+            tracking.magnetic_crossing_probe_max_wait_s,
+            max(
+                expected_cross_time_s * tracking.magnetic_crossing_probe_forced_flip_multiplier,
+                tracking.watchdog_min_cross_time_s,
+            ),
+        )
+        if time_since_flip_s > max_wait_s:
+            self.leg_sign *= -1.0
+            self.last_leg_flip_time_s = perception.time_s
+            self.magnetic_crossing_probe_missed_count += 1
+            self.magnetic_crossing_probe_forced_flip = True
+        return True
+
     def _reacquire_heading_deg(
         self,
         pose: Pose,
@@ -372,7 +442,16 @@ class ZigZagController:
         # field reliably rises-peaks-falls (the peak detector's prerequisite).
         half_band_m = 0.5 * max(zigzag_width_m, self.scenario.tracking.min_zigzag_half_band_width_m)
         cross_track_offset_m = self._cross_track_offset_m(pose, perception, base_heading_deg)
-        if cross_track_offset_m is not None and not perception.safe_lock_active and not reacquire_zigzag_active:
+        magnetic_crossing_probe_available = (
+            self.scenario.tracking.magnetic_crossing_probe_control_enabled
+            and self._magnetic_crossing_offset_sign(perception, base_heading_deg) != 0
+        )
+        if (
+            cross_track_offset_m is not None
+            and not perception.safe_lock_active
+            and not reacquire_zigzag_active
+            and not magnetic_crossing_probe_available
+        ):
             if self.leg_sign > 0.0 and cross_track_offset_m >= half_band_m:
                 self.leg_sign = -1.0
                 self.last_leg_flip_time_s = perception.time_s
@@ -387,7 +466,19 @@ class ZigZagController:
             zigzag_width_m * self.scenario.tracking.crossing_width_periods / max(pose.speed_mps, 0.5),
             self.scenario.tracking.watchdog_min_cross_time_s,
         )
-        if not reacquire_zigzag_active and perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s:
+        magnetic_crossing_probe_handled = (
+            not perception.safe_lock_active
+            and not reacquire_zigzag_active
+            and self._update_magnetic_crossing_probe_leg(perception, expected_cross_time_s, base_heading_deg)
+        )
+        perception.magnetic_crossing_probe_wait_s = max(0.0, perception.time_s - self.last_leg_flip_time_s)
+        perception.magnetic_crossing_probe_missed_count = self.magnetic_crossing_probe_missed_count
+        perception.magnetic_crossing_probe_forced_flip = self.magnetic_crossing_probe_forced_flip
+        if (
+            not magnetic_crossing_probe_handled
+            and not reacquire_zigzag_active
+            and perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s
+        ):
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
 
