@@ -7,7 +7,17 @@ reporting share the same metric functions, so numbers never drift.
 """
 
 from .baseline import PRE_2G, PRE_REFACTOR, MilestoneMetrics
-from .figures import render_detail, render_overview, render_progress, render_run, render_selector_sync, render_showcase
+from .figures import (
+    render_detail,
+    render_overview,
+    render_paper_progress_panels,
+    render_paper_run_panels,
+    render_paper_showcase_panels,
+    render_progress,
+    render_run,
+    render_selector_sync,
+    render_showcase,
+)
 from .metrics import (
     HealthMetrics,
     ProgressDelta,
@@ -39,6 +49,9 @@ __all__ = [
     "render_selector_sync",
     "render_showcase",
     "render_progress",
+    "render_paper_run_panels",
+    "render_paper_showcase_panels",
+    "render_paper_progress_panels",
     "save_run_report",
     "save_showcase_report",
     "save_progress_report",

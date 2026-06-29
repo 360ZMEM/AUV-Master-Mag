@@ -15,6 +15,7 @@ from ..math_utils import Pose, wrap_angle_deg
 from ..sensor_model import (
     BurialDepthMeasurement,
     MagnetometerReading,
+    NavigationMeasurement,
     PoseMeasurement,
     SonarReading,
 )
@@ -33,9 +34,10 @@ class DeploymentSensorSource:
         bundle = self.connector.recv_sensor_updates()
         frame_time_s = float(bundle.time_s if bundle.time_s > 0.0 else time_s)
         magnetometer_reading = self._magnetometer_reading(bundle, frame_time_s)
-        pose_measurement = self._pose_measurement(bundle, frame_time_s, pose)
-        vehicle_position_xy_m = self._vehicle_position_xy(bundle, pose)
-        sonar_reading = self._sonar_reading(bundle, frame_time_s, pose)
+        navigation_measurement = self._navigation_measurement(bundle, frame_time_s, pose)
+        pose_measurement = self._pose_measurement(bundle, frame_time_s, pose, navigation_measurement)
+        vehicle_position_xy_m = navigation_measurement.position_ned_m[:2].copy()
+        sonar_reading = self._sonar_reading(bundle, frame_time_s, navigation_measurement.pose())
         burial_measurement = BurialDepthMeasurement(
             time_s=frame_time_s,
             depth_m=None if bundle.burial_depth_m is None else float(bundle.burial_depth_m),
@@ -47,6 +49,7 @@ class DeploymentSensorSource:
             vehicle_position_xy_m=vehicle_position_xy_m,
             burial_measurement=burial_measurement,
             sonar_reading=sonar_reading,
+            navigation_measurement=navigation_measurement,
             true_burial_depth_m=None,
             true_cable_heading_deg=None,
         )
@@ -82,13 +85,50 @@ class DeploymentSensorSource:
         )
 
     @staticmethod
-    def _pose_measurement(bundle: RawSensorBundle, time_s: float, pose: Pose) -> PoseMeasurement:
+    def _navigation_measurement(bundle: RawSensorBundle, time_s: float, pose: Pose) -> NavigationMeasurement:
+        position_ned_m = (
+            np.asarray(bundle.navigation_position_ned_m, dtype=float).copy()
+            if bundle.navigation_position_ned_m is not None
+            else (
+                np.asarray(bundle.vehicle_position_ned_m, dtype=float).copy()
+                if bundle.vehicle_position_ned_m is not None
+                else pose.position_ned_m.copy()
+            )
+        )
+        if position_ned_m.size < 3:
+            padded = pose.position_ned_m.copy()
+            padded[:position_ned_m.size] = position_ned_m
+            position_ned_m = padded
+        heading_deg = (
+            pose.heading_deg
+            if bundle.navigation_heading_deg is None
+            else float(bundle.navigation_heading_deg)
+        )
+        return NavigationMeasurement(
+            time_s=time_s,
+            position_ned_m=position_ned_m,
+            heading_deg=heading_deg,
+            pitch_deg=pose.pitch_deg if bundle.navigation_pitch_deg is None else float(bundle.navigation_pitch_deg),
+            roll_deg=pose.roll_deg if bundle.navigation_roll_deg is None else float(bundle.navigation_roll_deg),
+            speed_mps=pose.speed_mps if bundle.navigation_speed_mps is None else float(bundle.navigation_speed_mps),
+            position_std_m=0.0 if bundle.navigation_position_std_m is None else float(bundle.navigation_position_std_m),
+            heading_std_deg=0.0 if bundle.navigation_heading_std_deg is None else float(bundle.navigation_heading_std_deg),
+            source="dr_ins",
+        )
+
+    @staticmethod
+    def _pose_measurement(
+        bundle: RawSensorBundle,
+        time_s: float,
+        pose: Pose,
+        navigation_measurement: NavigationMeasurement,
+    ) -> PoseMeasurement:
         return PoseMeasurement(
             time_s=time_s,
-            heading_deg=pose.heading_deg if bundle.imu_heading_deg is None else float(bundle.imu_heading_deg),
-            pitch_deg=pose.pitch_deg if bundle.imu_pitch_deg is None else float(bundle.imu_pitch_deg),
-            roll_deg=pose.roll_deg if bundle.imu_roll_deg is None else float(bundle.imu_roll_deg),
-            speed_mps=pose.speed_mps if bundle.vehicle_speed_mps is None else float(bundle.vehicle_speed_mps),
+            heading_deg=navigation_measurement.heading_deg if bundle.imu_heading_deg is None else float(bundle.imu_heading_deg),
+            pitch_deg=navigation_measurement.pitch_deg if bundle.imu_pitch_deg is None else float(bundle.imu_pitch_deg),
+            roll_deg=navigation_measurement.roll_deg if bundle.imu_roll_deg is None else float(bundle.imu_roll_deg),
+            speed_mps=navigation_measurement.speed_mps if bundle.vehicle_speed_mps is None else float(bundle.vehicle_speed_mps),
         )
 
     @staticmethod

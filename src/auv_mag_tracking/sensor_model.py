@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 
-from .config import SensorConfig, SonarConfig, SurveyConfig
+from .config import NavigationConfig, SensorConfig, SonarConfig, SurveyConfig
 from .environment import CableFitTruth
 from .math_utils import Pose, body_to_sensor, ned_to_body, ned_xy_to_body, rotation_matrix_sensor_to_body, wrap_angle_deg
 
@@ -40,6 +40,40 @@ class PoseMeasurement:
 
 
 @dataclass
+class NavigationMeasurement:
+    """DR/INS navigation solution used by perception and controller."""
+
+    time_s: float
+    position_ned_m: np.ndarray
+    heading_deg: float
+    pitch_deg: float
+    roll_deg: float
+    speed_mps: float
+    position_std_m: float = 0.0
+    heading_std_deg: float = 0.0
+    source: str = "truth"
+    prior_rotation_drift_deg: float = 0.0
+
+    def pose(self) -> Pose:
+        return Pose(
+            position_ned_m=np.asarray(self.position_ned_m, dtype=float).copy(),
+            heading_deg=float(self.heading_deg),
+            pitch_deg=float(self.pitch_deg),
+            roll_deg=float(self.roll_deg),
+            speed_mps=float(self.speed_mps),
+        )
+
+    def pose_measurement(self) -> PoseMeasurement:
+        return PoseMeasurement(
+            time_s=self.time_s,
+            heading_deg=self.heading_deg,
+            pitch_deg=self.pitch_deg,
+            roll_deg=self.roll_deg,
+            speed_mps=self.speed_mps,
+        )
+
+
+@dataclass
 class BurialDepthMeasurement:
     """表示埋深观测结果及其有效性。"""
 
@@ -61,6 +95,46 @@ class SonarReading:
     estimated_heading_ned_deg: Optional[float]
     confidence: float
     distance_m: Optional[float]
+
+
+def sonar_reading_in_navigation_frame(
+    reading: SonarReading,
+    navigation_pose: Pose,
+) -> SonarReading:
+    """Re-express a relative sonar reading in the current DR/INS navigation frame."""
+    if not reading.valid or reading.relative_position_body_m is None:
+        return reading
+    relative_body_xy_m = np.asarray(reading.relative_position_body_m, dtype=float)[:2]
+    heading_rad = np.deg2rad(navigation_pose.heading_deg)
+    estimated_position_ned_m = np.array(
+        [
+            navigation_pose.position_ned_m[0]
+            + np.cos(heading_rad) * relative_body_xy_m[0]
+            - np.sin(heading_rad) * relative_body_xy_m[1],
+            navigation_pose.position_ned_m[1]
+            + np.sin(heading_rad) * relative_body_xy_m[0]
+            + np.cos(heading_rad) * relative_body_xy_m[1],
+        ],
+        dtype=float,
+    )
+    estimated_heading_ned_deg = None
+    if reading.relative_heading_body_deg is not None:
+        estimated_heading_ned_deg = wrap_angle_deg(
+            navigation_pose.heading_deg + reading.relative_heading_body_deg
+        )
+    elif reading.estimated_heading_ned_deg is not None:
+        estimated_heading_ned_deg = reading.estimated_heading_ned_deg
+    return SonarReading(
+        time_s=reading.time_s,
+        valid=reading.valid,
+        status=reading.status,
+        relative_position_body_m=reading.relative_position_body_m.copy(),
+        relative_heading_body_deg=reading.relative_heading_body_deg,
+        estimated_position_ned_m=estimated_position_ned_m,
+        estimated_heading_ned_deg=estimated_heading_ned_deg,
+        confidence=reading.confidence,
+        distance_m=reading.distance_m,
+    )
 
 
 class MagnetometerModel:
@@ -339,6 +413,101 @@ class IMUSimulator:
         return PoseMeasurement(
             time_s=time_s, heading_deg=heading_deg, pitch_deg=pitch_deg,
             roll_deg=roll_deg, speed_mps=pose.speed_mps,
+        )
+
+
+class NavigationSimulator:
+    def __init__(self, config: NavigationConfig, random_seed: int = 23) -> None:
+        """Simulate DR/INS navigation with low-pass noise and random-walk drift."""
+        self.config = config
+        self.rng = np.random.default_rng(random_seed)
+        self.position_drift_xy_m = np.zeros(2, dtype=float)
+        self.heading_drift_deg = 0.0
+        self.filtered_position_noise_xy_m = np.zeros(2, dtype=float)
+        self.filtered_heading_noise_deg = 0.0
+        self.prior_rotation_drift_deg = 0.0
+        self.last_time_s: Optional[float] = None
+
+    def observe(self, pose: Pose, time_s: float) -> NavigationMeasurement:
+        if not self.config.enabled:
+            return NavigationMeasurement(
+                time_s=time_s,
+                position_ned_m=pose.position_ned_m.copy(),
+                heading_deg=pose.heading_deg,
+                pitch_deg=pose.pitch_deg,
+                roll_deg=pose.roll_deg,
+                speed_mps=pose.speed_mps,
+                source="truth",
+                prior_rotation_drift_deg=0.0,
+            )
+        dt_s = 0.0 if self.last_time_s is None else max(time_s - self.last_time_s, 0.0)
+        self.last_time_s = float(time_s)
+        if dt_s > 0.0:
+            self.position_drift_xy_m += self.rng.normal(
+                0.0,
+                self.config.position_random_walk_std_m_per_sqrt_s * np.sqrt(dt_s),
+                size=2,
+            )
+            self.heading_drift_deg += float(self.rng.normal(
+                0.0,
+                self.config.heading_random_walk_std_deg_per_sqrt_s * np.sqrt(dt_s),
+            ))
+            self.prior_rotation_drift_deg += float(self.rng.normal(
+                0.0,
+                self.config.prior_rotation_random_walk_std_deg_per_sqrt_s * np.sqrt(dt_s),
+            ))
+        max_position_drift_m = max(self.config.max_position_drift_m, 0.0)
+        drift_norm_m = float(np.linalg.norm(self.position_drift_xy_m))
+        if drift_norm_m > max_position_drift_m > 0.0:
+            self.position_drift_xy_m *= max_position_drift_m / drift_norm_m
+        max_heading_drift_deg = max(self.config.max_heading_drift_deg, 0.0)
+        self.heading_drift_deg = float(np.clip(
+            self.heading_drift_deg,
+            -max_heading_drift_deg,
+            max_heading_drift_deg,
+        ))
+        max_prior_rotation_drift_deg = max(self.config.max_prior_rotation_drift_deg, 0.0)
+        if max_prior_rotation_drift_deg > 0.0:
+            self.prior_rotation_drift_deg = float(np.clip(
+                self.prior_rotation_drift_deg,
+                -max_prior_rotation_drift_deg,
+                max_prior_rotation_drift_deg,
+            ))
+
+        alpha = float(np.clip(self.config.lowpass_alpha, 0.0, 1.0))
+        position_white_noise_xy_m = self.rng.normal(
+            0.0,
+            self.config.position_white_noise_std_m,
+            size=2,
+        )
+        heading_white_noise_deg = float(self.rng.normal(
+            0.0,
+            self.config.heading_white_noise_std_deg,
+        ))
+        self.filtered_position_noise_xy_m = (
+            (1.0 - alpha) * self.filtered_position_noise_xy_m
+            + alpha * position_white_noise_xy_m
+        )
+        self.filtered_heading_noise_deg = (
+            (1.0 - alpha) * self.filtered_heading_noise_deg
+            + alpha * heading_white_noise_deg
+        )
+        position_ned_m = pose.position_ned_m.copy()
+        position_ned_m[:2] += self.position_drift_xy_m + self.filtered_position_noise_xy_m
+        heading_deg = wrap_angle_deg(
+            pose.heading_deg + self.heading_drift_deg + self.filtered_heading_noise_deg
+        )
+        return NavigationMeasurement(
+            time_s=time_s,
+            position_ned_m=position_ned_m,
+            heading_deg=heading_deg,
+            pitch_deg=pose.pitch_deg,
+            roll_deg=pose.roll_deg,
+            speed_mps=pose.speed_mps,
+            position_std_m=self.config.position_white_noise_std_m,
+            heading_std_deg=self.config.heading_white_noise_std_deg,
+            source="dr_ins",
+            prior_rotation_drift_deg=self.prior_rotation_drift_deg,
         )
 
 

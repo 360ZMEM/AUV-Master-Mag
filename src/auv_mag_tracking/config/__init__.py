@@ -17,6 +17,28 @@ Vector2Tuple = Tuple[float, float]
 
 
 @dataclass
+class NavigationConfig:
+    """DR/INS navigation observation model and API configuration.
+
+    The prior_rotation_random_walk channel models a slow drift of the operator-
+    provided nominal route prior heading. It is independent of the DR/INS
+    heading drift and is consumed by the perception orchestrator to refresh the
+    route prior cache.
+    """
+
+    enabled: bool = False
+    position_white_noise_std_m: float = 0.0
+    heading_white_noise_std_deg: float = 0.0
+    position_random_walk_std_m_per_sqrt_s: float = 0.0
+    heading_random_walk_std_deg_per_sqrt_s: float = 0.0
+    lowpass_alpha: float = 0.08
+    max_position_drift_m: float = 80.0
+    max_heading_drift_deg: float = 8.0
+    prior_rotation_random_walk_std_deg_per_sqrt_s: float = 0.0
+    max_prior_rotation_drift_deg: float = 4.0
+
+
+@dataclass
 class HighFidelityMagnetometerConfig:
     """高保真磁力计建模参数。
 
@@ -478,6 +500,28 @@ class TrackingConfig:
     guidance_memory_timeout_s: float = 7.5
     memory_guidance_confidence_floor: float = 0.38
     use_nominal_route_prior: bool = True
+    nominal_route_prior_translation_xy_m: Vector2Tuple = (0.0, 0.0)
+    nominal_route_prior_rotation_deg: float = 0.0
+    nominal_route_prior_scale_xy: Vector2Tuple = (1.0, 1.0)
+    nominal_route_prior_observation_correction_enabled: bool = False
+    nominal_route_prior_correction_gain: float = 0.08
+    nominal_route_prior_correction_min_confidence: float = 0.35
+    nominal_route_prior_correction_max_residual_m: float = 18.0
+    nominal_route_prior_correction_max_step_m: float = 0.75
+    nominal_route_prior_correction_max_heading_error_deg: float = 18.0
+    nominal_route_prior_correction_max_translation_m: float = 80.0
+    nominal_route_prior_correction_max_rotation_deg: float = 8.0
+    nominal_route_progress_guard_enabled: bool = False
+    nominal_route_progress_guard_lookback_m: float = 8.0
+    nominal_route_progress_guard_lookahead_m: float = 30.0
+    nominal_route_prior_correction_ekf_enabled: bool = False
+    nominal_route_prior_correction_ekf_initial_translation_var_m2: float = 4.0
+    nominal_route_prior_correction_ekf_initial_rotation_var_deg2: float = 4.0
+    nominal_route_prior_correction_ekf_translation_process_std_m_per_sqrt_s: float = 0.05
+    nominal_route_prior_correction_ekf_rotation_process_std_deg_per_sqrt_s: float = 0.03
+    nominal_route_prior_correction_ekf_translation_meas_std_m: float = 1.5
+    nominal_route_prior_correction_ekf_rotation_meas_std_deg: float = 2.5
+    nominal_route_prior_correction_ekf_anchor_memory_s: float = 12.0
     peak_ascending_min_samples: int = 2
     peak_descending_min_samples: int = 2
     peak_zone_window_size: int = 20
@@ -512,6 +556,9 @@ class TrackingConfig:
     magnetic_lookahead_pursuit_gain: float = 0.55
     magnetic_lookahead_pursuit_max_correction_deg: float = 25.0
     track_active_zigzag_angle_deg: float = 0.0
+    adaptive_track_zigzag_angle_enabled: bool = False
+    adaptive_track_zigzag_effective_distance_m: float = 3.0
+    adaptive_track_zigzag_angle_adjustment_deg: float = 5.0
     curve_track_speed_factor: float = 1.0
     curve_track_crossing_angle_deg: float = 0.0
     reacquire_search_radius_m: float = 20.0
@@ -523,6 +570,8 @@ class TrackingConfig:
     reacquire_region_enabled: bool = False
     reacquire_region_control_enabled: bool = False
     reacquire_region_forward_distance_m: float = 48.0
+    reacquire_region_route_guard_enabled: bool = False
+    reacquire_region_route_guard_lookahead_m: float = 24.0
     reacquire_region_progressive_forward_enabled: bool = False
     reacquire_region_progressive_margin_m: float = 12.0
     reacquire_region_turn_lateral_offset_m: float = 60.0
@@ -753,6 +802,7 @@ class ScenarioConfig:
     signal: SignalConfig = field(default_factory=SignalConfig)
     sensor: SensorConfig = field(default_factory=SensorConfig)
     signal_processing: SignalProcessingConfig = field(default_factory=SignalProcessingConfig)
+    navigation: NavigationConfig = field(default_factory=NavigationConfig)
     sonar: SonarConfig = field(default_factory=SonarConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
     vehicle: VehicleConfig = field(default_factory=VehicleConfig)
@@ -1196,6 +1246,8 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         scenario.tracking.reacquire_region_enabled = True
         scenario.tracking.reacquire_region_control_enabled = sonar_enabled
         scenario.tracking.reacquire_region_forward_distance_m = 48.0
+        scenario.tracking.reacquire_region_route_guard_enabled = sonar_enabled
+        scenario.tracking.reacquire_region_route_guard_lookahead_m = 24.0
         scenario.tracking.reacquire_region_progressive_forward_enabled = False
         scenario.tracking.reacquire_region_progressive_margin_m = 12.0
         scenario.tracking.reacquire_region_turn_lateral_offset_m = 60.0
@@ -1225,6 +1277,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         return scenario
 
     maze_sonar = _build_maze_case("case_maze_sonar", sonar_enabled=True)
+    maze_sonar.tracking.use_nominal_route_prior = True
     maze_sonar_dropout = _build_maze_case("case_maze_sonar_dropout", sonar_enabled=True)
     maze_sonar_dropout.description = (
         "Smooth serpentine maze cable stress test where sonar is available for initial lock "
@@ -1232,17 +1285,178 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     )
     maze_sonar_dropout.sonar.fail_after_track_active = True
     maze_sonar_dropout.sonar.fail_after_track_delay_s = 0.0
+    maze_sonar_dropout.tracking.track_active_zigzag_angle_deg = 15.0
+    maze_sonar_dropout.tracking.adaptive_track_zigzag_angle_enabled = True
+    maze_sonar_dropout.tracking.adaptive_track_zigzag_effective_distance_m = 3.0
+    maze_sonar_dropout.tracking.adaptive_track_zigzag_angle_adjustment_deg = 5.0
+    maze_sonar_dropout.tracking.magnetic_path_observation_enabled = True
+    maze_sonar_dropout.tracking.magnetic_path_min_horizontal_field_nt = 5.0
+    maze_sonar_dropout.tracking.magnetic_path_max_cross_track_m = 30.0
+    maze_sonar_dropout.tracking.reacquire_region_route_guard_enabled = False
     maze_sparse_sonar = _build_maze_case("case_maze_sparse_sonar", sonar_enabled=True)
     maze_sparse_sonar.description = (
         "Smooth serpentine maze cable stress test with sparse low-probability sonar anchors "
         "and magnetic/local-path tracking between anchors."
     )
     maze_sparse_sonar.sonar.prob_detection = 0.20
+    maze_sparse_sonar.tracking.use_nominal_route_prior = True
     maze_sparse_sonar.tracking.local_path_max_age_s = 180.0
     maze_sparse_sonar.tracking.magnetic_path_observation_enabled = False
     maze_sparse_sonar.tracking.magnetic_path_min_horizontal_field_nt = 5.0
     maze_sparse_sonar.tracking.magnetic_path_max_cross_track_m = 30.0
     maze_no_sonar = _build_maze_case("case_maze_no_sonar", sonar_enabled=False)
+
+    # --- Tiered prior scenarios (light / mid / heavy) ---
+    # Each tier bundles DR/INS navigation drift, static translation/rotation
+    # offsets of the operator-provided prior, a slow random-walk rotation drift,
+    # and a slight scale distortion. The three sonar variants (continuous /
+    # sparse / dropout) reuse the same tier knobs so boundary tests stay
+    # comparable across sonar regimes.
+    nav_light = NavigationConfig(
+        enabled=True,
+        position_white_noise_std_m=0.15,
+        heading_white_noise_std_deg=0.15,
+        position_random_walk_std_m_per_sqrt_s=0.003,
+        heading_random_walk_std_deg_per_sqrt_s=0.001,
+        lowpass_alpha=0.06,
+        max_position_drift_m=8.0,
+        max_heading_drift_deg=1.5,
+        prior_rotation_random_walk_std_deg_per_sqrt_s=0.0005,
+        max_prior_rotation_drift_deg=2.0,
+    )
+    nav_mid = NavigationConfig(
+        enabled=True,
+        position_white_noise_std_m=0.35,
+        heading_white_noise_std_deg=0.35,
+        position_random_walk_std_m_per_sqrt_s=0.018,
+        heading_random_walk_std_deg_per_sqrt_s=0.003,
+        lowpass_alpha=0.06,
+        max_position_drift_m=18.0,
+        max_heading_drift_deg=2.0,
+        prior_rotation_random_walk_std_deg_per_sqrt_s=0.001,
+        max_prior_rotation_drift_deg=3.0,
+    )
+    nav_heavy = NavigationConfig(
+        enabled=True,
+        position_white_noise_std_m=0.55,
+        heading_white_noise_std_deg=0.55,
+        position_random_walk_std_m_per_sqrt_s=0.03,
+        heading_random_walk_std_deg_per_sqrt_s=0.005,
+        lowpass_alpha=0.06,
+        max_position_drift_m=28.0,
+        max_heading_drift_deg=3.5,
+        prior_rotation_random_walk_std_deg_per_sqrt_s=0.002,
+        max_prior_rotation_drift_deg=5.0,
+    )
+    _PRIOR_TIER_PROFILES: Dict[str, dict] = {
+        "light": {
+            "navigation": nav_light,
+            "translation_xy_m": (0.0, 3.0),
+            "rotation_deg": 1.5,
+            "scale_xy": (0.995, 1.0),
+            "correction_gain": 0.02,
+            "correction_max_step_m": 0.30,
+            "correction_max_heading_error_deg": 12.0,
+        },
+        "mid": {
+            "navigation": nav_mid,
+            "translation_xy_m": (0.0, 7.5),
+            "rotation_deg": 3.0,
+            "scale_xy": (0.99, 1.0),
+            "correction_gain": 0.015,
+            "correction_max_step_m": 0.25,
+            "correction_max_heading_error_deg": 10.0,
+        },
+        "heavy": {
+            "navigation": nav_heavy,
+            "translation_xy_m": (0.0, 10.0),
+            "rotation_deg": 5.0,
+            "scale_xy": (0.98, 1.0),
+            "correction_gain": 0.01,
+            "correction_max_step_m": 0.20,
+            "correction_max_heading_error_deg": 8.0,
+        },
+    }
+
+    # Continuous sonar disables the progress guard (per user_confirmed), so a
+    # 7.5-10 m static translation prior bias drags the controller across maze
+    # lanes during U-turns. The continuous-sonar tiers therefore use a milder
+    # static bias envelope while keeping the full DR/INS drift + walking
+    # rotation drift; the sparse / dropout regimes (which carry the guard)
+    # remain on the stronger envelope above.
+    _CONTINUOUS_SONAR_TIER_OVERRIDES: Dict[str, dict] = {
+        "light": {"translation_xy_m": (0.0, 1.0), "rotation_deg": 0.5, "scale_xy": (0.998, 1.0)},
+        "mid": {"translation_xy_m": (0.0, 2.0), "rotation_deg": 1.0, "scale_xy": (0.997, 1.0)},
+        "heavy": {"translation_xy_m": (0.0, 3.0), "rotation_deg": 1.5, "scale_xy": (0.995, 1.0)},
+    }
+
+    def _build_prior_scenario_tier(base: ScenarioConfig, sonar_kind: str, tier: str) -> ScenarioConfig:
+        """Build a tiered prior stress scenario from a clean maze baseline.
+
+        ``sonar_kind`` ∈ {"sonar", "sparse_sonar", "sonar_dropout"} and
+        ``tier`` ∈ {"light", "mid", "heavy"}. The result combines DR/INS
+        drift, static + walking prior pose error, slight scale distortion
+        and the matching prior-correction guard knobs.
+        """
+        profile = _PRIOR_TIER_PROFILES[tier]
+        if sonar_kind == "sonar":
+            profile = {**profile, **_CONTINUOUS_SONAR_TIER_OVERRIDES[tier]}
+        scenario = copy.deepcopy(base)
+        scenario.name = f"case_maze_{sonar_kind}_prior_{tier}"
+        scenario.description = (
+            f"Maze {sonar_kind.replace('_', ' ')} stress test with {tier} prior tier "
+            f"(DR/INS drift + {profile['translation_xy_m'][1]} m translation + "
+            f"{profile['rotation_deg']} deg heading bias + walking rotation drift + "
+            f"{profile['scale_xy']} scale)."
+        )
+        scenario.navigation = copy.deepcopy(profile["navigation"])
+        scenario.tracking.use_nominal_route_prior = True
+        scenario.tracking.nominal_route_prior_translation_xy_m = profile["translation_xy_m"]
+        scenario.tracking.nominal_route_prior_rotation_deg = profile["rotation_deg"]
+        scenario.tracking.nominal_route_prior_scale_xy = profile["scale_xy"]
+        scenario.tracking.nominal_route_prior_observation_correction_enabled = True
+        scenario.tracking.nominal_route_prior_correction_gain = profile["correction_gain"]
+        scenario.tracking.nominal_route_prior_correction_max_step_m = profile["correction_max_step_m"]
+        scenario.tracking.nominal_route_prior_correction_max_heading_error_deg = (
+            profile["correction_max_heading_error_deg"]
+        )
+        scenario.tracking.nominal_route_progress_guard_enabled = sonar_kind in {"sparse_sonar", "sonar_dropout"}
+        if sonar_kind in {"sparse_sonar", "sonar_dropout"}:
+            scenario.tracking.nominal_route_prior_correction_ekf_enabled = True
+            scenario.tracking.nominal_route_prior_correction_ekf_translation_meas_std_m = 1.5
+            scenario.tracking.nominal_route_prior_correction_ekf_rotation_meas_std_deg = 2.5
+            scenario.tracking.nominal_route_prior_correction_ekf_translation_process_std_m_per_sqrt_s = 0.04
+            scenario.tracking.nominal_route_prior_correction_ekf_rotation_process_std_deg_per_sqrt_s = 0.025
+            scenario.tracking.nominal_route_prior_correction_max_step_m = 0.20
+            scenario.tracking.nominal_route_progress_guard_lookback_m = 8.0
+            scenario.tracking.nominal_route_progress_guard_lookahead_m = 30.0
+        scenario.tracking.track_cross_track_gain_deg_per_m = 3.5
+        scenario.tracking.track_cross_track_max_correction_deg = 45.0
+        return scenario
+
+    tiered_prior_scenarios: Dict[str, ScenarioConfig] = {}
+    for sonar_kind, base_case in (
+        ("sonar", maze_sonar),
+        ("sparse_sonar", maze_sparse_sonar),
+        ("sonar_dropout", maze_sonar_dropout),
+    ):
+        for tier in ("light", "mid", "heavy"):
+            built = _build_prior_scenario_tier(base_case, sonar_kind, tier)
+            tiered_prior_scenarios[built.name] = built
+
+    # Sparse + prob=0.15 tuning variant: tighter EKF measurement noise to compensate
+    # for the lower anchor density. Used by the dr_ins boundary sweep tool.
+    sparse_mid_prob015 = copy.deepcopy(tiered_prior_scenarios["case_maze_sparse_sonar_prior_mid"])
+    sparse_mid_prob015.name = "case_maze_sparse_sonar_prior_mid_prob015"
+    sparse_mid_prob015.description = (
+        sparse_mid_prob015.description
+        + " Variant: sonar prob_detection=0.15 with tightened EKF anchor weighting."
+    )
+    sparse_mid_prob015.sonar.prob_detection = 0.15
+    sparse_mid_prob015.tracking.nominal_route_prior_correction_ekf_translation_meas_std_m = 1.8
+    sparse_mid_prob015.tracking.nominal_route_prior_correction_ekf_rotation_meas_std_deg = 3.0
+    sparse_mid_prob015.tracking.nominal_route_prior_correction_max_step_m = 0.18
+    tiered_prior_scenarios[sparse_mid_prob015.name] = sparse_mid_prob015
 
     # 手机级高保真场景：保留基线结构，仅增强硬件噪声与较低采样率。
     hf_phone = copy.deepcopy(standard)
@@ -1375,6 +1589,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         maze_sonar_dropout.name: maze_sonar_dropout,
         maze_sparse_sonar.name: maze_sparse_sonar,
         maze_no_sonar.name: maze_no_sonar,
+        **tiered_prior_scenarios,
         sonar_dropout_zigzag.name: sonar_dropout_zigzag,
         hf_phone.name: hf_phone,
         hf_industrial.name: hf_industrial,

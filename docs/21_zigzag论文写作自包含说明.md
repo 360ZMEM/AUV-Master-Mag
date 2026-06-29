@@ -1,6 +1,44 @@
 # zig-zag 机制论文写作自包含说明
 
-本文面向论文写作，不按开发流水账展开，而是把当前代码中已经实施的 zig-zag 相关机制整理成可复述的技术方案。读者不需要先理解所有历史实验编号，也能看懂系统为什么需要 zig-zag、如何约束 zig-zag、以及当前实现的关键设计。
+> **定位**：本文面向论文写作，不按开发流水账展开，而是把当前代码中已经实施的 zig-zag 相关机制整理成可复述的技术方案。读者不需要先理解所有历史实验编号，也能看懂系统为什么需要 zig-zag、如何约束 zig-zag、以及当前实现的关键设计。
+>
+> **前置阅读**：建议先看 [01_之字形搜索方法论](01_之字形搜索方法论.md) 了解 zig-zag 的物理直觉和数学基础；再看 [17_zigzag纯磁探针方案](17_zigzag纯磁探针方案.md) 了解小幅 zig-zag 探针的背景实验；最后看 [20_受控zigzag调试复盘与调参小白指南](20_受控zigzag调试复盘与调参小白指南.md) 了解调试过程和调参入口。
+
+## 背景：为什么电缆跟踪需要主动感知激励
+
+### 被动感知的局限
+
+在海底电缆跟踪任务中，AUV 携带的传感器包括声呐和磁力计。声呐可以提供电缆的相对位置，但依赖电缆暴露在水体中；磁力计是被动传感器，不依赖电缆暴露，但单帧磁强度并不直接给出"电缆中心线在哪里"。
+
+磁异常更像一个随横向距离变化的场强曲线：
+
+- AUV 如果一直沿电缆平行前进，横向激励不足，磁场变化可能不明显——磁传感器几乎"看不见"电缆。
+- AUV 横切电缆时，更容易产生峰值、过线、相位和横偏证据。
+- 但横切过强会破坏任务推进，让车辆偏离路线。
+
+### 主动感知激励的思路
+
+传统 AUV 跟踪系统通常把传感器当作被动信息源：传感器给什么就用什么。但在磁跟踪场景中，传感器的信息量本身取决于 AUV 的运动模式。
+
+因此，本系统引入**主动感知激励**的概念：
+
+> 通过有意识地控制 AUV 的横向运动模式，向磁传感链路注入足够的观测激励，使系统获得可解释的电缆过线和局部几何证据。
+
+这不是传统意义上无约束的 zig-zag 搜索，而是一种受控观测激励：在不显著损害路径推进的前提下，调度横向运动。
+
+### 三层架构
+
+为实现这一目标，系统将问题分解为三个层次：
+
+```text
+观测供给层 → 候选选择层 → 控制消费层
+```
+
+| 层级 | 核心问题 | 本系统的回答 |
+| --- | --- | --- |
+| 观测供给 | 有没有足够的 crossing / phase / lookahead 证据？ | 小幅 TRACK zig-zag + 受控 probe burst |
+| 候选选择 | 选的是前进候选还是后退候选？ | shadow hypothesis + progress-aligned candidate |
+| 控制消费 | 证据能否变成真实控制窗口？ | ProbeBurstManager 状态机 + reacquire-safe window |
 
 ## 1. 问题设定
 
@@ -369,3 +407,16 @@ created by the probe itself.
 这样论文叙述会更清楚：
 
 > zig-zag 的价值不是让轨迹看起来更复杂，而是作为一种受控主动感知激励，在状态机约束下提高磁观测可见性，同时保留任务推进稳定性。
+
+## 关键可视化
+
+论文写作时，本文 §14 给出的图表建议在 [23_论文图清单](23_论文图清单.md) 中已落地为可直接生成的单面板小图（IEEE 双栏 ~3.5 in，PNG+PDF 双格式）：
+
+| 论文章节 | 推荐 slug |
+| --- | --- |
+| 方法图 / 概览 | `overview_trajectory`、`overview_heading_error` |
+| 主动感知激励 | `detail_probe_cycle`、`detail_tracking_strength` |
+| 状态机时间轴 | `detail_fsm_timeline` |
+| Entry XT 与 progress guard | `selector_route_progress`、`selector_progress_rate` |
+| 跨 case 总览 | `showcase_heading_bar`、`showcase_fsm_stack`、`showcase_contribution`、`showcase_health` |
+| Ablation / before-after | `progress_switches`、`progress_health`、`progress_mean_err`、`progress_track_pct` |

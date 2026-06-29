@@ -13,7 +13,12 @@ if str(SRC_ROOT) not in sys.path:
 
 from auv_mag_tracking.config import build_default_scenarios
 from auv_mag_tracking.controller import ZigZagController
-from auv_mag_tracking.math_utils import Pose, smallest_angle_error_deg
+from auv_mag_tracking.math_utils import (
+    Pose,
+    apply_route_prior_pose_error,
+    build_nominal_route_xy,
+    smallest_angle_error_deg,
+)
 from auv_mag_tracking.mission_manager import MissionState
 from auv_mag_tracking.perception import FitResult, PerceptionState
 
@@ -93,6 +98,7 @@ def _perception_state(
 class ZigZagControllerReacquireTest(unittest.TestCase):
     def setUp(self) -> None:
         self.scenario = build_default_scenarios()["case_maze_sonar"]
+        self.scenario.tracking.use_nominal_route_prior = False
         self.controller = ZigZagController(self.scenario)
 
     def test_reacquire_heading_targets_anchor_sector_instead_of_stale_heading(self) -> None:
@@ -290,6 +296,86 @@ class ZigZagControllerReacquireTest(unittest.TestCase):
 
         self.assertTrue(perception.magnetic_crossing_probe_forced_flip)
         self.assertEqual(perception.magnetic_crossing_probe_missed_count, 1)
+
+    def test_adaptive_track_zigzag_angle_targets_effective_distance_without_route_prior(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = False
+        self.scenario.tracking.track_active_zigzag_angle_deg = 15.0
+        self.scenario.tracking.adaptive_track_zigzag_angle_enabled = True
+        self.scenario.tracking.adaptive_track_zigzag_effective_distance_m = 3.0
+        self.scenario.tracking.adaptive_track_zigzag_angle_adjustment_deg = 5.0
+        self.controller = ZigZagController(self.scenario)
+
+        angle_deg = self.controller._crossing_angle_for_state(
+            MissionState.TRACK_ACTIVE,
+            zigzag_width_m=2.0,
+            magnetic_fit_ready=True,
+        )
+
+        self.assertGreaterEqual(angle_deg, 10.0)
+        self.assertLessEqual(angle_deg, 20.0)
+        self.assertAlmostEqual(angle_deg, 16.7, delta=0.5)
+
+    def test_adaptive_track_zigzag_angle_does_not_affect_route_prior_baseline(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = True
+        self.scenario.tracking.track_active_zigzag_angle_deg = 15.0
+        self.scenario.tracking.adaptive_track_zigzag_angle_enabled = True
+        self.scenario.tracking.adaptive_track_zigzag_effective_distance_m = 3.0
+        self.scenario.tracking.adaptive_track_zigzag_angle_adjustment_deg = 5.0
+        self.controller = ZigZagController(self.scenario)
+
+        angle_deg = self.controller._crossing_angle_for_state(
+            MissionState.TRACK_ACTIVE,
+            zigzag_width_m=2.0,
+            magnetic_fit_ready=True,
+        )
+
+        self.assertAlmostEqual(angle_deg, 15.0)
+
+    def test_nominal_route_prior_translation_offsets_controller_cache_only(self) -> None:
+        self.scenario.tracking.nominal_route_prior_translation_xy_m = (0.0, 7.5)
+        self.scenario.tracking.nominal_route_prior_rotation_deg = 3.0
+        self.scenario.tracking.nominal_route_prior_scale_xy = (0.99, 1.0)
+        controller = ZigZagController(self.scenario)
+        true_route_xy = build_nominal_route_xy(self.scenario.environment)
+        expected_route_xy = apply_route_prior_pose_error(true_route_xy, (0.0, 7.5), 3.0, (0.99, 1.0))
+
+        np.testing.assert_allclose(controller.nominal_route_xy, expected_route_xy)
+        np.testing.assert_allclose(build_nominal_route_xy(self.scenario.environment), true_route_xy)
+
+    def test_nominal_route_progress_guard_rejects_far_lane_projection_jump(self) -> None:
+        scenario = build_default_scenarios()["case_maze_sonar"]
+        scenario.tracking.nominal_route_progress_guard_enabled = True
+        scenario.tracking.nominal_route_progress_guard_lookback_m = 5.0
+        scenario.tracking.nominal_route_progress_guard_lookahead_m = 20.0
+        controller = ZigZagController(scenario)
+        controller.last_nominal_route_progress_m = 25.0
+
+        far_lane_point_xy = controller._nominal_route_point_at_progress_m(260.0)
+        _, _, _, guarded_progress_m, _ = controller._nearest_nominal_route_projection(far_lane_point_xy)
+
+        self.assertLessEqual(guarded_progress_m, 45.0 + 1e-6)
+
+    def test_nominal_route_prior_correction_step_is_rate_limited(self) -> None:
+        scenario = build_default_scenarios()["case_maze_sonar"]
+        scenario.tracking.nominal_route_prior_observation_correction_enabled = True
+        scenario.tracking.nominal_route_prior_correction_gain = 1.0
+        scenario.tracking.nominal_route_prior_correction_max_residual_m = 100.0
+        scenario.tracking.nominal_route_prior_correction_max_step_m = 0.5
+        controller = ZigZagController(scenario)
+        observed_point_xy = controller._nominal_route_point_at_progress_m(30.0) + np.array([0.0, 10.0])
+
+        controller._update_nominal_route_prior_observation_correction(
+            _perception_state(
+                estimated_cable_point_xy_m=observed_point_xy,
+                fused_heading_deg=0.0,
+                local_path_heading_deg=0.0,
+            )
+        )
+
+        self.assertLessEqual(
+            np.linalg.norm(controller.nominal_route_prior_correction_translation_xy_m),
+            0.5 + 1e-6,
+        )
 
 
 if __name__ == "__main__":

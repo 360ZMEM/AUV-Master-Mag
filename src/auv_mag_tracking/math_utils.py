@@ -438,6 +438,31 @@ def build_nominal_route_xy(environment_config) -> np.ndarray:
     return waypoints_xy.copy()
 
 
+def apply_route_prior_pose_error(
+    route_xy: np.ndarray,
+    translation_xy_m: Iterable[float],
+    rotation_deg: float = 0.0,
+    scale_xy: Iterable[float] = (1.0, 1.0),
+) -> np.ndarray:
+    """Apply a pose/shape error to a nominal route prior without changing truth geometry."""
+    route = np.asarray(route_xy, dtype=float).copy()
+    if route.size == 0:
+        return route
+    pivot_xy = route[0].copy()
+    scale = np.asarray(scale_xy, dtype=float)
+    transformed = (route - pivot_xy) * scale[None, :] + pivot_xy
+    angle_rad = np.deg2rad(float(rotation_deg))
+    rotation = np.array(
+        [
+            [np.cos(angle_rad), -np.sin(angle_rad)],
+            [np.sin(angle_rad), np.cos(angle_rad)],
+        ],
+        dtype=float,
+    )
+    transformed = (transformed - pivot_xy) @ rotation.T + pivot_xy
+    return transformed + np.asarray(translation_xy_m, dtype=float)
+
+
 def nearest_point_on_polyline(
     point_xy: np.ndarray,
     polyline_xy: Union[np.ndarray, PolylineProjectionCache],
@@ -464,6 +489,96 @@ def nearest_point_on_polyline(
     best_distance_m = float(np.sqrt(max(float(distance_sq_m2[best_index]), 0.0)))
     best_progress_m = float(cache.cumulative_length_m[best_index] + parameters[best_index] * cache.segment_lengths_m[best_index])
     return best_point_xy.copy(), best_tangent_xy.copy(), best_distance_m, best_progress_m, best_index
+
+
+def nearest_point_on_polyline_within_progress(
+    point_xy: np.ndarray,
+    polyline_xy: Union[np.ndarray, PolylineProjectionCache],
+    progress_min_m: float,
+    progress_max_m: float,
+) -> Tuple[np.ndarray, np.ndarray, float, float, int]:
+    """Project ``point_xy`` onto the polyline but restrict the search to the
+    arc-length window ``[progress_min_m, progress_max_m]``.
+
+    Segments fully outside the window are ignored; the candidate parameter on
+    each surviving segment is clipped so the returned point lies inside the
+    window. Returns ``(point_xy, tangent_xy, distance_m, progress_m, index)``
+    with the same shape as :func:`nearest_point_on_polyline`. Falls back to a
+    global projection when the window does not intersect any segment.
+    """
+    cache = polyline_xy if isinstance(polyline_xy, PolylineProjectionCache) else build_polyline_projection_cache(polyline_xy)
+    if progress_max_m <= progress_min_m:
+        return nearest_point_on_polyline(point_xy, cache)
+
+    segment_start_progress_m = cache.cumulative_length_m[:-1]
+    segment_end_progress_m = cache.cumulative_length_m[1:]
+    overlap_mask = (segment_end_progress_m >= progress_min_m) & (segment_start_progress_m <= progress_max_m)
+    overlap_mask = overlap_mask & (cache.segment_lengths_m > EPSILON)
+    if not np.any(overlap_mask):
+        return nearest_point_on_polyline(point_xy, cache)
+
+    point_xy = np.asarray(point_xy, dtype=float)
+    candidate_indices = np.where(overlap_mask)[0]
+    starts_xy = cache.segment_starts_xy[candidate_indices]
+    vectors_xy = cache.segment_vectors_xy[candidate_indices]
+    lengths_m = cache.segment_lengths_m[candidate_indices]
+    lengths_sq_m2 = np.maximum(cache.segment_lengths_sq_m2[candidate_indices], EPSILON)
+
+    raw_parameters = np.einsum("ij,ij->i", point_xy[None, :] - starts_xy, vectors_xy) / lengths_sq_m2
+    raw_parameters = np.clip(raw_parameters, 0.0, 1.0)
+
+    segment_start_window = np.clip(
+        (progress_min_m - cache.cumulative_length_m[candidate_indices]) / lengths_m,
+        0.0,
+        1.0,
+    )
+    segment_end_window = np.clip(
+        (progress_max_m - cache.cumulative_length_m[candidate_indices]) / lengths_m,
+        0.0,
+        1.0,
+    )
+    parameters = np.clip(raw_parameters, segment_start_window, segment_end_window)
+
+    nearest_points_xy = starts_xy + parameters[:, None] * vectors_xy
+    deltas_xy = point_xy[None, :] - nearest_points_xy
+    distance_sq_m2 = np.einsum("ij,ij->i", deltas_xy, deltas_xy)
+
+    local_best = int(np.argmin(distance_sq_m2))
+    best_index = int(candidate_indices[local_best])
+    best_parameter = float(parameters[local_best])
+    best_point_xy = nearest_points_xy[local_best]
+    best_tangent_xy = cache.segment_tangents_xy[best_index]
+    best_distance_m = float(np.sqrt(max(float(distance_sq_m2[local_best]), 0.0)))
+    best_progress_m = float(
+        cache.cumulative_length_m[best_index]
+        + best_parameter * cache.segment_lengths_m[best_index]
+    )
+    return best_point_xy.copy(), best_tangent_xy.copy(), best_distance_m, best_progress_m, best_index
+
+
+def point_on_polyline_at_progress(
+    polyline_xy: Union[np.ndarray, PolylineProjectionCache],
+    progress_m: float,
+) -> np.ndarray:
+    """Return the (x, y) point on the polyline at the given arc-length progress.
+
+    The query is clamped to ``[0, total_length]``. Useful for tests and for
+    seeding the progress-guard window from a known anchor.
+    """
+    cache = polyline_xy if isinstance(polyline_xy, PolylineProjectionCache) else build_polyline_projection_cache(polyline_xy)
+    total_length_m = float(cache.cumulative_length_m[-1])
+    clamped_progress_m = float(np.clip(progress_m, 0.0, total_length_m))
+    segment_index = int(np.searchsorted(cache.cumulative_length_m[1:], clamped_progress_m, side="left"))
+    segment_index = max(0, min(segment_index, len(cache.segment_lengths_m) - 1))
+    segment_length_m = float(cache.segment_lengths_m[segment_index])
+    if segment_length_m <= EPSILON:
+        return cache.segment_starts_xy[segment_index].copy()
+    alpha = (clamped_progress_m - float(cache.cumulative_length_m[segment_index])) / segment_length_m
+    alpha = float(np.clip(alpha, 0.0, 1.0))
+    return (
+        cache.segment_starts_xy[segment_index]
+        + alpha * cache.segment_vectors_xy[segment_index]
+    ).copy()
 
 
 def estimate_polyline_curvature(polyline_xy: np.ndarray, index: int) -> float:

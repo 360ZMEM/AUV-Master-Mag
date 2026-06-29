@@ -23,13 +23,6 @@ from .math_utils import (
 )
 from .mission_manager import MissionDecision, MissionInput, MissionManager, MissionState, MissionThresholds
 from .perception import PerceptionState
-from .probe_burst_manager import (
-    ProbeBurstDecision,
-    ProbeBurstInput,
-    ProbeBurstManager,
-    ProbeBurstState,
-    ProbeBurstThresholds,
-)
 
 
 @dataclass
@@ -62,14 +55,13 @@ class ZigZagController:
         self.reacquire_anchor_xy_m: Optional[np.ndarray] = None
         self.reacquire_anchor_heading_deg: Optional[float] = None
         self.reacquire_leg_index: int = 0
-        self.last_magnetic_crossing_offset_sign: int = 0
-        self.magnetic_crossing_probe_missed_count: int = 0
-        self.magnetic_crossing_probe_forced_flip: bool = False
-        self.last_nominal_route_progress_m: Optional[float] = None
-        self.decoupled_lateral_probe_lockout_until_s: float = 0.0
-        self.probe_burst_manager = ProbeBurstManager(self._build_probe_burst_thresholds())
-        self.probe_burst_decision: Optional[ProbeBurstDecision] = None
-        self.probe_burst_reacquire_safe_control_allowed: bool = False
+        # Optional handle to the perception orchestrator so we can reuse its
+        # corrected route prior cache and progress-guard window.
+        self._perception_route_provider: Optional[object] = None
+
+    def attach_perception(self, perception: object) -> None:
+        """Bind the perception orchestrator that owns the corrected route prior."""
+        self._perception_route_provider = perception
 
     def _build_mission_thresholds(self) -> MissionThresholds:
         """从场景配置组装任务层阈值（暂用默认 + 复用已有置信度阈值）。"""
@@ -92,128 +84,12 @@ class ZigZagController:
 
     def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
         """返回当前位置在名义路线上的最近点、切向与距离。"""
+        provider = self._perception_route_provider
+        if provider is not None and hasattr(provider, "nominal_route_projection"):
+            best_point, best_tangent, best_distance, _, _ = provider.nominal_route_projection(position_xy_m)
+            return best_point, best_tangent, best_distance
         best_point, best_tangent, best_distance, _, _ = nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
         return best_point, best_tangent, best_distance
-
-    def _nominal_route_progress_m(self, position_xy_m: np.ndarray) -> float:
-        """Return progress along the nominal route for controller-side guards."""
-        _, _, _, progress_m, _ = nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
-        return float(progress_m)
-
-    def _build_probe_burst_thresholds(self) -> ProbeBurstThresholds:
-        tracking = self.scenario.tracking
-        return ProbeBurstThresholds(
-            idle_min_duration_s=tracking.probe_burst_manager_idle_min_duration_s,
-            entry_min_route_delta_m=tracking.probe_burst_manager_entry_min_route_delta_m,
-            entry_max_abs_cross_track_m=tracking.probe_burst_manager_entry_max_abs_cross_track_m,
-            burst_min_duration_s=tracking.probe_burst_manager_burst_min_duration_s,
-            burst_max_duration_s=tracking.probe_burst_manager_burst_max_duration_s,
-            burst_target_evidence_count=tracking.probe_burst_manager_burst_target_evidence_count,
-            recovery_min_duration_s=tracking.probe_burst_manager_recovery_min_duration_s,
-            recovery_target_route_delta_m=tracking.probe_burst_manager_recovery_target_route_delta_m,
-            recovery_max_abs_cross_track_m=tracking.probe_burst_manager_recovery_max_abs_cross_track_m,
-            recovery_timeout_s=tracking.probe_burst_manager_recovery_timeout_s,
-            cooldown_duration_s=tracking.probe_burst_manager_cooldown_duration_s,
-        )
-
-    def _decoupled_lateral_target_heading_deg(
-        self,
-        pose: Pose,
-        perception: PerceptionState,
-    ) -> Optional[float]:
-        """Use route-forward lookahead and lateral band target as separate objectives."""
-        nearest_xy, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
-        normal_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
-        half_band_m = 0.5 * max(
-            perception.zigzag_width_m,
-            self.scenario.tracking.min_zigzag_half_band_width_m,
-        )
-        target_xy = (
-            nearest_xy
-            + self.scenario.tracking.magnetic_shadow_decoupled_lateral_lookahead_m * tangent_xy
-            + self.leg_sign * half_band_m * normal_xy
-        )
-        to_target_xy = target_xy - pose.position_ned_m[:2]
-        if np.linalg.norm(to_target_xy) < 1e-9:
-            return None
-        return heading_from_direction_xy(to_target_xy)
-
-    def _route_centerline_recovery_heading_deg(self, pose: Pose) -> Optional[float]:
-        """Steer to a route-forward centerline target during post-probe recovery."""
-        nearest_xy, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
-        target_xy = (
-            nearest_xy
-            + self.scenario.tracking.decoupled_lateral_probe_recovery_lookahead_m * tangent_xy
-        )
-        to_target_xy = target_xy - pose.position_ned_m[:2]
-        if np.linalg.norm(to_target_xy) < 1e-9:
-            return None
-        return heading_from_direction_xy(to_target_xy)
-
-    def _decoupled_lateral_probe_burst_active(self, perception: PerceptionState) -> bool:
-        """Return whether the short decoupled probe burst may override p36 heading."""
-        tracking = self.scenario.tracking
-        if tracking.probe_burst_manager_enabled:
-            return bool(self.probe_burst_decision and self.probe_burst_decision.burst_active)
-        if not tracking.decoupled_lateral_probe_burst_enabled:
-            return True
-        start_delay_s = max(tracking.decoupled_lateral_probe_burst_start_delay_s, 0.0)
-        if perception.time_s < start_delay_s:
-            return False
-        if perception.time_s < self.decoupled_lateral_probe_lockout_until_s:
-            return False
-        burst_s = max(tracking.decoupled_lateral_probe_burst_duration_s, 0.0)
-        recovery_s = max(tracking.decoupled_lateral_probe_recovery_duration_s, 0.0)
-        if burst_s <= 0.0:
-            return False
-        cycle_s = burst_s + recovery_s
-        if cycle_s <= 0.0:
-            return False
-        return ((perception.time_s - start_delay_s) % cycle_s) < burst_s
-
-    def _decoupled_lateral_probe_recovery_active(self, perception: PerceptionState) -> bool:
-        """Return whether route-centerline recovery should override probe heading."""
-        tracking = self.scenario.tracking
-        if tracking.probe_burst_manager_enabled:
-            return bool(self.probe_burst_decision and self.probe_burst_decision.recovery_active)
-        if not tracking.decoupled_lateral_probe_recovery_control_enabled:
-            return False
-        if not tracking.decoupled_lateral_probe_burst_enabled:
-            return False
-        start_delay_s = max(tracking.decoupled_lateral_probe_burst_start_delay_s, 0.0)
-        if perception.time_s < start_delay_s:
-            return False
-        if perception.time_s < self.decoupled_lateral_probe_lockout_until_s:
-            return True
-        burst_s = max(tracking.decoupled_lateral_probe_burst_duration_s, 0.0)
-        recovery_s = max(tracking.decoupled_lateral_probe_recovery_duration_s, 0.0)
-        cycle_s = burst_s + recovery_s
-        if burst_s <= 0.0 or recovery_s <= 0.0 or cycle_s <= 0.0:
-            return False
-        return ((perception.time_s - start_delay_s) % cycle_s) >= burst_s
-
-    def _probe_burst_reacquire_safe_control_allowed(
-        self,
-        state: MissionState,
-        cross_track_offset_m: Optional[float],
-    ) -> bool:
-        """Allow a pending burst/recovery to execute inside a tightly bounded reacquire window."""
-        tracking = self.scenario.tracking
-        decision = self.probe_burst_decision
-        if not tracking.probe_burst_manager_reacquire_safe_window_enabled:
-            return False
-        if state != MissionState.TRACK_ACTIVE or decision is None:
-            return False
-        if decision.state not in {ProbeBurstState.BURST_COLLECT_EVIDENCE, ProbeBurstState.RECOVER_ROUTE}:
-            return False
-        if cross_track_offset_m is None or not np.isfinite(decision.entry_abs_cross_track_m):
-            return False
-        if (
-            decision.entry_abs_cross_track_m
-            > tracking.probe_burst_manager_reacquire_safe_max_abs_cross_track_m
-        ):
-            return False
-        return True
 
     def _crossing_angle_deg(self, zigzag_width_m: float) -> float:
         """根据当前之字形宽度估计交叉入射角。"""
@@ -257,13 +133,7 @@ class ZigZagController:
             perception.local_path_tracking_state == "curve_track"
             and perception.fused_heading_deg is not None
         ):
-            candidate_heading_deg = perception.fused_heading_deg
-            if (
-                self.scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled
-                and abs(smallest_angle_error_deg(candidate_heading_deg, pose.heading_deg)) > 90.0
-            ):
-                candidate_heading_deg = wrap_angle_deg(candidate_heading_deg + 180.0)
-            return candidate_heading_deg
+            return perception.fused_heading_deg
         if (
             perception.fused_heading_deg is not None
             and perception.confidence >= self.scenario.tracking.low_confidence_threshold
@@ -304,9 +174,6 @@ class ZigZagController:
         sonar_fresh = perception.last_detection_age_s <= self.scenario.tracking.lost_timeout_s
         if sonar_fresh and perception.estimated_cable_point_xy_m is not None:
             cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
-            return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
-        if perception.magnetic_lookahead_valid and perception.magnetic_lookahead_cable_point_xy_m is not None:
-            cable_point_xy_m = np.asarray(perception.magnetic_lookahead_cable_point_xy_m, dtype=float)
             return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
         if perception.magnetic_cross_track_offset_m is not None:
             return float(perception.magnetic_cross_track_offset_m)
@@ -378,73 +245,6 @@ class ZigZagController:
         self.reacquire_anchor_xy_m = None
         self.reacquire_anchor_heading_deg = None
         self.reacquire_leg_index = 0
-
-    def _magnetic_crossing_offset_sign(self, perception: PerceptionState, base_heading_deg: float) -> int:
-        min_abs_offset_m = self.scenario.tracking.magnetic_crossing_probe_min_abs_offset_m
-        offset_m = perception.magnetic_cross_track_offset_m
-        if offset_m is not None and np.isfinite(offset_m):
-            if abs(offset_m) < min_abs_offset_m:
-                return 0
-            return 1 if offset_m > 0.0 else -1
-
-        offset_m = perception.magnetic_path_cross_track_offset_m
-        if offset_m is None or not np.isfinite(offset_m):
-            return 0
-        if abs(offset_m) < min_abs_offset_m:
-            return 0
-        sign = 1 if offset_m > 0.0 else -1
-        magnetic_heading_deg = perception.magnetic_path_heading_deg
-        if magnetic_heading_deg is not None and np.isfinite(magnetic_heading_deg):
-            if abs(smallest_angle_error_deg(magnetic_heading_deg, base_heading_deg)) > 90.0:
-                sign *= -1
-        return sign
-
-    def _update_magnetic_crossing_probe_leg(
-        self,
-        perception: PerceptionState,
-        expected_cross_time_s: float,
-        base_heading_deg: float,
-    ) -> bool:
-        """Use magnetic cross-track sign changes to align probe leg flips."""
-        tracking = self.scenario.tracking
-        if not tracking.magnetic_crossing_probe_control_enabled:
-            self.magnetic_crossing_probe_forced_flip = False
-            return False
-
-        self.magnetic_crossing_probe_forced_flip = False
-        current_sign = self._magnetic_crossing_offset_sign(perception, base_heading_deg)
-        if current_sign == 0:
-            return False
-
-        if self.last_magnetic_crossing_offset_sign == 0:
-            self.last_magnetic_crossing_offset_sign = current_sign
-            self.leg_sign = -float(current_sign)
-            self.last_leg_flip_time_s = perception.time_s
-            return True
-
-        time_since_flip_s = perception.time_s - self.last_leg_flip_time_s
-        min_flip_interval_s = max(0.0, tracking.magnetic_crossing_probe_min_flip_interval_s)
-        if current_sign != self.last_magnetic_crossing_offset_sign:
-            if time_since_flip_s < min_flip_interval_s:
-                return True
-            self.leg_sign = -float(current_sign)
-            self.last_leg_flip_time_s = perception.time_s
-            self.last_magnetic_crossing_offset_sign = current_sign
-            return True
-
-        max_wait_s = min(
-            tracking.magnetic_crossing_probe_max_wait_s,
-            max(
-                expected_cross_time_s * tracking.magnetic_crossing_probe_forced_flip_multiplier,
-                tracking.watchdog_min_cross_time_s,
-            ),
-        )
-        if time_since_flip_s > max_wait_s:
-            self.leg_sign *= -1.0
-            self.last_leg_flip_time_s = perception.time_s
-            self.magnetic_crossing_probe_missed_count += 1
-            self.magnetic_crossing_probe_forced_flip = True
-        return True
 
     def _reacquire_heading_deg(
         self,
@@ -561,17 +361,6 @@ class ZigZagController:
         base_heading_deg = self._base_heading_deg(pose, perception)
         zigzag_width_m = perception.zigzag_width_m
         self._remember_trusted_cable_state(perception)
-        nominal_route_progress_m = self._nominal_route_progress_m(pose.position_ned_m[:2])
-        if self.scenario.tracking.decoupled_lateral_probe_route_governor_enabled:
-            if self.last_nominal_route_progress_m is not None:
-                route_delta_m = nominal_route_progress_m - self.last_nominal_route_progress_m
-                if route_delta_m < self.scenario.tracking.decoupled_lateral_probe_route_governor_min_delta_m:
-                    self.decoupled_lateral_probe_lockout_until_s = max(
-                        self.decoupled_lateral_probe_lockout_until_s,
-                        perception.time_s
-                        + self.scenario.tracking.decoupled_lateral_probe_route_governor_lockout_s,
-                    )
-            self.last_nominal_route_progress_m = nominal_route_progress_m
         reacquire_zigzag_active = (
             perception.deployment_reacquire_required
             and self.scenario.tracking.reacquire_zigzag_enabled
@@ -585,69 +374,11 @@ class ZigZagController:
         # field reliably rises-peaks-falls (the peak detector's prerequisite).
         half_band_m = 0.5 * max(zigzag_width_m, self.scenario.tracking.min_zigzag_half_band_width_m)
         cross_track_offset_m = self._cross_track_offset_m(pose, perception, base_heading_deg)
-        magnetic_crossing_probe_available = (
-            self.scenario.tracking.magnetic_crossing_probe_control_enabled
-            and self._magnetic_crossing_offset_sign(perception, base_heading_deg) != 0
-        )
-        self.probe_burst_reacquire_safe_control_allowed = (
-            self._probe_burst_reacquire_safe_control_allowed(state, cross_track_offset_m)
-        )
-        if self.scenario.tracking.probe_burst_manager_enabled:
-            self.probe_burst_decision = self.probe_burst_manager.update(
-                ProbeBurstInput(
-                    time_s=perception.time_s,
-                    route_progress_m=nominal_route_progress_m,
-                    abs_cross_track_m=(
-                        abs(cross_track_offset_m)
-                        if cross_track_offset_m is not None
-                        else float("inf")
-                    ),
-                    evidence_available=(
-                        perception.shadow_axis_progress_aligned_candidate_valid
-                        or perception.shadow_axis_progress_aligned_dual_gate_passed
-                    ),
-                    enabled=(
-                        state == MissionState.TRACK_ACTIVE
-                        and self.scenario.tracking.decoupled_lateral_target_control_enabled
-                    ),
-                    control_allowed=(
-                        state == MissionState.TRACK_ACTIVE
-                        and (
-                            (
-                                not reacquire_zigzag_active
-                                and not perception.deployment_reacquire_required
-                            )
-                            or self.probe_burst_reacquire_safe_control_allowed
-                        )
-                        and self.scenario.tracking.decoupled_lateral_target_control_enabled
-                    ),
-                )
-            )
-        else:
-            self.probe_burst_decision = None
-            self.probe_burst_reacquire_safe_control_allowed = False
-        if (
-            cross_track_offset_m is not None
-            and not perception.safe_lock_active
-            and not reacquire_zigzag_active
-            and not magnetic_crossing_probe_available
-        ):
-            decoupled_burst_active = (
-                self.scenario.tracking.decoupled_lateral_target_control_enabled
-                and self._decoupled_lateral_probe_burst_active(perception)
-            )
-            min_flip_interval_s = (
-                self.scenario.tracking.decoupled_lateral_target_min_flip_interval_s
-                if decoupled_burst_active
-                else 0.0
-            )
-            flip_interval_satisfied = (
-                perception.time_s - self.last_leg_flip_time_s >= min_flip_interval_s
-            )
-            if self.leg_sign > 0.0 and cross_track_offset_m >= half_band_m and flip_interval_satisfied:
+        if cross_track_offset_m is not None and not perception.safe_lock_active and not reacquire_zigzag_active:
+            if self.leg_sign > 0.0 and cross_track_offset_m >= half_band_m:
                 self.leg_sign = -1.0
                 self.last_leg_flip_time_s = perception.time_s
-            elif self.leg_sign < 0.0 and cross_track_offset_m <= -half_band_m and flip_interval_satisfied:
+            elif self.leg_sign < 0.0 and cross_track_offset_m <= -half_band_m:
                 self.leg_sign = 1.0
                 self.last_leg_flip_time_s = perception.time_s
 
@@ -658,19 +389,7 @@ class ZigZagController:
             zigzag_width_m * self.scenario.tracking.crossing_width_periods / max(pose.speed_mps, 0.5),
             self.scenario.tracking.watchdog_min_cross_time_s,
         )
-        magnetic_crossing_probe_handled = (
-            not perception.safe_lock_active
-            and not reacquire_zigzag_active
-            and self._update_magnetic_crossing_probe_leg(perception, expected_cross_time_s, base_heading_deg)
-        )
-        perception.magnetic_crossing_probe_wait_s = max(0.0, perception.time_s - self.last_leg_flip_time_s)
-        perception.magnetic_crossing_probe_missed_count = self.magnetic_crossing_probe_missed_count
-        perception.magnetic_crossing_probe_forced_flip = self.magnetic_crossing_probe_forced_flip
-        if (
-            not magnetic_crossing_probe_handled
-            and not reacquire_zigzag_active
-            and perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s
-        ):
+        if not reacquire_zigzag_active and perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s:
             self.leg_sign *= -1.0
             self.last_leg_flip_time_s = perception.time_s
 
@@ -692,53 +411,7 @@ class ZigZagController:
             perception.local_path_tracking_state,
         )
         desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
-        if (
-            self.scenario.tracking.decoupled_lateral_target_control_enabled
-            and state in {MissionState.LOCK_ALIGN, MissionState.TRACK_ACTIVE}
-            and (
-                (
-                    not reacquire_zigzag_active
-                    and not perception.deployment_reacquire_required
-                )
-                or self.probe_burst_reacquire_safe_control_allowed
-            )
-            and self._decoupled_lateral_probe_burst_active(perception)
-        ):
-            decoupled_heading_deg = self._decoupled_lateral_target_heading_deg(pose, perception)
-            if decoupled_heading_deg is not None:
-                decoupled_error_deg = smallest_angle_error_deg(decoupled_heading_deg, desired_heading_deg)
-                decoupled_correction_deg = float(np.clip(
-                    self.scenario.tracking.decoupled_lateral_target_control_blend * decoupled_error_deg,
-                    -self.scenario.tracking.decoupled_lateral_target_control_max_correction_deg,
-                    self.scenario.tracking.decoupled_lateral_target_control_max_correction_deg,
-                ))
-                desired_heading_deg = wrap_angle_deg(desired_heading_deg + decoupled_correction_deg)
-        if (
-            (
-                self.scenario.tracking.decoupled_lateral_probe_recovery_control_enabled
-                or self.scenario.tracking.probe_burst_manager_enabled
-            )
-            and state in {MissionState.LOCK_ALIGN, MissionState.TRACK_ACTIVE}
-            and (
-                (
-                    not reacquire_zigzag_active
-                    and not perception.deployment_reacquire_required
-                )
-                or self.probe_burst_reacquire_safe_control_allowed
-            )
-            and self._decoupled_lateral_probe_recovery_active(perception)
-        ):
-            recovery_heading_deg = self._route_centerline_recovery_heading_deg(pose)
-            if recovery_heading_deg is not None:
-                desired_heading_deg = recovery_heading_deg
-        safe_probe_override_active = (
-            self.probe_burst_reacquire_safe_control_allowed
-            and (
-                self._decoupled_lateral_probe_burst_active(perception)
-                or self._decoupled_lateral_probe_recovery_active(perception)
-            )
-        )
-        if perception.deployment_reacquire_required and not safe_probe_override_active:
+        if perception.deployment_reacquire_required:
             reacquire_heading_deg = self._reacquire_heading_deg(pose, perception, effective_base_heading_deg)
             if reacquire_heading_deg is not None:
                 desired_heading_deg = reacquire_heading_deg
@@ -755,22 +428,6 @@ class ZigZagController:
         # vehicle keeps tracking the line from the magnetometer alone when sonar
         # drops out, without the coarse offset ever touching the line fit.
         if state == MissionState.TRACK_ACTIVE:
-            if (
-                self.scenario.tracking.magnetic_lookahead_pursuit_enabled
-                and perception.magnetic_lookahead_valid
-                and perception.magnetic_lookahead_target_xy_m is not None
-            ):
-                target_xy_m = np.asarray(perception.magnetic_lookahead_target_xy_m, dtype=float)
-                to_target_xy = target_xy_m - pose.position_ned_m[:2]
-                target_heading_deg = heading_from_direction_xy(to_target_xy)
-                if target_heading_deg is not None:
-                    pursuit_error_deg = smallest_angle_error_deg(target_heading_deg, desired_heading_deg)
-                    pursuit_correction_deg = float(np.clip(
-                        self.scenario.tracking.magnetic_lookahead_pursuit_gain * pursuit_error_deg,
-                        -self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
-                        self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
-                    ))
-                    desired_heading_deg = wrap_angle_deg(desired_heading_deg + pursuit_correction_deg)
             track_offset_m = self._track_cross_track_offset_m(pose, perception, effective_base_heading_deg)
             if track_offset_m is not None:
                 correction_deg = float(np.clip(

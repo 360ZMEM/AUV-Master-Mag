@@ -7,11 +7,13 @@ import numpy as np
 
 from ..config import ScenarioConfig
 from ..math_utils import (
+    apply_route_prior_pose_error,
     body_to_ned,
     build_nominal_route_xy,
     build_polyline_projection_cache,
     heading_from_direction_xy,
     nearest_point_on_polyline,
+    nearest_point_on_polyline_within_progress,
     norm,
     project_point_to_line,
     rotation_matrix_sensor_to_body,
@@ -197,8 +199,158 @@ class MagneticCablePerception:
         self.safe_lock_criterion_a_active: bool = False
         self.safe_lock_criterion_b_active: bool = False
         self.safe_lock_fit_invalidated: bool = False
-        self.nominal_route_xy = build_nominal_route_xy(self.scenario.environment)
+        self.nominal_route_prior_base_xy = apply_route_prior_pose_error(
+            build_nominal_route_xy(self.scenario.environment),
+            self.scenario.tracking.nominal_route_prior_translation_xy_m,
+            self.scenario.tracking.nominal_route_prior_rotation_deg,
+            self.scenario.tracking.nominal_route_prior_scale_xy,
+        )
+        self.nominal_route_prior_correction_translation_xy_m = np.zeros(2, dtype=float)
+        self.nominal_route_prior_correction_rotation_deg = 0.0
+        self._prior_rotation_drift_deg = 0.0
+        self._prior_correction_covariance_diag = np.array(
+            [
+                max(self.scenario.tracking.nominal_route_prior_correction_ekf_initial_translation_var_m2, 1e-6),
+                max(self.scenario.tracking.nominal_route_prior_correction_ekf_initial_translation_var_m2, 1e-6),
+                max(self.scenario.tracking.nominal_route_prior_correction_ekf_initial_rotation_var_deg2, 1e-6),
+            ],
+            dtype=float,
+        )
+        self._last_prior_correction_anchor_time_s: Optional[float] = None
+        self.last_nominal_route_progress_m: Optional[float] = None
+        self._refresh_nominal_route_lookup()
+
+    def _refresh_nominal_route_lookup(self) -> None:
+        """Rebuild perception-side route prior after applying online correction."""
+        effective_rotation_deg = (
+            self.nominal_route_prior_correction_rotation_deg
+            + self._prior_rotation_drift_deg
+        )
+        self.nominal_route_xy = apply_route_prior_pose_error(
+            self.nominal_route_prior_base_xy,
+            self.nominal_route_prior_correction_translation_xy_m,
+            effective_rotation_deg,
+            (1.0, 1.0),
+        )
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
+
+    def nominal_route_projection(
+        self,
+        position_xy_m: np.ndarray,
+    ) -> tuple:
+        """Project a point onto the current route prior cache.
+
+        Uses the progress-guard window around ``last_nominal_route_progress_m``
+        when the guard is enabled and we already have a baseline anchor, falls
+        back to a global search otherwise. Returns
+        ``(point_xy, tangent_xy, distance_m, progress_m, index)``.
+        """
+        tracking = self.scenario.tracking
+        if (
+            tracking.nominal_route_progress_guard_enabled
+            and self.last_nominal_route_progress_m is not None
+        ):
+            lookback_m = max(tracking.nominal_route_progress_guard_lookback_m, 0.0)
+            lookahead_m = max(tracking.nominal_route_progress_guard_lookahead_m, 0.0)
+            progress_min_m = float(self.last_nominal_route_progress_m) - lookback_m
+            progress_max_m = float(self.last_nominal_route_progress_m) + lookahead_m
+            return nearest_point_on_polyline_within_progress(
+                position_xy_m,
+                self.nominal_route_lookup,
+                progress_min_m,
+                progress_max_m,
+            )
+        return nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
+
+    def advance_nominal_route_progress(self, position_xy_m: np.ndarray) -> float:
+        """Update and return the latest progress anchor for the guard window."""
+        _, _, _, progress_m, _ = self.nominal_route_projection(position_xy_m)
+        self.last_nominal_route_progress_m = float(progress_m)
+        return float(progress_m)
+
+    def _update_nominal_route_prior_observation_correction(
+        self,
+        sonar_reading: Optional[SonarReading],
+        dt_s: float = 0.0,
+    ) -> None:
+        """Use valid sonar observations to correct route-prior pose bias."""
+        tracking = self.scenario.tracking
+        if not tracking.use_nominal_route_prior or not tracking.nominal_route_prior_observation_correction_enabled:
+            return
+
+        if tracking.nominal_route_prior_correction_ekf_enabled and dt_s > 0.0:
+            translation_process_var = (
+                tracking.nominal_route_prior_correction_ekf_translation_process_std_m_per_sqrt_s ** 2
+            ) * dt_s
+            rotation_process_var = (
+                tracking.nominal_route_prior_correction_ekf_rotation_process_std_deg_per_sqrt_s ** 2
+            ) * dt_s
+            self._prior_correction_covariance_diag[0] += translation_process_var
+            self._prior_correction_covariance_diag[1] += translation_process_var
+            self._prior_correction_covariance_diag[2] += rotation_process_var
+
+        if (
+            sonar_reading is None
+            or not sonar_reading.valid
+            or sonar_reading.estimated_position_ned_m is None
+            or sonar_reading.confidence < tracking.nominal_route_prior_correction_min_confidence
+        ):
+            return
+
+        observed_point_xy = np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2]
+        prior_point_xy, prior_tangent_xy, _, projected_progress_m, _ = self.nominal_route_projection(
+            observed_point_xy,
+        )
+        translation_innovation_xy_m = observed_point_xy - prior_point_xy
+        heading_innovation_deg: Optional[float] = None
+        if sonar_reading.estimated_heading_ned_deg is not None:
+            prior_heading_deg = heading_from_direction_xy(prior_tangent_xy)
+            heading_innovation_deg = smallest_angle_error_deg(
+                sonar_reading.estimated_heading_ned_deg,
+                prior_heading_deg,
+            )
+
+        if tracking.nominal_route_prior_correction_ekf_enabled:
+            confidence = max(float(sonar_reading.confidence), 1e-3)
+            translation_meas_var = (
+                (tracking.nominal_route_prior_correction_ekf_translation_meas_std_m / confidence) ** 2
+            )
+            rotation_meas_var = (
+                (tracking.nominal_route_prior_correction_ekf_rotation_meas_std_deg / confidence) ** 2
+            )
+            for axis in (0, 1):
+                prior_var = self._prior_correction_covariance_diag[axis]
+                kalman_gain = prior_var / (prior_var + translation_meas_var)
+                self.nominal_route_prior_correction_translation_xy_m[axis] += (
+                    kalman_gain * translation_innovation_xy_m[axis]
+                )
+                self._prior_correction_covariance_diag[axis] = (1.0 - kalman_gain) * prior_var
+            if heading_innovation_deg is not None:
+                prior_var = self._prior_correction_covariance_diag[2]
+                kalman_gain = prior_var / (prior_var + rotation_meas_var)
+                self.nominal_route_prior_correction_rotation_deg += (
+                    kalman_gain * heading_innovation_deg
+                )
+                self._prior_correction_covariance_diag[2] = (1.0 - kalman_gain) * prior_var
+        else:
+            gain = float(np.clip(tracking.nominal_route_prior_correction_gain, 0.0, 1.0))
+            self.nominal_route_prior_correction_translation_xy_m += gain * translation_innovation_xy_m
+            if heading_innovation_deg is not None:
+                self.nominal_route_prior_correction_rotation_deg += gain * heading_innovation_deg
+
+        max_translation_m = max(tracking.nominal_route_prior_correction_max_translation_m, 0.0)
+        correction_norm_m = float(np.linalg.norm(self.nominal_route_prior_correction_translation_xy_m))
+        if correction_norm_m > max_translation_m > 0.0:
+            self.nominal_route_prior_correction_translation_xy_m *= max_translation_m / correction_norm_m
+        max_rotation_deg = max(tracking.nominal_route_prior_correction_max_rotation_deg, 0.0)
+        self.nominal_route_prior_correction_rotation_deg = float(np.clip(
+            self.nominal_route_prior_correction_rotation_deg,
+            -max_rotation_deg,
+            max_rotation_deg,
+        ))
+        self._last_prior_correction_anchor_time_s = self.last_time_s
+        self.last_nominal_route_progress_m = float(projected_progress_m)
+        self._refresh_nominal_route_lookup()
 
     def _blind_heading(self) -> Optional[float]:
         """在没有可用航向先验时，根据历史有效点估计盲航向。"""
@@ -395,10 +547,19 @@ class MagneticCablePerception:
         true_burial_depth_m: Optional[float] = None,
         sonar_reading: Optional[SonarReading] = None,
         signal_features: Optional[ProcessedSignalFeatures] = None,
+        prior_rotation_drift_deg: float = 0.0,
     ) -> PerceptionState:
         """处理一帧磁测量、姿态和声呐输入，并输出完整感知状态。"""
         dt_s = max(reading.time_s - self.last_time_s, self.scenario.dt_s)
         self.last_time_s = reading.time_s
+        if float(prior_rotation_drift_deg) != self._prior_rotation_drift_deg:
+            self._prior_rotation_drift_deg = float(prior_rotation_drift_deg)
+            self._refresh_nominal_route_lookup()
+        if self.scenario.tracking.nominal_route_progress_guard_enabled:
+            # Seed/advance the progress window from the AUV nav position so the
+            # first valid sonar observation lands inside a meaningful window.
+            self.advance_nominal_route_progress(np.asarray(vehicle_position_xy_m, dtype=float)[:2])
+        self._update_nominal_route_prior_observation_correction(sonar_reading, dt_s=dt_s)
         sample_times_s = np.asarray(reading.sample_times_s, dtype=float)
         sample_block_sensor_nt = np.asarray(reading.sample_block_sensor_nt, dtype=float)
         sample_count = max(1, sample_times_s.size)

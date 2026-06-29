@@ -23,9 +23,12 @@ from .sensor_model import (
     IMUSimulator,
     MagnetometerModel,
     MagnetometerReading,
+    NavigationMeasurement,
+    NavigationSimulator,
     PoseMeasurement,
     SonarModel,
     SonarReading,
+    sonar_reading_in_navigation_frame,
 )
 
 
@@ -145,6 +148,7 @@ class SensorFrame:
     vehicle_position_xy_m: np.ndarray
     burial_measurement: BurialDepthMeasurement
     sonar_reading: Optional[SonarReading]
+    navigation_measurement: Optional[NavigationMeasurement] = None
     true_burial_depth_m: Optional[float] = None
     true_cable_heading_deg: Optional[float] = None
 
@@ -562,10 +566,12 @@ class AuvCableTrackingSimulation:
             self.magnetometer = MagnetometerModel(scenario.sensor)
         self.sonar = SonarModel(scenario.sonar)
         self.imu = IMUSimulator(scenario.sensor)
+        self.navigation = NavigationSimulator(scenario.navigation)
         self.burial_observer = BurialDepthObserver(scenario.survey)
         self.signal_driver = PerceptionDriver(scenario)
         self.perception = MagneticCablePerception(scenario)
         self.controller = ZigZagController(scenario)
+        self.controller.attach_perception(self.perception)
 
         history_length = max(10, int(np.ceil(scenario.visualization.history_seconds / scenario.dt_s)))
         self.time_history_s: Deque[float] = deque(maxlen=history_length)
@@ -606,14 +612,25 @@ class AuvCableTrackingSimulation:
             sample_times_s,
             cable_fields_ned_nt=cable_field_block_ned_nt,
         )
-        pose_measurement = self.imu.observe(self.pose, time_s)
+        navigation_measurement = self.navigation.observe(self.pose, time_s)
+        pose_measurement = (
+            navigation_measurement.pose_measurement()
+            if self.scenario.navigation.enabled
+            else self.imu.observe(self.pose, time_s)
+        )
         cable_truth = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2])
         sonar_reading = self.sonar.sample(self.pose, cable_truth, time_s)
+        if self.scenario.navigation.enabled:
+            sonar_reading = sonar_reading_in_navigation_frame(
+                sonar_reading,
+                navigation_measurement.pose(),
+            )
         burial_measurement = self.burial_observer.observe(cable_truth.burial_depth_m, time_s)
         return SensorFrame(
             magnetometer_reading=magnetometer_reading,
             pose_measurement=pose_measurement,
-            vehicle_position_xy_m=self.pose.position_ned_m[:2].copy(),
+            vehicle_position_xy_m=navigation_measurement.position_ned_m[:2].copy(),
+            navigation_measurement=navigation_measurement,
             burial_measurement=burial_measurement,
             sonar_reading=sonar_reading,
             true_burial_depth_m=cable_truth.burial_depth_m,
@@ -689,7 +706,9 @@ class AuvCableTrackingSimulation:
                 if sonar_failure_active:
                     truth = self.environment.cable_truth_at_xy(self.pose.position_ned_m[:2])
                     sensor_frame.sonar_reading = self.sonar.force_offline(
-                        self.pose,
+                        sensor_frame.navigation_measurement.pose()
+                        if sensor_frame.navigation_measurement is not None
+                        else self.pose,
                         truth,
                         time_s,
                         status="FORCED_OFFLINE",
@@ -699,6 +718,11 @@ class AuvCableTrackingSimulation:
 
             magnetometer_reading = sensor_frame.magnetometer_reading
             signal_frame = self.signal_driver.update(magnetometer_reading)
+            prior_rotation_drift_deg = (
+                sensor_frame.navigation_measurement.prior_rotation_drift_deg
+                if sensor_frame.navigation_measurement is not None
+                else 0.0
+            )
             perception_state = self.perception.update(
                 reading=magnetometer_reading,
                 pose_measurement=sensor_frame.pose_measurement,
@@ -707,8 +731,14 @@ class AuvCableTrackingSimulation:
                 true_burial_depth_m=sensor_frame.true_burial_depth_m,
                 sonar_reading=sensor_frame.sonar_reading,
                 signal_features=signal_frame.features,
+                prior_rotation_drift_deg=prior_rotation_drift_deg,
             )
-            command = self.controller.update(self.pose, perception_state)
+            navigation_pose = (
+                sensor_frame.navigation_measurement.pose()
+                if sensor_frame.navigation_measurement is not None
+                else self.pose
+            )
+            command = self.controller.update(navigation_pose, perception_state)
             if command.mode == MissionState.TRACK_ACTIVE and track_entry_time_s is None:
                 track_entry_time_s = time_s
 

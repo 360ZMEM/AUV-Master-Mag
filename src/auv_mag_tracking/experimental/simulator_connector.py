@@ -24,6 +24,13 @@ class RawSensorBundle:
     imu_roll_deg: Optional[float] = None
     vehicle_position_ned_m: Optional[np.ndarray] = None
     vehicle_speed_mps: Optional[float] = None
+    navigation_position_ned_m: Optional[np.ndarray] = None
+    navigation_heading_deg: Optional[float] = None
+    navigation_pitch_deg: Optional[float] = None
+    navigation_roll_deg: Optional[float] = None
+    navigation_speed_mps: Optional[float] = None
+    navigation_position_std_m: Optional[float] = None
+    navigation_heading_std_deg: Optional[float] = None
     burial_depth_m: Optional[float] = None
 
 
@@ -103,6 +110,9 @@ class HoloOceanConnectorMock(HoloOceanConnector):
         vehicle_position_ned_m = None
         if self.last_bundle.vehicle_position_ned_m is not None:
             vehicle_position_ned_m = np.asarray(self.last_bundle.vehicle_position_ned_m, dtype=float)
+        navigation_position_ned_m = None
+        if self.last_bundle.navigation_position_ned_m is not None:
+            navigation_position_ned_m = np.asarray(self.last_bundle.navigation_position_ned_m, dtype=float)
         return RawSensorBundle(
             time_s=bundle.time_s,
             magnetometer_block_nt=magnetometer_block_nt,
@@ -114,6 +124,13 @@ class HoloOceanConnectorMock(HoloOceanConnector):
             imu_roll_deg=bundle.imu_roll_deg,
             vehicle_position_ned_m=vehicle_position_ned_m,
             vehicle_speed_mps=bundle.vehicle_speed_mps,
+            navigation_position_ned_m=navigation_position_ned_m,
+            navigation_heading_deg=bundle.navigation_heading_deg,
+            navigation_pitch_deg=bundle.navigation_pitch_deg,
+            navigation_roll_deg=bundle.navigation_roll_deg,
+            navigation_speed_mps=bundle.navigation_speed_mps,
+            navigation_position_std_m=bundle.navigation_position_std_m,
+            navigation_heading_std_deg=bundle.navigation_heading_std_deg,
             burial_depth_m=bundle.burial_depth_m,
         )
 

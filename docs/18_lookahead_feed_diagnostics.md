@@ -958,3 +958,14 @@ reason code 含义：
 - zig-zag cycle 级观测，而不是单帧或单 phase 点。
 - sparse sonar 锚点与纯磁局部推进的协同。
 - burial/offset 作为观测质量诊断，先 shadow，后闭环。
+
+## 关键可视化
+
+Lookahead feed 诊断推荐引用 [23_论文图清单](23_论文图清单.md) 中：
+
+| slug | 用途 |
+| --- | --- |
+| `detail_feed_reason` | reason code 时间序列：no tgt / off / conf / age / phase / resid / head / innov |
+| `detail_feed_margins` | axis delta / innovation / phase age 余量，识别瓶颈门限 |
+| `selector_reasons` | 验证 / dual / progress / aligned 拒绝原因码叠加 |
+| `selector_gate_overlap` | 假设 / 验证 / dual / feed allowed 同步对比 |

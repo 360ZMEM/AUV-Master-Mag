@@ -60,6 +60,16 @@ def _auto_analysis(metrics: HealthMetrics) -> List[str]:
             f"(final route distance {metrics.final_route_distance_m:.1f} m, "
             f"endpoint={'yes' if metrics.endpoint_completed >= 0.5 else 'no'})."
         )
+        if metrics.case_name.startswith("case_maze"):
+            if metrics.lane_shortcut_indicator >= 0.5:
+                lines.append(
+                    f"- MAZE GEOMETRY FAIL: route progress jumped by "
+                    f"{metrics.route_progress_max_jump_m:.1f} m, indicating a lane shortcut / projection jump."
+                )
+            elif metrics.maze_geometry_passed >= 0.5:
+                lines.append("- MAZE GEOMETRY PASS: no large route-progress shortcut detected.")
+            else:
+                lines.append("- MAZE GEOMETRY FAIL: task progress or vehicle heading failed maze acceptance.")
 
     lines.append(
         f"- Guidance contribution: sonar {metrics.sonar_contribution*100:.0f}% / "
@@ -123,11 +133,17 @@ def save_run_report(metrics: HealthMetrics, fig_paths: Dict[str, Path], out_path
         f"| Mean cross-track | {metrics.mean_cross_track_m:.1f} m |",
         f"| Median cross-track | {metrics.median_cross_track_m:.1f} m |",
         f"| P90 cross-track | {metrics.p90_cross_track_m:.1f} m |",
+        f"| P99 cross-track | {metrics.p99_cross_track_m:.1f} m |",
         f"| TRACK mean cross-track | {metrics.track_mean_cross_track_m:.1f} m |",
         f"| Max cross-track | {metrics.max_cross_track_m:.1f} m |",
         f"| Final cross-track | {metrics.final_cross_track_m:.1f} m |",
         f"| Route completion | {metrics.route_completion_ratio*100:.1f}% |",
         f"| Final route distance | {metrics.final_route_distance_m:.1f} m |",
+        f"| Route progress backward fraction | {metrics.route_progress_backward_fraction*100:.1f}% |",
+        f"| Route progress max jump | {metrics.route_progress_max_jump_m:.1f} m |",
+        f"| Route progress large jumps | {metrics.route_progress_large_jump_count} |",
+        f"| Lane shortcut indicator | {'yes' if metrics.lane_shortcut_indicator >= 0.5 else 'no'} |",
+        f"| Maze geometry passed | {'yes' if metrics.maze_geometry_passed >= 0.5 else 'no'} |",
         f"| Endpoint goal enabled | {'yes' if metrics.endpoint_goal_enabled >= 0.5 else 'no'} |",
         f"| Endpoint completed | {'yes' if metrics.endpoint_completed >= 0.5 else 'no'} |",
         f"| Mean confidence | {metrics.mean_confidence:.2f} |",

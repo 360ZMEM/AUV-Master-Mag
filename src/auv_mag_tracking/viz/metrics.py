@@ -70,11 +70,17 @@ class HealthMetrics:
     track_mean_cross_track_m: float = float("nan")
     median_cross_track_m: float = float("nan")
     p90_cross_track_m: float = float("nan")
+    p99_cross_track_m: float = float("nan")
     final_cross_track_m: float = float("nan")
     route_completion_ratio: float = float("nan")
     final_route_progress_m: float = float("nan")
     route_length_m: float = float("nan")
     final_route_distance_m: float = float("nan")
+    route_progress_backward_fraction: float = 0.0
+    route_progress_max_jump_m: float = 0.0
+    route_progress_large_jump_count: int = 0
+    lane_shortcut_indicator: float = 0.0
+    maze_geometry_passed: float = 1.0
     endpoint_goal_enabled: float = 0.0
     endpoint_completed: float = 0.0
     magnetic_path_observation_fraction: float = 0.0
@@ -342,7 +348,21 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     max_cross_track = float(np.max(cross_track)) if cross_track.size else float("nan")
     median_cross_track = float(np.median(cross_track)) if cross_track.size else float("nan")
     p90_cross_track = float(np.percentile(cross_track, 90.0)) if cross_track.size else float("nan")
+    p99_cross_track = float(np.percentile(cross_track, 99.0)) if cross_track.size else float("nan")
     final_cross_track = float(cross_track[-1]) if cross_track.size else float("nan")
+
+    route_progress = record["route_progress_m"]
+    route_deltas = np.diff(route_progress)
+    finite_route_deltas = route_deltas[np.isfinite(route_deltas)]
+    route_progress_backward_fraction = (
+        float(np.mean(finite_route_deltas < -1.0)) if finite_route_deltas.size else 0.0
+    )
+    route_progress_max_jump = (
+        float(np.max(finite_route_deltas)) if finite_route_deltas.size else 0.0
+    )
+    large_jump_mask = finite_route_deltas > 25.0
+    route_progress_large_jump_count = int(np.sum(large_jump_mask))
+    lane_shortcut_indicator = 1.0 if route_progress_large_jump_count > 0 else 0.0
 
     track_heading_errors = heading_errors[track_mask] if track_mask.size == heading_errors.size else np.empty(0)
     valid_track_heading_errors = track_heading_errors[np.isfinite(track_heading_errors)]
@@ -1261,6 +1281,22 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
     else:
         shadow_axis_route_bound_oracle_consistency_fraction = 0.0
 
+    endpoint_goal_enabled = float(record.metadata.get("endpoint_goal_enabled", 0.0))
+    endpoint_completed = float(record.metadata.get("endpoint_completed", 0.0))
+    maze_like = record.case_name.startswith("case_maze")
+    route_progress_fail = (
+        endpoint_goal_enabled >= 0.5
+        and not np.isnan(float(record.metadata.get("route_completion_ratio", float("nan"))))
+        and float(record.metadata.get("route_completion_ratio", float("nan"))) < 0.95
+    )
+    heading_task_fail = (
+        np.isfinite(track_mean_vehicle_heading_error)
+        and track_mean_vehicle_heading_error > 45.0
+    )
+    maze_geometry_passed = 1.0
+    if maze_like and (lane_shortcut_indicator >= 0.5 or route_progress_fail or heading_task_fail):
+        maze_geometry_passed = 0.0
+
     return HealthMetrics(
         case_name=record.case_name,
         deployment_mode=record.deployment_mode,
@@ -1295,13 +1331,19 @@ def compute_health_metrics(record: RunRecord) -> HealthMetrics:
         track_mean_cross_track_m=track_mean_cross_track,
         median_cross_track_m=median_cross_track,
         p90_cross_track_m=p90_cross_track,
+        p99_cross_track_m=p99_cross_track,
         final_cross_track_m=final_cross_track,
         route_completion_ratio=float(record.metadata.get("route_completion_ratio", float("nan"))),
         final_route_progress_m=float(record.metadata.get("final_route_progress_m", float("nan"))),
         route_length_m=float(record.metadata.get("route_length_m", float("nan"))),
         final_route_distance_m=float(record.metadata.get("final_route_distance_m", float("nan"))),
-        endpoint_goal_enabled=float(record.metadata.get("endpoint_goal_enabled", 0.0)),
-        endpoint_completed=float(record.metadata.get("endpoint_completed", 0.0)),
+        route_progress_backward_fraction=route_progress_backward_fraction,
+        route_progress_max_jump_m=route_progress_max_jump,
+        route_progress_large_jump_count=route_progress_large_jump_count,
+        lane_shortcut_indicator=lane_shortcut_indicator,
+        maze_geometry_passed=maze_geometry_passed,
+        endpoint_goal_enabled=endpoint_goal_enabled,
+        endpoint_completed=endpoint_completed,
         magnetic_path_observation_fraction=magnetic_path_fraction,
         magnetic_path_mean_axis_error_deg=magnetic_path_mean_axis_error,
         magnetic_path_mean_position_error_m=magnetic_path_mean_position_error,

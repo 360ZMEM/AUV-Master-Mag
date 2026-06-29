@@ -21,6 +21,7 @@ from ..config import ScenarioConfig, build_default_scenarios
 from ..controller import apply_attitude_profile, propagate_vehicle
 from ..main_viz import AuvCableTrackingSimulation
 from ..perception import MagneticBurialCycleEstimator
+from ..sensor_model import sonar_reading_in_navigation_frame
 from .readiness import score_shadow_hypothesis_readiness
 
 # --- Numeric channels recorded each frame (column-store, binary friendly) ---
@@ -410,7 +411,12 @@ def simulate_run(
             true_block_ned_nt, sim.pose, sample_times_s, cable_fields_ned_nt=cable_block_ned_nt
         )
         signal_frame = sim.signal_driver.update(reading)
-        pose_measurement = sim.imu.observe(sim.pose, time_s)
+        navigation_measurement = sim.navigation.observe(sim.pose, time_s)
+        pose_measurement = (
+            navigation_measurement.pose_measurement()
+            if scenario.navigation.enabled
+            else sim.imu.observe(sim.pose, time_s)
+        )
         truth = sim.environment.cable_truth_at_xy(sim.pose.position_ned_m[:2])
         sonar_failure_active = (
             scenario.sonar.fail_after_track_active
@@ -418,23 +424,34 @@ def simulate_run(
             and time_s >= track_entry_time_s + scenario.sonar.fail_after_track_delay_s
         )
         if sonar_failure_active:
-            sonar_reading = sim.sonar.force_offline(sim.pose, truth, time_s, status="FORCED_OFFLINE")
+            sonar_reading = sim.sonar.force_offline(
+                navigation_measurement.pose(),
+                truth,
+                time_s,
+                status="FORCED_OFFLINE",
+            )
         else:
             sonar_reading = sim.sonar.sample(sim.pose, truth, time_s)
+            if scenario.navigation.enabled:
+                sonar_reading = sonar_reading_in_navigation_frame(
+                    sonar_reading,
+                    navigation_measurement.pose(),
+                )
         burial_measurement = sim.burial_observer.observe(truth.burial_depth_m, time_s)
         perception = sim.perception.update(
             reading=reading,
             pose_measurement=pose_measurement,
-            vehicle_position_xy_m=sim.pose.position_ned_m[:2],
+            vehicle_position_xy_m=navigation_measurement.position_ned_m[:2],
             burial_measurement=burial_measurement,
             true_burial_depth_m=truth.burial_depth_m,
             sonar_reading=sonar_reading,
             signal_features=signal_frame.features,
+            prior_rotation_drift_deg=navigation_measurement.prior_rotation_drift_deg,
         )
-        command = sim.controller.update(sim.pose, perception)
+        command = sim.controller.update(navigation_measurement.pose(), perception)
         if command.mode.value == "track" and track_entry_time_s is None:
             track_entry_time_s = time_s
-        probe_burst_decision = sim.controller.probe_burst_decision
+        probe_burst_decision = getattr(sim.controller, "probe_burst_decision", None)
 
         nearest_xy, route_tangent_xy, route_distance_m = sim.environment.route.nearest_point_and_tangent(sim.pose.position_ned_m[:2])
         estimated_cable_xy = perception.estimated_cable_point_xy_m
@@ -1043,7 +1060,7 @@ def simulate_run(
                 1.0 if probe_burst_decision is not None and probe_burst_decision.control_allowed else 0.0
             ),
             probe_burst_manager_reacquire_safe_control_allowed=(
-                1.0 if sim.controller.probe_burst_reacquire_safe_control_allowed else 0.0
+                1.0 if getattr(sim.controller, "probe_burst_reacquire_safe_control_allowed", False) else 0.0
             ),
             probe_burst_manager_entry_abs_cross_track_m=(
                 np.nan if probe_burst_decision is None else probe_burst_decision.entry_abs_cross_track_m

@@ -30,6 +30,8 @@ from auv_mag_tracking.viz import (  # noqa: E402
     compare_to_baseline,
     compute_health_metrics,
     health_score,
+    render_paper_progress_panels,
+    render_paper_showcase_panels,
     render_progress,
     render_run,
     render_showcase,
@@ -64,7 +66,8 @@ def _apply_zigzag_probe(scenario: ScenarioConfig) -> None:
     scenario.tracking.magnetic_path_max_cross_track_m = 25.0
 
 
-def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps, zigzag_probe: bool = False):
+def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps,
+                  zigzag_probe: bool = False, paper_panels: bool = True):
     """跑一例仿真，落盘 record/figures/report，返回其健康指标。"""
     mode_name = "deployment" if deployment else "nominal"
     if zigzag_probe:
@@ -92,7 +95,7 @@ def _process_case(case_name: str, run_dir: Path, deployment: bool, max_steps, zi
 
     case_dir = run_dir / case_name
     fig_dir = case_dir / "figures"
-    fig_paths = render_run(record, metrics, fig_dir)
+    fig_paths = render_run(record, metrics, fig_dir, paper_panels=paper_panels)
     record.save_npz(case_dir / "record.npz")
     save_run_report(metrics, fig_paths, case_dir / "report.md")
 
@@ -126,6 +129,8 @@ def main() -> None:
     parser.add_argument("--deployment", action="store_true", help="disable nominal route prior")
     parser.add_argument("--zigzag-probe", action="store_true", help="enable small TRACK zig-zag magnetic probe")
     parser.add_argument("--live", action="store_true", help="real-time dashboard via main_viz")
+    parser.add_argument("--no-paper-figures", action="store_true",
+                        help="disable IEEE single-column PNG+PDF paper panels under figures/paper/")
     parser.add_argument("--max-steps", type=int, default=None, help="cap simulation steps")
     parser.add_argument("--duration-s", type=float, default=None, help="override scenario duration for stress tests")
     parser.add_argument("--outdir", default=None, help="override results directory")
@@ -157,12 +162,21 @@ def main() -> None:
         cases = DEFAULT_CASES
     else:
         cases = [args.case]
-    metrics_list = [_process_case(c, run_dir, args.deployment, args.max_steps, args.zigzag_probe) for c in cases]
+    paper_panels = not args.no_paper_figures
+    metrics_list = [
+        _process_case(c, run_dir, args.deployment, args.max_steps,
+                      args.zigzag_probe, paper_panels=paper_panels)
+        for c in cases
+    ]
 
     if args.all or args.variants or args.maze:
         showcase_fig = render_showcase(metrics_list, run_dir / "showcase.png")
         save_showcase_report(metrics_list, showcase_fig, run_dir / "showcase.md")
         print(f"[viz] showcase written to {run_dir / 'showcase.png'}")
+        if paper_panels:
+            paper_dir = run_dir / "paper"
+            paper_paths = render_paper_showcase_panels(metrics_list, paper_dir)
+            print(f"[viz] showcase paper panels ({len(paper_paths)}) under {paper_dir}")
 
     if args.progress:
         deltas = [
@@ -175,6 +189,10 @@ def main() -> None:
         total_after = sum(d.fields["switches"][1] for d in deltas)
         print(f"[viz] progress written to {run_dir / 'progress.png'}  "
               f"(FSM switches {total_before:.0f} -> {total_after:.0f})")
+        if paper_panels:
+            paper_dir = run_dir / "paper"
+            paper_paths = render_paper_progress_panels(deltas, paper_dir)
+            print(f"[viz] progress paper panels ({len(paper_paths)}) under {paper_dir}")
 
     print(f"[viz] all artifacts under: {run_dir}")
 
