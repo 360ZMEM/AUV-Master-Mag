@@ -17,10 +17,12 @@ from auv_mag_tracking.math_utils import (
     Pose,
     apply_route_prior_pose_error,
     build_nominal_route_xy,
+    point_on_polyline_at_progress,
     smallest_angle_error_deg,
 )
 from auv_mag_tracking.mission_manager import MissionState
-from auv_mag_tracking.perception import FitResult, PerceptionState
+from auv_mag_tracking.perception import FitResult, MagneticCablePerception, PerceptionState
+from auv_mag_tracking.sensor_model import SonarReading
 
 
 def _perception_state(
@@ -331,49 +333,67 @@ class ZigZagControllerReacquireTest(unittest.TestCase):
 
         self.assertAlmostEqual(angle_deg, 15.0)
 
-    def test_nominal_route_prior_translation_offsets_controller_cache_only(self) -> None:
+    def test_nominal_route_prior_translation_offsets_perception_cache_only(self) -> None:
+        self.scenario.tracking.use_nominal_route_prior = True
         self.scenario.tracking.nominal_route_prior_translation_xy_m = (0.0, 7.5)
         self.scenario.tracking.nominal_route_prior_rotation_deg = 3.0
         self.scenario.tracking.nominal_route_prior_scale_xy = (0.99, 1.0)
+        perception = MagneticCablePerception(self.scenario)
         controller = ZigZagController(self.scenario)
         true_route_xy = build_nominal_route_xy(self.scenario.environment)
         expected_route_xy = apply_route_prior_pose_error(true_route_xy, (0.0, 7.5), 3.0, (0.99, 1.0))
 
-        np.testing.assert_allclose(controller.nominal_route_xy, expected_route_xy)
+        # The perception orchestrator is the single source of the corrected route
+        # prior, so the prior-pose bias lives only in its cache.
+        np.testing.assert_allclose(perception.nominal_route_xy, expected_route_xy)
+        # The controller keeps an uncorrected local fallback (no prior bias) and
+        # defers to the orchestrator when a perception handle is attached.
+        np.testing.assert_allclose(controller.nominal_route_xy, true_route_xy)
         np.testing.assert_allclose(build_nominal_route_xy(self.scenario.environment), true_route_xy)
 
     def test_nominal_route_progress_guard_rejects_far_lane_projection_jump(self) -> None:
         scenario = build_default_scenarios()["case_maze_sonar"]
+        scenario.tracking.use_nominal_route_prior = True
         scenario.tracking.nominal_route_progress_guard_enabled = True
         scenario.tracking.nominal_route_progress_guard_lookback_m = 5.0
         scenario.tracking.nominal_route_progress_guard_lookahead_m = 20.0
-        controller = ZigZagController(scenario)
-        controller.last_nominal_route_progress_m = 25.0
+        perception = MagneticCablePerception(scenario)
+        perception.last_nominal_route_progress_m = 25.0
 
-        far_lane_point_xy = controller._nominal_route_point_at_progress_m(260.0)
-        _, _, _, guarded_progress_m, _ = controller._nearest_nominal_route_projection(far_lane_point_xy)
+        far_lane_point_xy = point_on_polyline_at_progress(perception.nominal_route_lookup, 260.0)
+        _, _, _, guarded_progress_m, _ = perception.nominal_route_projection(far_lane_point_xy)
 
         self.assertLessEqual(guarded_progress_m, 45.0 + 1e-6)
 
     def test_nominal_route_prior_correction_step_is_rate_limited(self) -> None:
         scenario = build_default_scenarios()["case_maze_sonar"]
+        scenario.tracking.use_nominal_route_prior = True
         scenario.tracking.nominal_route_prior_observation_correction_enabled = True
+        scenario.tracking.nominal_route_prior_correction_ekf_enabled = False
         scenario.tracking.nominal_route_prior_correction_gain = 1.0
-        scenario.tracking.nominal_route_prior_correction_max_residual_m = 100.0
-        scenario.tracking.nominal_route_prior_correction_max_step_m = 0.5
-        controller = ZigZagController(scenario)
-        observed_point_xy = controller._nominal_route_point_at_progress_m(30.0) + np.array([0.0, 10.0])
+        scenario.tracking.nominal_route_prior_correction_min_confidence = 0.0
+        scenario.tracking.nominal_route_prior_correction_max_translation_m = 0.5
+        perception = MagneticCablePerception(scenario)
+        observed_point_xy = point_on_polyline_at_progress(
+            perception.nominal_route_lookup, 30.0
+        ) + np.array([0.0, 10.0])
 
-        controller._update_nominal_route_prior_observation_correction(
-            _perception_state(
-                estimated_cable_point_xy_m=observed_point_xy,
-                fused_heading_deg=0.0,
-                local_path_heading_deg=0.0,
+        perception._update_nominal_route_prior_observation_correction(
+            SonarReading(
+                time_s=0.0,
+                valid=True,
+                status="TRACKING",
+                relative_position_body_m=None,
+                relative_heading_body_deg=None,
+                estimated_position_ned_m=np.array([observed_point_xy[0], observed_point_xy[1], 0.0]),
+                estimated_heading_ned_deg=0.0,
+                confidence=0.9,
+                distance_m=None,
             )
         )
 
         self.assertLessEqual(
-            np.linalg.norm(controller.nominal_route_prior_correction_translation_xy_m),
+            np.linalg.norm(perception.nominal_route_prior_correction_translation_xy_m),
             0.5 + 1e-6,
         )
 
