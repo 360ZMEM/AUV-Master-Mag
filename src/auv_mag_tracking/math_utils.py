@@ -386,6 +386,56 @@ def sample_serpentine_path(
     return np.asarray(points, dtype=float)
 
 
+def sample_tightening_arc_path(
+    initial_straight_length_m: float,
+    turn_angle_deg: float,
+    radius_m: float,
+    step_m: float,
+) -> np.ndarray:
+    """Sample an initial straight run followed by one constant-radius left turn.
+
+    The cable starts at ``(-initial_straight_length_m, 0)``, runs east to the
+    origin, then sweeps a single circular arc of radius ``radius_m`` through a
+    total heading change of ``turn_angle_deg`` (turning left, centre at
+    ``(0, radius_m)``).  The minimum curvature radius of the whole route equals
+    ``radius_m`` exactly, so shrinking ``radius_m`` is a clean knob for probing
+    the curvature a tracker can sustain.  Geometry is C1 continuous at the
+    straight/arc junction.
+    """
+    initial_straight_length_m = max(float(initial_straight_length_m), 0.0)
+    radius_m = max(float(radius_m), EPSILON)
+    turn_angle_rad = np.deg2rad(float(turn_angle_deg))
+    step_m = max(float(step_m), 0.5)
+
+    points = []
+
+    def append_line(start_xy: np.ndarray, end_xy: np.ndarray) -> None:
+        distance_m = float(np.linalg.norm(end_xy - start_xy))
+        count = max(2, int(np.ceil(distance_m / step_m)) + 1)
+        for idx, alpha in enumerate(np.linspace(0.0, 1.0, count)):
+            if points and idx == 0:
+                continue
+            points.append(start_xy + alpha * (end_xy - start_xy))
+
+    straight_start = np.array([-initial_straight_length_m, 0.0], dtype=float)
+    arc_origin = np.array([0.0, 0.0], dtype=float)
+    if initial_straight_length_m > EPSILON:
+        append_line(straight_start, arc_origin)
+    else:
+        points.append(arc_origin.copy())
+
+    center_xy = np.array([0.0, radius_m], dtype=float)
+    arc_length_m = abs(turn_angle_rad) * radius_m
+    count = max(8, int(np.ceil(arc_length_m / step_m)) + 1)
+    start_theta = -0.5 * np.pi
+    for idx, theta in enumerate(np.linspace(start_theta, start_theta + turn_angle_rad, count)):
+        if points and idx == 0:
+            continue
+        points.append(center_xy + radius_m * np.array([np.cos(theta), np.sin(theta)], dtype=float))
+
+    return np.asarray(points, dtype=float)
+
+
 def sample_sine_overlay_path(
     waypoints_xy: np.ndarray,
     step_m: float,
@@ -426,6 +476,13 @@ def build_nominal_route_xy(environment_config) -> np.ndarray:
             straight_length_m=environment_config.maze_straight_length_m,
             lane_spacing_m=environment_config.maze_lane_spacing_m,
             turn_radius_m=environment_config.maze_turn_radius_m,
+            step_m=step_m,
+        )
+    if environment_config.cable_route_mode == "tightening_arc":
+        return sample_tightening_arc_path(
+            initial_straight_length_m=environment_config.arc_initial_straight_length_m,
+            turn_angle_deg=environment_config.arc_turn_angle_deg,
+            radius_m=environment_config.arc_radius_m,
             step_m=step_m,
         )
     if environment_config.cable_route_mode == "sine":

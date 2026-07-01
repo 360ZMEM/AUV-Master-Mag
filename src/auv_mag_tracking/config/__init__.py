@@ -666,6 +666,9 @@ class EnvironmentConfig:
         maze_straight_length_m: serpentine 模式下每条来/去长边的长度。
         maze_lane_spacing_m: serpentine 模式下相邻来/去电缆的间距。
         maze_turn_radius_m: serpentine 模式下 U 型折返半径。
+        arc_initial_straight_length_m: tightening_arc 模式下转弯前的初始直线长度。
+        arc_turn_angle_deg: tightening_arc 模式下单段圆弧的总转角（左转为正）。
+        arc_radius_m: tightening_arc 模式下圆弧半径，即整条路线的最小曲率半径。
         seabed_depth_m: 海床深度。
         seabed_undulation_m: 海床起伏幅度。
         seabed_wavelength_m: 海床起伏波长。
@@ -687,6 +690,9 @@ class EnvironmentConfig:
     maze_straight_length_m: float = 220.0
     maze_lane_spacing_m: float = 60.0
     maze_turn_radius_m: float = 30.0
+    arc_initial_straight_length_m: float = 200.0
+    arc_turn_angle_deg: float = 90.0
+    arc_radius_m: float = 60.0
     seabed_depth_m: float = 30.0
     seabed_undulation_m: float = 0.8
     seabed_wavelength_m: float = 220.0
@@ -1458,6 +1464,51 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
     sparse_mid_prob015.tracking.nominal_route_prior_correction_max_step_m = 0.18
     tiered_prior_scenarios[sparse_mid_prob015.name] = sparse_mid_prob015
 
+    # --- Tightening-arc minimum-curvature-radius boundary scenarios ---
+    # An initial straight run followed by a single 90 deg constant-radius left
+    # turn. Shrinking ``arc_radius_m`` directly probes the smallest curvature a
+    # pure-magnetic (post-lock sonar dropout) tracker can sustain under a
+    # distorted prior. Each scenario inherits the dropout sonar regime, the
+    # magnetic path observation, the progress guard and the mid prior tier so
+    # the only varying factor across the family is the bend radius.
+    ARC_RADIUS_GRID_M: Tuple[float, ...] = (120.0, 100.0, 80.0, 60.0, 50.0, 40.0, 35.0, 30.0)
+
+    def _build_radius_case(radius_m: float, tier: str) -> ScenarioConfig:
+        """Build a pure-magnetic tightening-arc scenario at a given bend radius."""
+        base = copy.deepcopy(maze_sonar_dropout)
+        base.environment = EnvironmentConfig(
+            cable_route_mode="tightening_arc",
+            arc_initial_straight_length_m=200.0,
+            arc_turn_angle_deg=90.0,
+            arc_radius_m=float(radius_m),
+            nominal_route_heading_deg=0.0,
+            burial_depth_m=1.5,
+            min_cable_curvature_radius_m=30.0,
+            validate_curvature_on_build=True,
+            field_segment_length_m=2.0,
+        )
+        base.vehicle = copy.deepcopy(maze_sonar_dropout.vehicle)
+        base.vehicle.initial_position_ned_m = (-215.0, -4.0, 0.0)
+        base.vehicle.initial_heading_deg = 0.0
+        base.duration_s = 900.0
+        base.stop_at_cable_endpoint = True
+        base.endpoint_progress_margin_m = 10.0
+        base.endpoint_lateral_tolerance_m = 18.0
+        scenario = _build_prior_scenario_tier(base, "sonar_dropout", tier)
+        scenario.name = f"case_radius_{int(round(radius_m))}_dropout_prior_{tier}"
+        scenario.description = (
+            f"Tightening-arc pure-magnetic stress test: 200 m straight then a 90 deg "
+            f"turn at {radius_m:.0f} m radius, {tier} prior tier (DR/INS drift + prior "
+            f"pose distortion + walking rotation drift)."
+        )
+        return scenario
+
+    radius_scenarios: Dict[str, ScenarioConfig] = {}
+    for radius_m in ARC_RADIUS_GRID_M:
+        for tier in ("mid", "heavy"):
+            built = _build_radius_case(radius_m, tier)
+            radius_scenarios[built.name] = built
+
     # 手机级高保真场景：保留基线结构，仅增强硬件噪声与较低采样率。
     hf_phone = copy.deepcopy(standard)
     hf_phone.name = "case_hf_phone"
@@ -1590,6 +1641,7 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
         maze_sparse_sonar.name: maze_sparse_sonar,
         maze_no_sonar.name: maze_no_sonar,
         **tiered_prior_scenarios,
+        **radius_scenarios,
         sonar_dropout_zigzag.name: sonar_dropout_zigzag,
         hf_phone.name: hf_phone,
         hf_industrial.name: hf_industrial,

@@ -16,6 +16,7 @@ from .math_utils import (
     sample_serpentine_path,
     sample_sine_overlay_path,
     sample_spline_path,
+    sample_tightening_arc_path,
 )
 
 
@@ -75,6 +76,13 @@ class CableRoute:
                 straight_length_m=self.config.maze_straight_length_m,
                 lane_spacing_m=self.config.maze_lane_spacing_m,
                 turn_radius_m=self.config.maze_turn_radius_m,
+                step_m=step_m,
+            )
+        elif self.config.cable_route_mode == "tightening_arc":
+            sampled = sample_tightening_arc_path(
+                initial_straight_length_m=self.config.arc_initial_straight_length_m,
+                turn_angle_deg=self.config.arc_turn_angle_deg,
+                radius_m=self.config.arc_radius_m,
                 step_m=step_m,
             )
         elif self.config.cable_route_mode == "sine":
