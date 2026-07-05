@@ -29,6 +29,7 @@ from .cross_track import MagneticCrossTrackEstimator
 from .filters import LowPassFilter, MedianWindowFilter, RMSExtractor, StreamingBandpassFilter
 from .fitter import WeightedSlidingWindowFitter
 from .local_path import LocalCableStateEstimator, LocalPathTrackingState
+from .map_frame_tracker import CableMapFrameTracker
 from .magnetic_path import (
     MagneticLookaheadTargetBuilder,
     MagneticPathObservationBuilder,
@@ -36,6 +37,7 @@ from .magnetic_path import (
     MagneticZigzagPhaseDetector,
 )
 from .peaks import PeakDetector
+from .prior_alignment import PriorAlignmentEstimator
 from .reacquire_region import ObservableRegionSelector
 from .state import FitResult, PerceptionState
 from .vector import EnvelopeGradientTracker, MagneticVectorAnalyzer
@@ -216,12 +218,29 @@ class MagneticCablePerception:
             ],
             dtype=float,
         )
+        self.prior_alignment = PriorAlignmentEstimator(
+            self.nominal_route_prior_correction_translation_xy_m,
+            self.nominal_route_prior_correction_rotation_deg,
+            self._prior_correction_covariance_diag,
+        )
         self._last_prior_correction_anchor_time_s: Optional[float] = None
         self.last_nominal_route_progress_m: Optional[float] = None
+        self.map_frame_tracker: Optional[CableMapFrameTracker] = None
+        self.map_frame_projection_untrusted: bool = False
         self._refresh_nominal_route_lookup()
 
     def _refresh_nominal_route_lookup(self) -> None:
         """Rebuild perception-side route prior after applying online correction."""
+        if hasattr(self, "prior_alignment"):
+            self.nominal_route_prior_correction_translation_xy_m = (
+                self.prior_alignment.state.translation_xy_m.copy()
+            )
+            self.nominal_route_prior_correction_rotation_deg = float(
+                self.prior_alignment.state.rotation_deg
+            )
+            self._prior_correction_covariance_diag = (
+                self.prior_alignment.state.covariance_diag.copy()
+            )
         effective_rotation_deg = (
             self.nominal_route_prior_correction_rotation_deg
             + self._prior_rotation_drift_deg
@@ -233,10 +252,14 @@ class MagneticCablePerception:
             (1.0, 1.0),
         )
         self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
+        if self.map_frame_tracker is not None:
+            self.map_frame_tracker.rebase_route(self.nominal_route_xy)
+        self.map_frame_projection_untrusted = False
 
     def nominal_route_projection(
         self,
         position_xy_m: np.ndarray,
+        update_map_frame: bool = True,
     ) -> tuple:
         """Project a point onto the current route prior cache.
 
@@ -246,6 +269,30 @@ class MagneticCablePerception:
         ``(point_xy, tangent_xy, distance_m, progress_m, index)``.
         """
         tracking = self.scenario.tracking
+        if tracking.nominal_route_map_frame_projection_enabled and update_map_frame:
+            position_xy = np.asarray(position_xy_m, dtype=float)
+            if self.map_frame_tracker is None:
+                self.map_frame_tracker = CableMapFrameTracker(
+                    route_xy=self.nominal_route_xy,
+                    initial_position_xy=position_xy,
+                    lookback_m=max(tracking.nominal_route_progress_guard_lookback_m, 0.0),
+                    lookahead_m=max(tracking.nominal_route_progress_guard_lookahead_m, 0.0),
+                    max_forward_step_m=tracking.nominal_route_map_frame_max_forward_step_m,
+                    max_lateral_step_m=tracking.nominal_route_map_frame_max_lateral_step_m,
+                )
+            state = self.map_frame_tracker.update(position_xy)
+            self.last_nominal_route_progress_m = float(state.progress_m)
+            self.map_frame_projection_untrusted = (
+                state.projection_distance_m > tracking.nominal_route_map_frame_untrusted_distance_m
+                or state.consistency_score < tracking.nominal_route_map_frame_untrusted_consistency
+            )
+            return (
+                state.point_xy,
+                state.tangent_xy,
+                state.projection_distance_m,
+                state.progress_m,
+                state.segment_index,
+            )
         if (
             tracking.nominal_route_progress_guard_enabled
             and self.last_nominal_route_progress_m is not None
@@ -278,16 +325,8 @@ class MagneticCablePerception:
         if not tracking.use_nominal_route_prior or not tracking.nominal_route_prior_observation_correction_enabled:
             return
 
-        if tracking.nominal_route_prior_correction_ekf_enabled and dt_s > 0.0:
-            translation_process_var = (
-                tracking.nominal_route_prior_correction_ekf_translation_process_std_m_per_sqrt_s ** 2
-            ) * dt_s
-            rotation_process_var = (
-                tracking.nominal_route_prior_correction_ekf_rotation_process_std_deg_per_sqrt_s ** 2
-            ) * dt_s
-            self._prior_correction_covariance_diag[0] += translation_process_var
-            self._prior_correction_covariance_diag[1] += translation_process_var
-            self._prior_correction_covariance_diag[2] += rotation_process_var
+        self.prior_alignment.predict(tracking, dt_s)
+        self.prior_alignment.clear_observation_diagnostics()
 
         if (
             sonar_reading is None
@@ -300,57 +339,21 @@ class MagneticCablePerception:
         observed_point_xy = np.asarray(sonar_reading.estimated_position_ned_m, dtype=float)[:2]
         prior_point_xy, prior_tangent_xy, _, projected_progress_m, _ = self.nominal_route_projection(
             observed_point_xy,
+            update_map_frame=False,
         )
-        translation_innovation_xy_m = observed_point_xy - prior_point_xy
-        heading_innovation_deg: Optional[float] = None
-        if sonar_reading.estimated_heading_ned_deg is not None:
-            prior_heading_deg = heading_from_direction_xy(prior_tangent_xy)
-            heading_innovation_deg = smallest_angle_error_deg(
-                sonar_reading.estimated_heading_ned_deg,
-                prior_heading_deg,
-            )
-
-        if tracking.nominal_route_prior_correction_ekf_enabled:
-            confidence = max(float(sonar_reading.confidence), 1e-3)
-            translation_meas_var = (
-                (tracking.nominal_route_prior_correction_ekf_translation_meas_std_m / confidence) ** 2
-            )
-            rotation_meas_var = (
-                (tracking.nominal_route_prior_correction_ekf_rotation_meas_std_deg / confidence) ** 2
-            )
-            for axis in (0, 1):
-                prior_var = self._prior_correction_covariance_diag[axis]
-                kalman_gain = prior_var / (prior_var + translation_meas_var)
-                self.nominal_route_prior_correction_translation_xy_m[axis] += (
-                    kalman_gain * translation_innovation_xy_m[axis]
-                )
-                self._prior_correction_covariance_diag[axis] = (1.0 - kalman_gain) * prior_var
-            if heading_innovation_deg is not None:
-                prior_var = self._prior_correction_covariance_diag[2]
-                kalman_gain = prior_var / (prior_var + rotation_meas_var)
-                self.nominal_route_prior_correction_rotation_deg += (
-                    kalman_gain * heading_innovation_deg
-                )
-                self._prior_correction_covariance_diag[2] = (1.0 - kalman_gain) * prior_var
-        else:
-            gain = float(np.clip(tracking.nominal_route_prior_correction_gain, 0.0, 1.0))
-            self.nominal_route_prior_correction_translation_xy_m += gain * translation_innovation_xy_m
-            if heading_innovation_deg is not None:
-                self.nominal_route_prior_correction_rotation_deg += gain * heading_innovation_deg
-
-        max_translation_m = max(tracking.nominal_route_prior_correction_max_translation_m, 0.0)
-        correction_norm_m = float(np.linalg.norm(self.nominal_route_prior_correction_translation_xy_m))
-        if correction_norm_m > max_translation_m > 0.0:
-            self.nominal_route_prior_correction_translation_xy_m *= max_translation_m / correction_norm_m
-        max_rotation_deg = max(tracking.nominal_route_prior_correction_max_rotation_deg, 0.0)
-        self.nominal_route_prior_correction_rotation_deg = float(np.clip(
-            self.nominal_route_prior_correction_rotation_deg,
-            -max_rotation_deg,
-            max_rotation_deg,
-        ))
-        self._last_prior_correction_anchor_time_s = self.last_time_s
-        self.last_nominal_route_progress_m = float(projected_progress_m)
-        self._refresh_nominal_route_lookup()
+        alignment_state = self.prior_alignment.update(
+            tracking=tracking,
+            observed_point_xy=observed_point_xy,
+            prior_point_xy=prior_point_xy,
+            prior_tangent_xy=prior_tangent_xy,
+            observed_heading_deg=sonar_reading.estimated_heading_ned_deg,
+            confidence=sonar_reading.confidence,
+            progress_m=projected_progress_m,
+        )
+        if alignment_state.accepted:
+            self._last_prior_correction_anchor_time_s = self.last_time_s
+            self.last_nominal_route_progress_m = float(projected_progress_m)
+            self._refresh_nominal_route_lookup()
 
     def _blind_heading(self) -> Optional[float]:
         """在没有可用航向先验时，根据历史有效点估计盲航向。"""
@@ -1234,6 +1237,8 @@ class MagneticCablePerception:
             local_path_residual_m = local_path_state.residual_m
             local_path_radius_m = local_path_state.radius_m
 
+        prior_alignment_state = self.prior_alignment.state
+
         return PerceptionState(
             time_s=reading.time_s,
             sensor_field_nt=reading.sensor_field_nt,
@@ -1460,6 +1465,42 @@ class MagneticCablePerception:
                 )
                 else float("nan")
             ),
+            map_frame_projection_enabled=self.scenario.tracking.nominal_route_map_frame_projection_enabled,
+            map_frame_progress_m=(
+                float("nan") if self.map_frame_tracker is None else self.map_frame_tracker.state.progress_m
+            ),
+            map_frame_lateral_m=(
+                float("nan") if self.map_frame_tracker is None else self.map_frame_tracker.state.lateral_m
+            ),
+            map_frame_projection_distance_m=(
+                float("nan")
+                if self.map_frame_tracker is None
+                else self.map_frame_tracker.state.projection_distance_m
+            ),
+            map_frame_consistency_score=(
+                float("nan")
+                if self.map_frame_tracker is None
+                else self.map_frame_tracker.state.consistency_score
+            ),
+            map_frame_projection_untrusted=self.map_frame_projection_untrusted,
+            prior_alignment_enabled=(
+                self.scenario.tracking.use_nominal_route_prior
+                and self.scenario.tracking.nominal_route_prior_observation_correction_enabled
+            ),
+            prior_alignment_accepted=prior_alignment_state.accepted,
+            prior_alignment_reason_code=float(prior_alignment_state.reason_code),
+            prior_alignment_residual_m=prior_alignment_state.residual_norm_m,
+            prior_alignment_residual_x_m=float(prior_alignment_state.residual_xy_m[0]),
+            prior_alignment_residual_y_m=float(prior_alignment_state.residual_xy_m[1]),
+            prior_alignment_step_m=prior_alignment_state.applied_step_norm_m,
+            prior_alignment_step_x_m=float(prior_alignment_state.applied_step_xy_m[0]),
+            prior_alignment_step_y_m=float(prior_alignment_state.applied_step_xy_m[1]),
+            prior_alignment_translation_x_m=float(prior_alignment_state.translation_xy_m[0]),
+            prior_alignment_translation_y_m=float(prior_alignment_state.translation_xy_m[1]),
+            prior_alignment_rotation_deg=prior_alignment_state.rotation_deg,
+            prior_alignment_heading_residual_deg=prior_alignment_state.heading_residual_deg,
+            prior_alignment_confidence=prior_alignment_state.confidence,
+            prior_alignment_progress_m=prior_alignment_state.progress_m,
             burial_inversion_uncertainty_m=burial_inversion_uncertainty_m,
             local_path_model_code=local_path_model_code,
             local_path_heading_deg=local_path_heading_deg,

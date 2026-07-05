@@ -1,11 +1,11 @@
 """Sweep the pure-magnetic minimum curvature-radius boundary.
 
-The sweep walks the ``case_radius_{R}_dropout_prior_mid`` family (initial
+The sweep walks the ``case_radius_{R}_dropout_prior_{tier}`` families (initial
 straight + single 90 deg constant-radius left turn, post-lock sonar dropout,
-mid prior tier) from the largest bend radius down to 30 m. For each radius it
-runs one deterministic simulation and records the same task-level health
-metrics and pass criterion as :mod:`tools.dr_ins_boundary_sweep`. The smallest
-radius whose run still passes is the pure-magnetic curvature boundary.
+mid/heavy prior tiers) from the largest bend radius down to 30 m. For each
+radius it runs one deterministic simulation and records the same task-level
+health metrics and pass criterion as :mod:`tools.dr_ins_boundary_sweep`. The
+smallest radius whose run still passes is the pure-magnetic curvature boundary.
 """
 
 from __future__ import annotations
@@ -32,6 +32,10 @@ FIELDNAMES = (
     "case",
     "radius_m",
     "prior_tier",
+    "prior_translation_y_m",
+    "prior_rotation_deg",
+    "prior_scale_x",
+    "sonar_dropout_enabled",
     "health",
     "route",
     "endpoint",
@@ -57,6 +61,13 @@ def _metrics_row(case_name: str, scenario, radius_m: float, tier: str) -> dict[s
         "case": case_name,
         "radius_m": f"{radius_m:.0f}",
         "prior_tier": tier,
+        "prior_translation_y_m": f"{float(scenario.tracking.nominal_route_prior_translation_xy_m[1]):.1f}",
+        "prior_rotation_deg": f"{float(scenario.tracking.nominal_route_prior_rotation_deg):.1f}",
+        "prior_scale_x": f"{float(scenario.tracking.nominal_route_prior_scale_xy[0]):.3f}",
+        "sonar_dropout_enabled": int(
+            scenario.sonar.fail_after_track_active
+            and float(scenario.sonar.fail_after_track_delay_s) == 0.0
+        ),
         "health": f"{health_score(metrics):.1f}",
         "route": f"{metrics.route_completion_ratio:.3f}",
         "endpoint": int(metrics.endpoint_completed >= 0.5),

@@ -21,6 +21,7 @@ from .filters import (
 from .fitter import WeightedSlidingWindowFitter
 from .hypotheses import MagneticLookaheadHypothesis, MagneticShadowHypothesisSelection, ZigzagProbeCycleSummary
 from .local_path import LocalCableState, LocalCableStateEstimator, LocalPathObservation, LocalPathTrackingState
+from .map_frame_tracker import CableMapFrameState, CableMapFrameTracker
 from .magnetic_path import (
     MagneticLookaheadTarget,
     MagneticLookaheadTargetBuilder,
@@ -32,6 +33,7 @@ from .magnetic_path import (
 )
 from .orchestrator import MagneticCablePerception
 from .peaks import PeakDetector
+from .prior_alignment import PriorAlignmentEstimator, PriorAlignmentState
 from .reacquire_region import ObservableRegion, ObservableRegionSelector
 from .state import (
     FitResult,
@@ -49,6 +51,8 @@ from .vector import (
 __all__ = [
     "BurialEstimate",
     "BurialCycleEstimate",
+    "CableMapFrameState",
+    "CableMapFrameTracker",
     "ConfidenceEstimator",
     "EnvelopeGradientTracker",
     "FitResult",
@@ -76,6 +80,8 @@ __all__ = [
     "PeakObservation",
     "PeakZoneSample",
     "PerceptionState",
+    "PriorAlignmentEstimator",
+    "PriorAlignmentState",
     "RMSExtractor",
     "StreamingBandpassFilter",
     "StreamingVectorPCAFitter",

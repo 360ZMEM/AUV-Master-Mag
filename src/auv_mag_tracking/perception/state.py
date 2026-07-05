@@ -208,6 +208,29 @@ class PerceptionState:
     shadow_axis_route_bound_proxy_distance_m: float = float("nan")
     shadow_axis_route_bound_proxy_heading_deg: Optional[float] = None
     shadow_axis_route_bound_candidate_dot: float = float("nan")
+    # --- D4 map-frame closed-loop route projection diagnostics ---
+    map_frame_projection_enabled: bool = False
+    map_frame_progress_m: float = float("nan")
+    map_frame_lateral_m: float = float("nan")
+    map_frame_projection_distance_m: float = float("nan")
+    map_frame_consistency_score: float = float("nan")
+    map_frame_projection_untrusted: bool = False
+    # --- Online prior-to-real cable alignment diagnostics ---
+    prior_alignment_enabled: bool = False
+    prior_alignment_accepted: bool = False
+    prior_alignment_reason_code: float = 0.0
+    prior_alignment_residual_m: float = float("nan")
+    prior_alignment_residual_x_m: float = float("nan")
+    prior_alignment_residual_y_m: float = float("nan")
+    prior_alignment_step_m: float = 0.0
+    prior_alignment_step_x_m: float = 0.0
+    prior_alignment_step_y_m: float = 0.0
+    prior_alignment_translation_x_m: float = 0.0
+    prior_alignment_translation_y_m: float = 0.0
+    prior_alignment_rotation_deg: float = 0.0
+    prior_alignment_heading_residual_deg: float = float("nan")
+    prior_alignment_confidence: float = 0.0
+    prior_alignment_progress_m: float = float("nan")
     # --- Magnetic burial-depth inversion diagnostics ---
     burial_inversion_uncertainty_m: Optional[float] = None
     # --- Local path estimator side-channel diagnostics ---

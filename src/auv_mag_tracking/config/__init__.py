@@ -514,6 +514,11 @@ class TrackingConfig:
     nominal_route_progress_guard_enabled: bool = False
     nominal_route_progress_guard_lookback_m: float = 8.0
     nominal_route_progress_guard_lookahead_m: float = 30.0
+    nominal_route_map_frame_projection_enabled: bool = False
+    nominal_route_map_frame_max_forward_step_m: float = 2.5
+    nominal_route_map_frame_max_lateral_step_m: float = 4.0
+    nominal_route_map_frame_untrusted_distance_m: float = 20.0
+    nominal_route_map_frame_untrusted_consistency: float = 0.20
     nominal_route_prior_correction_ekf_enabled: bool = False
     nominal_route_prior_correction_ekf_initial_translation_var_m2: float = 4.0
     nominal_route_prior_correction_ekf_initial_rotation_var_deg2: float = 4.0
@@ -1436,6 +1441,9 @@ def build_default_scenarios() -> Dict[str, ScenarioConfig]:
             scenario.tracking.nominal_route_prior_correction_max_step_m = 0.20
             scenario.tracking.nominal_route_progress_guard_lookback_m = 8.0
             scenario.tracking.nominal_route_progress_guard_lookahead_m = 30.0
+            scenario.tracking.nominal_route_map_frame_projection_enabled = True
+            scenario.tracking.nominal_route_map_frame_max_forward_step_m = 2.5
+            scenario.tracking.nominal_route_map_frame_max_lateral_step_m = 4.0
         scenario.tracking.track_cross_track_gain_deg_per_m = 3.5
         scenario.tracking.track_cross_track_max_correction_deg = 45.0
         return scenario
