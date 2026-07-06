@@ -90,6 +90,22 @@ class MagneticBurialInverterTest(unittest.TestCase):
         inv.reset()
         self.assertIsNone(inv.update(strength_nt=b, lateral_offset_m=0.0, snr_db=20.0))
 
+    def test_sliding_window_forgets_old_burial_distribution(self) -> None:
+        inv = self._inverter(min_samples=3, max_samples=5)
+        shallow = _strength_for(1.0, 0.0, self.K, self.I_RMS, self.ALT)
+        deep = _strength_for(3.0, 0.0, self.K, self.I_RMS, self.ALT)
+
+        for _ in range(5):
+            estimate = inv.update(strength_nt=shallow, lateral_offset_m=0.0, snr_db=20.0)
+        assert estimate is not None
+        self.assertAlmostEqual(estimate.depth_m, 1.0, places=6)
+
+        for _ in range(5):
+            estimate = inv.update(strength_nt=deep, lateral_offset_m=0.0, snr_db=20.0)
+        assert estimate is not None
+        self.assertAlmostEqual(estimate.depth_m, 3.0, places=6)
+        self.assertEqual(inv.sample_count, 5)
+
 
 class MagneticBurialCycleEstimatorTest(unittest.TestCase):
     K = 11.4329

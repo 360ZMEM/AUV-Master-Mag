@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from typing import Deque, Optional, Tuple
 
 import numpy as np
-from scipy.signal import butter, sosfilt
+try:
+    from scipy.signal import butter, sosfilt
+except ModuleNotFoundError:
+    butter = None
+    sosfilt = None
 
 from .config import ScenarioConfig
 from .sensor_model import MagnetometerReading
@@ -64,6 +68,11 @@ class PerceptionDriverFrame:
 class ScalarStreamingBandpassFilter:
     def __init__(self, sample_rate_hz: float, center_frequency_hz: float, half_width_hz: float, order: int = 2) -> None:
         """初始化标量流式带通滤波器。"""
+        self.enabled = butter is not None and sosfilt is not None
+        if not self.enabled:
+            self.sos = np.zeros((0, 6), dtype=float)
+            self.zi = np.zeros((0, 2), dtype=float)
+            return
         nyquist_hz = 0.5 * max(sample_rate_hz, 1e-6)
         low_hz = max(0.5, center_frequency_hz - half_width_hz)
         high_hz = min(nyquist_hz * 0.95, center_frequency_hz + half_width_hz)
@@ -78,6 +87,8 @@ class ScalarStreamingBandpassFilter:
         """对一段标量序列执行流式带通滤波。"""
         if samples_nt.size == 0:
             return np.zeros(0, dtype=float)
+        if not self.enabled:
+            return np.asarray(samples_nt, dtype=float)
         filtered_nt, self.zi = sosfilt(self.sos, np.asarray(samples_nt, dtype=float), zi=self.zi)
         return filtered_nt
 

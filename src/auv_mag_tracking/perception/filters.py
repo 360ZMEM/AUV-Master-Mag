@@ -4,7 +4,11 @@ from collections import deque
 from typing import Deque
 
 import numpy as np
-from scipy.signal import butter, sosfilt
+try:
+    from scipy.signal import butter, sosfilt
+except ModuleNotFoundError:
+    butter = None
+    sosfilt = None
 
 
 class LowPassFilter:
@@ -45,6 +49,11 @@ class StreamingBandpassFilter:
 
     def __init__(self, sample_rate_hz: float, center_frequency_hz: float, half_width_hz: float, order: int = 2) -> None:
         """根据采样率和目标频率构建带通 SOS 滤波器。"""
+        self.enabled = butter is not None and sosfilt is not None
+        if not self.enabled:
+            self.sos = np.zeros((0, 6), dtype=float)
+            self.zi = np.zeros((0, 2, 3), dtype=float)
+            return
         nyquist_hz = 0.5 * max(sample_rate_hz, 1e-6)
         low_hz = max(0.5, center_frequency_hz - half_width_hz)
         high_hz = min(nyquist_hz * 0.95, center_frequency_hz + half_width_hz)
@@ -57,6 +66,8 @@ class StreamingBandpassFilter:
 
     def update(self, vector_nt: np.ndarray) -> np.ndarray:
         """对三轴磁场向量执行逐轴流式滤波。"""
+        if not self.enabled:
+            return np.asarray(vector_nt, dtype=float)
         filtered = np.zeros(3, dtype=float)
         for axis_index in range(3):
             result, self.zi[:, :, axis_index] = sosfilt(

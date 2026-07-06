@@ -11,6 +11,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from auv_mag_tracking.api import (  # noqa: E402
     AuvMagTrackingPipeline,
+    CableGuidanceOutput,
     CableMap,
     MagneticInput,
     NavigationInput,
@@ -94,6 +95,23 @@ def test_pipeline_step_uses_valid_sonar_observation():
     assert np.allclose(output.estimated_cable_xy_m, [11.0, 0.0])
     assert output.confidence == 0.8
     assert output.diagnostics["source"] == "sonar"
+
+
+def test_pipeline_step_with_guidance_returns_controller_contract():
+    pipeline = _pipeline()
+    output, guidance = pipeline.step_with_guidance(
+        NavigationInput(time_s=1.0, position_ned_m=np.array([10.0, 2.0, -5.0]), heading_deg=0.0),
+        MagneticInput(time_s=1.0, sample_block_nt=np.array([[1.0, 2.0, 3.0]]), sample_rate_hz=10.0),
+        target_depth_m=12.0,
+        speed_mps=0.8,
+    )
+
+    assert isinstance(guidance, CableGuidanceOutput)
+    assert output.diagnostics["guidance_source"] == "api_route_projection"
+    assert guidance.target_depth_m == 12.0
+    assert guidance.speed_mps == 0.8
+    assert guidance.diagnostics["full_perception_stack_connected"] is False
+    assert guidance.desired_heading_deg < 0.0
 
 
 def test_export_tracking_outputs_writes_ops_files(tmp_path):

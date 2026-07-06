@@ -27,8 +27,9 @@ from __future__ import annotations
 
 import bisect
 import math
+from collections import deque
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Deque, List, Optional
 
 
 @dataclass
@@ -62,6 +63,7 @@ class MagneticBurialInverter:
         min_strength_nt: float = 1.0,
         min_samples: int = 20,
         max_lateral_offset_m: Optional[float] = None,
+        max_samples: Optional[int] = None,
     ) -> None:
         """记录标定常数与门限，并清空累积样本。"""
         self.coupling_constant_nt_m_per_a_rms = float(coupling_constant_nt_m_per_a_rms)
@@ -73,11 +75,18 @@ class MagneticBurialInverter:
         self.max_lateral_offset_m = (
             float(max_lateral_offset_m) if max_lateral_offset_m is not None else None
         )
+        self.max_samples = int(max_samples) if max_samples is not None and int(max_samples) > 0 else None
         self._samples_sorted: List[float] = []
+        self._samples_fifo: Deque[float] = deque()
 
     def reset(self) -> None:
         """清空累积样本，用于重新部署或场景切换。"""
         self._samples_sorted.clear()
+        self._samples_fifo.clear()
+
+    @property
+    def sample_count(self) -> int:
+        return len(self._samples_sorted)
 
     def update(
         self,
@@ -117,6 +126,13 @@ class MagneticBurialInverter:
             return
         burial_m = math.sqrt(slant_range_m * slant_range_m - lateral_m * lateral_m) - self.altitude_m
         bisect.insort(self._samples_sorted, burial_m)
+        self._samples_fifo.append(burial_m)
+        if self.max_samples is not None:
+            while len(self._samples_fifo) > self.max_samples:
+                old = self._samples_fifo.popleft()
+                idx = bisect.bisect_left(self._samples_sorted, old)
+                if idx < len(self._samples_sorted):
+                    self._samples_sorted.pop(idx)
 
     def _fuse(self) -> BurialEstimate:
         """对累积样本做稳健中位数融合，并导出不确定度与可信度。"""

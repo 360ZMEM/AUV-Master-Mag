@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from typing import Iterable, Tuple, Union
 
 import numpy as np
-from scipy.interpolate import CubicSpline
+try:
+    from scipy.interpolate import CubicSpline
+except ModuleNotFoundError:
+    CubicSpline = None
 
 
 EPSILON = 1e-12
@@ -304,6 +307,13 @@ def sample_spline_path(waypoints_xy: np.ndarray, step_m: float) -> np.ndarray:
         return waypoints_xy.copy()
     sample_count = max(8, int(np.ceil(arc_length[-1] / max(step_m, 0.5))) + 1)
     sample_s = np.linspace(0.0, arc_length[-1], sample_count)
+    if CubicSpline is None:
+        return np.column_stack(
+            (
+                np.interp(sample_s, arc_length, waypoints_xy[:, 0]),
+                np.interp(sample_s, arc_length, waypoints_xy[:, 1]),
+            )
+        )
     spline_x = CubicSpline(arc_length, waypoints_xy[:, 0], bc_type="natural")
     spline_y = CubicSpline(arc_length, waypoints_xy[:, 1], bc_type="natural")
     return np.column_stack((spline_x(sample_s), spline_y(sample_s)))

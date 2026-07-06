@@ -9,12 +9,21 @@ from .schema import (
     validate_navigation_csv,
     validate_sonar_csv,
 )
-from .types import CableTrackingOutput, MagneticInput, NavigationInput, SonarInput
+from .types import (
+    CableGuidanceOutput,
+    CableTrackingOutput,
+    DeploymentPerceptionConfig,
+    MagneticInput,
+    NavigationInput,
+    SonarInput,
+)
 
 __all__ = [
     "AuvMagTrackingPipeline",
     "CableMap",
+    "CableGuidanceOutput",
     "CableTrackingOutput",
+    "DeploymentPerceptionConfig",
     "MagneticInput",
     "NavigationInput",
     "SonarInput",

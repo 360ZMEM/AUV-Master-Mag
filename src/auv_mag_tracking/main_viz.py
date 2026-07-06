@@ -7,7 +7,11 @@ from typing import Deque, Dict, List, Optional, Protocol
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse
 import numpy as np
-from tqdm.auto import tqdm
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 from .config import ScenarioConfig
 from .controller import GuidanceCommand, ZigZagController, apply_attitude_profile, propagate_vehicle
