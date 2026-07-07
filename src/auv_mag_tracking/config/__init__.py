@@ -745,6 +745,7 @@ class BurialInversionConfig:
         min_samples: 输出前所需的最小累积样本数（暖机门控）。
         max_lateral_offset_m: 入样所需的最大横距；仅在近过线（横距小）处反演，
             因 burial 对横距误差在 lateral→0 处一阶不敏感且此处场强最高。
+        max_depth_m: 可接受的最大单帧埋深；过滤低场强导致的发散反演。
     """
 
     enabled: bool = False
@@ -753,6 +754,7 @@ class BurialInversionConfig:
     min_strength_nt: float = 1.0
     min_samples: int = 20
     max_lateral_offset_m: float = 1.0
+    max_depth_m: Optional[float] = None
 
 
 @dataclass

@@ -50,6 +50,7 @@ class DeploymentQualityEstimator:
                 min_strength_nt=config.burial_min_strength_nt,
                 min_samples=config.burial_min_samples,
                 max_lateral_offset_m=config.burial_max_lateral_offset_m,
+                max_depth_m=config.burial_max_depth_m,
                 max_samples=config.burial_window_samples,
             )
 

@@ -72,6 +72,18 @@ class MagneticBurialInverterTest(unittest.TestCase):
         for _ in range(10):
             self.assertIsNone(inv.update(strength_nt=b, lateral_offset_m=5.0, snr_db=20.0))
 
+    def test_implausibly_deep_frames_are_rejected(self) -> None:
+        inv = self._inverter(min_samples=2, max_depth_m=10.0)
+        implausibly_deep = _strength_for(80.0, lateral_m=0.2, k=self.K, i_rms=self.I_RMS, altitude_m=self.ALT)
+        plausible = _strength_for(1.5, lateral_m=0.2, k=self.K, i_rms=self.I_RMS, altitude_m=self.ALT)
+
+        for _ in range(5):
+            self.assertIsNone(inv.update(strength_nt=implausibly_deep, lateral_offset_m=0.2, snr_db=20.0))
+        self.assertEqual(inv.sample_count, 0)
+
+        self.assertIsNone(inv.update(strength_nt=plausible, lateral_offset_m=0.2, snr_db=20.0))
+        self.assertIsNotNone(inv.update(strength_nt=plausible, lateral_offset_m=0.2, snr_db=20.0))
+
     def test_lateral_correction_recovers_burial(self) -> None:
         inv = self._inverter(min_samples=3, max_lateral_offset_m=1.0)
         true_burial = 1.5

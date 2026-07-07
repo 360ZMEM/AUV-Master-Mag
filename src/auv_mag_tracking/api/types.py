@@ -53,6 +53,7 @@ class DeploymentPerceptionConfig:
     burial_min_samples: int = 20
     burial_window_samples: int = 240
     burial_max_lateral_offset_m: float = 1.0
+    burial_max_depth_m: Optional[float] = None
     confidence_min_ready: float = 0.65
     route_offset_ready_m: float = 2.0
 

@@ -190,6 +190,7 @@ class MagneticCablePerception:
                 min_strength_nt=burial_cfg.min_strength_nt,
                 min_samples=burial_cfg.min_samples,
                 max_lateral_offset_m=burial_cfg.max_lateral_offset_m,
+                max_depth_m=burial_cfg.max_depth_m,
             )
             if burial_cfg.enabled
             else None

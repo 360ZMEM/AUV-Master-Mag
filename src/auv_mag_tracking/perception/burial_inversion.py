@@ -63,6 +63,7 @@ class MagneticBurialInverter:
         min_strength_nt: float = 1.0,
         min_samples: int = 20,
         max_lateral_offset_m: Optional[float] = None,
+        max_depth_m: Optional[float] = None,
         max_samples: Optional[int] = None,
     ) -> None:
         """记录标定常数与门限，并清空累积样本。"""
@@ -75,6 +76,7 @@ class MagneticBurialInverter:
         self.max_lateral_offset_m = (
             float(max_lateral_offset_m) if max_lateral_offset_m is not None else None
         )
+        self.max_depth_m = float(max_depth_m) if max_depth_m is not None else None
         self.max_samples = int(max_samples) if max_samples is not None and int(max_samples) > 0 else None
         self._samples_sorted: List[float] = []
         self._samples_fifo: Deque[float] = deque()
@@ -125,6 +127,10 @@ class MagneticBurialInverter:
         if slant_range_m <= lateral_m:                       # geometry inconsistent
             return
         burial_m = math.sqrt(slant_range_m * slant_range_m - lateral_m * lateral_m) - self.altitude_m
+        if not math.isfinite(burial_m):
+            return
+        if self.max_depth_m is not None and burial_m > self.max_depth_m:
+            return
         bisect.insort(self._samples_sorted, burial_m)
         self._samples_fifo.append(burial_m)
         if self.max_samples is not None:
