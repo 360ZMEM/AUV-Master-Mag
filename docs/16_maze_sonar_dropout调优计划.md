@@ -38,7 +38,7 @@
 执行：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --case case_maze_sonar_dropout
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --case case_maze_sonar_dropout
 ```
 
 检查：
@@ -140,10 +140,10 @@
 执行入口：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d1
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d2
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d3 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d4
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d1
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d2
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d3 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase d4
 ```
 
 ### D0：基线诊断
@@ -219,7 +219,7 @@
 新增独立测试：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python -m unittest tests.test_magnetic_turn_observability
+/Users/auv_user/miniconda3/bin/python -m unittest tests.test_magnetic_turn_observability
 ```
 
 结论：

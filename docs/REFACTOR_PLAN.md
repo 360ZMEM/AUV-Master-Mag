@@ -158,7 +158,7 @@ flowchart TB
 ```
 
 **关键变化**：
-1. `behavior_tree.py` 删除（463 行 → 0），由 [mission_manager.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/mission_manager.py) 三态 FSM 取代（~120 行）。
+1. `behavior_tree.py` 删除（463 行 → 0），由 [mission_manager.py](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/mission_manager.py) 三态 FSM 取代（~120 行）。
 2. `perception.py` (2218 行) → `perception/` (≤ 300 行 × 8) ≈ **总行数减半**。
 3. `controller.py` 退回纯运动学层，所有"模式策略 / 启动概念 / 35° 强制角"上提到 `mission_manager`。
 4. 新增 `perception/burial_inversion.py`，落地真正的磁法埋深反演。
@@ -291,7 +291,7 @@ class PerceptionDiagnostics:
 > **实现说明（Phase 4 落地）**：下方 §5.1/§5.2 为原始 spec 接口（峰值幅度 + 无限长公式）。
 > 该方案在本几何下不可行（埋设电缆磁场过弱，磁峰全程不触发），已改用**标定幅度反演法 + 横向门控**。
 > 落地决策与验收见 [Phase 4 节](#phase-4埋深反演落地-完成commit-见下)；实现见
-> [`perception/burial_inversion.py`](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/perception/burial_inversion.py)。
+> [`perception/burial_inversion.py`](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/perception/burial_inversion.py)。
 
 ### 5.1 物理基础
 
@@ -345,9 +345,9 @@ class MagneticBurialInverter:
 
 | 项 | 位置 | 原因 |
 |---|---|---|
-| `CableRouteFitter` 类 | [perception.py:~800-844](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L800-L844) | 从未实例化，被 `WeightedSlidingWindowFitter` 取代 |
-| Safe-Lock A/B 整段（注释 + 强制 False） | [perception.py:~2061-2090](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L2061-L2090) | 永远 False，下游 penalty 不可达 |
-| `vector_cable_heading_deg = None` (TEMPORARY ISOLATION) 死分支 | [perception.py:1828-1852](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L1828-L1852) | 强制置 None 后下游已死 |
+| `CableRouteFitter` 类 | [perception.py:~800-844](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L800-L844) | 从未实例化，被 `WeightedSlidingWindowFitter` 取代 |
+| Safe-Lock A/B 整段（注释 + 强制 False） | [perception.py:~2061-2090](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L2061-L2090) | 永远 False，下游 penalty 不可达 |
+| `vector_cable_heading_deg = None` (TEMPORARY ISOLATION) 死分支 | [perception.py:1828-1852](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/perception.py#L1828-L1852) | 强制置 None 后下游已死 |
 | `weighted_ransac_iterations / _inlier_threshold_m / _min_inlier_ratio` 配置项 | `config/__init__.py` | 代码未实现 RANSAC，纯死配置 |
 | `tracking.zigzag_width_gain_m_per_nt` | `config/__init__.py` | 已被 inverse-confidence mapping 取代 |
 | `magnetic_takeover_strength_nt` | `config/__init__.py` | grep 无任何调用 |
@@ -356,10 +356,10 @@ class MagneticBurialInverter:
 
 | 文件 | 删除 |
 |---|---|
-| [tools/debug_traj.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/debug_traj.py) | ✅ |
-| [tools/test_override.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/test_override.py) | ✅ |
-| [tools/trace_deploy_update.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/trace_deploy_update.py) | ✅ |
-| [tools/trace_heading_dist.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/trace_heading_dist.py) | ✅ |
+| [tools/debug_traj.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/debug_traj.py) | ✅ |
+| [tools/test_override.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/test_override.py) | ✅ |
+| [tools/trace_deploy_update.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/trace_deploy_update.py) | ✅ |
+| [tools/trace_heading_dist.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/trace_heading_dist.py) | ✅ |
 | `test_deployment_debug.py`（根目录） | ✅（手动 smoke 工具，不在 pytest 集合中） |
 
 ### 6.3 与目标正交（Phase 0 不删，Phase 5 再说）
@@ -373,8 +373,8 @@ class MagneticBurialInverter:
 
 ### 6.4 保留的 tools
 
-- [tools/diagnose_heading_error.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/diagnose_heading_error.py) ✅ — Phase 2V 起退化为 [tools/visualize.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/visualize.py) 的薄 wrapper（单例 health-report，逻辑全部下沉 `viz/`）
-- [tools/sweep_tracking_params.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) ✅ — 扫参工具
+- [tools/diagnose_heading_error.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/diagnose_heading_error.py) ✅ — Phase 2V 起退化为 [tools/visualize.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/visualize.py) 的薄 wrapper（单例 health-report，逻辑全部下沉 `viz/`）
+- [tools/sweep_tracking_params.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) ✅ — 扫参工具
 
 ---
 
@@ -395,17 +395,17 @@ class MagneticBurialInverter:
 - **验收**：`python main_demo.py --case case1..5 --no-viz` 输出与重构前 byte-for-byte 一致；`pytest tests/` 失败集不新增（基线 12 failed / 41 passed，均属 Phase 2 将重写部分）。
 
 ### Phase 2：替换 behavior_tree → mission_manager（1–2 d）
-- 新建 [mission_manager.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/mission_manager.py) 三态 FSM（按 §3 实现）。
+- 新建 [mission_manager.py](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/mission_manager.py) 三态 FSM（按 §3 实现）。
 - 新建 `routes/prior_waypoints.py` 数据结构。
-- 删除 [behavior_tree.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/behavior_tree.py) 与 `perception._update_deployment_cable_heading` 整套部署分支。
+- 删除 [behavior_tree.py](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/behavior_tree.py) 与 `perception._update_deployment_cable_heading` 整套部署分支。
 - `controller.py` 退回纯运动学 + 单一航向 PID。
 - **验收**（✅ 完成，commit 见下）：架构判定——声呐位置喂入 Line Fitter 后，电缆方向已无歧义，`MAGNETIC_PEAK` 作为**航向来源**的占比不再是有意义的指标（旧指标 `MAGNETIC_PEAK > 5%` 据此废弃，改为拟合收敛 / TRACK_ACTIVE 占比）。新验收：case1–5 经 `main_demo --no-viz` 正常收尾于 `track`；`mode_switches ≤ 6`（全 case = 2）；`TRACK_ACTIVE 占比 ≥ 30%`（全 case 38–86%）；perception 融合航向误差 `mean ≤ 5°`（case1–4 = 0.4–2.7°；case5 = 22.8° 系 perception 直线拟合在 <50 m 急弯结构性失效，车辆实际航向误差 0.7°，已记入 Phase 2G 根因 2 / Phase 4）。
 
 ### Phase 2V：统一可视化与成果展示体系（0.5–1 d，承接 Phase 2 之后）
 
 > **动机**：Phase 0–2 完成了「删死码 → perception 拆包 → 三态 FSM → 声呐喂拟合 → 磁横偏转向」一系列结构性修复，但**成果不可见**——当前 viz 资产分散三处、零共享抽象、且从不落盘归档：
-> - [main_viz.py](file:///Users/bytedance/coding/AUV-Master-Mag/src/auv_mag_tracking/main_viz.py) `SimulationVisualizer`：实时 5 面板 dashboard，`plt.ion()`，**从不 savefig**；
-> - [tools/diagnose_heading_error.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/diagnose_heading_error.py)：headless 9 面板静态 PNG + Markdown health report + /100 健康分，但**重复实现了一整套 sim loop**、硬编码 case1、写绝对路径；
+> - [main_viz.py](file:///Users/auv_user/coding/AUV-Master-Mag/src/auv_mag_tracking/main_viz.py) `SimulationVisualizer`：实时 5 面板 dashboard，`plt.ion()`，**从不 savefig**；
+> - [tools/diagnose_heading_error.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/diagnose_heading_error.py)：headless 9 面板静态 PNG + Markdown health report + /100 健康分，但**重复实现了一整套 sim loop**、硬编码 case1、写绝对路径；
 > - `DeploymentPerformanceEvaluator` / `SimulationReport`（main_viz）：deployment 指标，仅 print。
 >
 > 三者各自记录通道、各自算指标，无法复用、无法跨 case 对比、无统一输出目录。本 Phase 将其收敛为**单一可视化体系**，使「前序重构的成果」可一键复现、归档、对比。
@@ -420,13 +420,13 @@ class MagneticBurialInverter:
   - `__init__.py` — 重导出 `RunRecorder / compute_health_metrics / health_score / render_figures / save_markdown_report`。
 - **统一输出目录**：新建 `results/`（git 忽略），结构 `results/<timestamp>/<case>/{figures/*.png, report.md, record.npz}`，外加 `results/<timestamp>/showcase.{png,md}` 跨 case 汇总。根目录与 `tools/` 不再散落 `health_report_case1.{png,md}`。
 - **成果展示总图（showcase）**：批量跑 case1–5，输出一张**重构成果对照图**——三态 FSM 时间线、声呐+磁协同贡献堆叠、case×指标矩阵（heading_err / TRACK_ACTIVE 占比 / mode_switches / cross-track），用于「系统展示前序修复成果」。
-- **CLI**：新增 [tools/visualize.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/visualize.py)：`--case caseN`（单例完整报告）、`--all`（批量 + showcase）、`--live`（转调 main_viz 实时 dashboard），全部写入 `results/`。`diagnose_heading_error.py` 已退化为薄 wrapper（保留历史入口 + `--case`，逻辑全部委托 `viz/`）。
+- **CLI**：新增 [tools/visualize.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/visualize.py)：`--case caseN`（单例完整报告）、`--all`（批量 + showcase）、`--live`（转调 main_viz 实时 dashboard），全部写入 `results/`。`diagnose_heading_error.py` 已退化为薄 wrapper（保留历史入口 + `--case`，逻辑全部委托 `viz/`）。
 - **改造对齐（后续，可在 Phase 2e 内或独立完成）**：`main_viz.SimulationVisualizer` 改为消费 `RunRecord`（实时增量喂帧），`SimulationReport` / `DeploymentPerformanceEvaluator` 指标并入 `viz/metrics.py`，避免两份实现。**当前 Phase 2V 只交付离线体系，实时 dashboard 仍为独立实现，避免范围漂移**。
 - **验收**：`python tools/visualize.py --all` 一键生成 `results/<ts>/case{1..5}/` 全套图与报告 + `showcase.*`；图中三态 FSM、声呐/磁贡献、case 指标矩阵齐备；`grep -R "matplotlib" src/auv_mag_tracking/viz` 仅 `figures.py` 出现（绘图单点）；live dashboard 与离线报告指标一致（同一 `compute_health_metrics`）。
 
 ### Phase 2e：迁移 sweep + 测试到 FSM API（✅ 完成，commit `b1e5f62`）
-- [tools/sweep_tracking_params.py](file:///Users/bytedance/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) `MODE_SCORE` 改用 `MissionState.value`（track/align/search/emergency）。
-- [tests/test_fusion_features.py](file:///Users/bytedance/coding/AUV-Master-Mag/tests/test_fusion_features.py)：删除全部 `behavior_tree` / deployment-消歧死引用测试，新增 `MissionFsmTest`（8 个 FSM 转移用例）。
+- [tools/sweep_tracking_params.py](file:///Users/auv_user/coding/AUV-Master-Mag/tools/sweep_tracking_params.py) `MODE_SCORE` 改用 `MissionState.value`（track/align/search/emergency）。
+- [tests/test_fusion_features.py](file:///Users/auv_user/coding/AUV-Master-Mag/tests/test_fusion_features.py)：删除全部 `behavior_tree` / deployment-消歧死引用测试，新增 `MissionFsmTest`（8 个 FSM 转移用例）。
 - **验收**：FSM 测试全绿；剩余 6 个失败（PeakDetector morphology ×3、WeightedSlidingWindowFitter ×2、perception_driver 插值率 ×1）经确认**先于重构存在**（baseline `ee2fe14` 即失败），属感知内核存量债，单列 Phase 2H 处理；重构本身零新增失败。
 
 ### Phase 2f：回归验收（✅ 完成）

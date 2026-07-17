@@ -12,8 +12,8 @@
 当前落地策略是“显式 probe 模式”，不直接替换默认基线：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --all --zigzag-probe
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --variants --zigzag-probe
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --all --zigzag-probe
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --variants --zigzag-probe
 ```
 
 ## 2. 参数设计
@@ -38,7 +38,7 @@
 新增独立测试：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python -m unittest tests.test_magnetic_turn_observability
+/Users/auv_user/miniconda3/bin/python -m unittest tests.test_magnetic_turn_observability
 ```
 
 结论：
@@ -74,7 +74,7 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 命令：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --all --zigzag-probe --outdir results/latest_zigzag_probe_all
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --all --zigzag-probe --outdir results/latest_zigzag_probe_all
 ```
 
 结果：
@@ -95,7 +95,7 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 命令：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --variants --zigzag-probe --outdir results/latest_zigzag_probe_variants
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --variants --zigzag-probe --outdir results/latest_zigzag_probe_variants
 ```
 
 结果：
@@ -116,7 +116,7 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 额外验证：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/visualize.py --case case_maze_sonar --zigzag-probe
+/Users/auv_user/miniconda3/bin/python tools/visualize.py --case case_maze_sonar --zigzag-probe
 ```
 
 如果在无先验 maze 中直接打开纯磁隐式路径观测，会把 `case_maze_sonar` 从 endpoint 退化到早期失败。修正后，`--zigzag-probe` 在无名义路线先验时只保留小幅 zig-zag，不自动打开纯磁观测：
@@ -146,14 +146,14 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 评估入口：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe
 ```
 
 门控候选因为完整时长较慢，单独短测：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p9_probe10_mag_gate20 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p10_probe10_mag_gate10 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p9_probe10_mag_gate20 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p10_probe10_mag_gate10 --max-steps 12000
 ```
 
 ### 9.1 性能列表
@@ -190,11 +190,11 @@ mag_probe 90%  axis_err 18.1deg  pos_err 4.3m
 新增短测入口：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p11_probe10_mag_phase --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p12_probe10_mag_phase_loose --name p13_probe10_mag_phase_lowoffset --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p14_probe10_mag_phase_latch --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p15_probe10_mag_lookahead --name p16_probe10_mag_lookahead_local --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p17_probe10_mag_lookahead_age180 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p11_probe10_mag_phase --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p12_probe10_mag_phase_loose --name p13_probe10_mag_phase_lowoffset --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p14_probe10_mag_phase_latch --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p15_probe10_mag_lookahead --name p16_probe10_mag_lookahead_local --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p17_probe10_mag_lookahead_age180 --max-steps 12000
 ```
 
 | variant | health | TRACK XT | TRACK vehicle err | route | final dist | raw mag pos err | phase pos err | phase amp | 结论 |
@@ -231,13 +231,13 @@ lookahead 使相位事件从“离散诊断”变成了可被控制器消费的�
 新增短测入口：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p18_probe10_lookahead_pursuit --name p19_probe10_lookahead_pursuit_age180 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p20_probe14_lookahead_pursuit --name p21_probe10_lookahead_lowphase --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 24000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p23_probe10_feedlocal_age45 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p18_probe10_lookahead_pursuit --name p19_probe10_lookahead_pursuit_age180 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p20_probe14_lookahead_pursuit --name p21_probe10_lookahead_lowphase --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p22_probe10_lookahead_feedlocal --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p23_probe10_feedlocal_age45 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p24_probe10_feedlocal_local60 --max-steps 24000
 ```
 
 | variant | max steps | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead coverage | lookahead pos err | 结论 |
@@ -267,11 +267,11 @@ lookahead 使相位事件从“离散诊断”变成了可被控制器消费的�
 新增短测/长测入口：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p25_probe10_feedlocal_gate60 --name p26_probe10_feedlocal_gate90 --max-steps 12000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p25_probe10_feedlocal_gate60 --name p26_probe10_feedlocal_gate90 --max-steps 24000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p27_probe10_gate60_nopursuit --name p28_probe10_gate45_conservative --max-steps 24000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p29_probe10_gate60_mid --name p30_probe10_gate75_mid --max-steps 24000
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p25_probe10_feedlocal_gate60 --name p26_probe10_feedlocal_gate90 --max-steps 12000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p25_probe10_feedlocal_gate60 --name p26_probe10_feedlocal_gate90 --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p27_probe10_gate60_nopursuit --name p28_probe10_gate45_conservative --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p29_probe10_gate60_mid --name p30_probe10_gate75_mid --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
 ```
 
 | variant | max steps | health | TRACK XT | TRACK vehicle err | route | final dist | lookahead coverage | lookahead pos err | feed allowed | reject heading | 结论 |
@@ -304,7 +304,7 @@ lookahead 使相位事件从“离散诊断”变成了可被控制器消费的�
 新增两个非网格关键点：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
 ```
 
 | variant | max steps | health | TRACK XT | TRACK vehicle err | route | final dist | feed allowed | reject heading | 结论 |
@@ -366,7 +366,7 @@ lookahead 使相位事件从“离散诊断”变成了可被控制器消费的�
 新增两个非网格关键点：
 
 ```bash
-/Users/bytedance/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
+/Users/auv_user/miniconda3/bin/python tools/evaluate_dropout_variants.py --phase probe --name p31_probe10_gate60_heading30 --name p32_probe10_gate60_heading40 --max-steps 24000
 ```
 
 | variant | max steps | health | TRACK XT | TRACK vehicle err | route | final dist | feed allowed | reject heading | 结论 |

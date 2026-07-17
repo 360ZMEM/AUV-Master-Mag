@@ -1,6 +1,6 @@
 # 声磁协同与 ES-EKF 叙事桥接
 
-> **定位**：解决合龙的**头号矛盾**——既有论文 [paper/03](file:///Users/bytedance/coding/AUV-Master-Mag/thesis/paper/03_state_estimation.md) 全章以 **ES-EKF 全状态滤波器**叙述声磁协同状态估计；而本仓库 [docs/22 §1.1](file:///Users/bytedance/coding/AUV-Master-Mag/docs/22_估计器现状与调参设计文档.md) 明确"估计器**不**作为独立 Kalman / 粒子滤波器存在，而是嵌入 orchestrator 的一组**在线修正机制**"（route-prior-correction）。本文给出统一叙事框架，供写作 paper/03、paper/04 时引用，避免把两套估计器混为一谈或互相矛盾。
+> **定位**：解决合龙的**头号矛盾**——既有论文 [paper/03](file:///Users/auv_user/coding/AUV-Master-Mag/thesis/paper/03_state_estimation.md) 全章以 **ES-EKF 全状态滤波器**叙述声磁协同状态估计；而本仓库 [docs/22 §1.1](file:///Users/auv_user/coding/AUV-Master-Mag/docs/22_估计器现状与调参设计文档.md) 明确"估计器**不**作为独立 Kalman / 粒子滤波器存在，而是嵌入 orchestrator 的一组**在线修正机制**"（route-prior-correction）。本文给出统一叙事框架，供写作 paper/03、paper/04 时引用，避免把两套估计器混为一谈或互相矛盾。
 >
 > **约束**：本文为**新建待整合材料**，不修改任何既有 md。上游入口见 [docs/24 合龙总纲](24_声磁协同论文合龙总纲.md)。
 
@@ -29,7 +29,7 @@ ES-EKF 与 route-prior-correction 解决**不同层级**的问题，组合起来
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**关键论点**：本仓库 [docs/22 §1.5](file:///Users/bytedance/coding/AUV-Master-Mag/docs/22_估计器现状与调参设计文档.md) 的 DR/INS `NavigationSimulator`（true pose 与 navigation pose 分离 + 慢漂）正是"ES-EKF 输出的 navigation pose 含残余漂移"的**仿真代理**。即本仓库不重复实现 ES-EKF，而是**假设上游已有 ES-EKF 提供带漂移的 navigation pose**，专注解决"在此输入下如何稳定跟踪电缆几何"。
+**关键论点**：本仓库 [docs/22 §1.5](file:///Users/auv_user/coding/AUV-Master-Mag/docs/22_估计器现状与调参设计文档.md) 的 DR/INS `NavigationSimulator`（true pose 与 navigation pose 分离 + 慢漂）正是"ES-EKF 输出的 navigation pose 含残余漂移"的**仿真代理**。即本仓库不重复实现 ES-EKF，而是**假设上游已有 ES-EKF 提供带漂移的 navigation pose**，专注解决"在此输入下如何稳定跟踪电缆几何"。
 
 ---
 
@@ -73,7 +73,7 @@ ES-EKF 与 route-prior-correction 解决**不同层级**的问题，组合起来
 
 ## 4. paper/04 §4.3 接入点（扫描间距占位符）
 
-[paper/04 §4.3.1](file:///Users/bytedance/coding/AUV-Master-Mag/thesis/paper/04_decision_and_control.md) 已有原则性叙述（`d = 0.8 × min(2·R_sonar, 2·R_mag)`，20% 重叠裕度）并留"表格占位符"。本仓库 zig-zag 探针补充的是**主动感知激励维度**：
+[paper/04 §4.3.1](file:///Users/auv_user/coding/AUV-Master-Mag/thesis/paper/04_decision_and_control.md) 已有原则性叙述（`d = 0.8 × min(2·R_sonar, 2·R_mag)`，20% 重叠裕度）并留"表格占位符"。本仓库 zig-zag 探针补充的是**主动感知激励维度**：
 
 > 之字形不只是被动覆盖扫描，更是受控主动感知激励——通过有限状态机（ProbeBurstManager）在 TRACK 健康时安排短时 burst，临时增大横向激励采集磁 crossing 证据，再进入 route recovery，从而在弱磁信号下提升可观测性而不破坏任务推进。
 
@@ -83,7 +83,7 @@ ES-EKF 与 route-prior-correction 解决**不同层级**的问题，组合起来
 
 ## 5. 可粘贴方法段落（引自 docs/21 §12）
 
-> 以下段落出自 [docs/21 §12](file:///Users/bytedance/coding/AUV-Master-Mag/docs/21_zigzag论文写作自包含说明.md)，可直接作为 paper/03 §3.3 或 paper/04 §4.3 的方法描述草稿。
+> 以下段落出自 [docs/21 §12](file:///Users/auv_user/coding/AUV-Master-Mag/docs/21_zigzag论文写作自包含说明.md)，可直接作为 paper/03 §3.3 或 paper/04 §4.3 的方法描述草稿。
 
 **英文**：
 
