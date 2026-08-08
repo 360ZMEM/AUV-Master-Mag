@@ -1,0 +1,12 @@
+* text=auto
+
+*.drawio text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.svg text eol=lf
+
+docs/figure/**/*.gif filter=lfs diff=lfs merge=lfs -text
+docs/figure/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+docs/figure/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+docs/figure/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+docs/figure/**/*.png filter=lfs diff=lfs merge=lfs -text

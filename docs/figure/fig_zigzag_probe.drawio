@@ -6,11 +6,11 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="2" value="主动感知原理：之字形反复横切电缆 → 穿缆峰值观测 → 加权 PCA 拟合局部中心线" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+        <mxCell id="2" value="主动感知原理：之字形反复横切电缆 → 穿缆峰值观测 → 加权 PCA 拟合局部中心线" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
           <mxGeometry x="28" y="14" width="660" height="26" as="geometry" />
         </mxCell>
 
-        <mxCell id="9" value="先验走廊（route prior）" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#888888;" vertex="1" parent="1">
+        <mxCell id="9" value="先验走廊（route prior）" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=2;fontColor=#888888;" vertex="1" parent="1">
           <mxGeometry x="63" y="193" width="180" height="16" as="geometry" />
         </mxCell>
         <mxCell id="10" value="" style="endArrow=none;html=1;strokeColor=#bbbbbb;strokeWidth=1;dashed=1;dashPattern=6 6;" edge="1" parent="1">
@@ -32,7 +32,7 @@
             <mxPoint x="637" y="221" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="21" value="真值电缆" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=0;fontColor=#666666;" vertex="1" parent="1">
+        <mxCell id="21" value="真值电缆" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#666666;" vertex="1" parent="1">
           <mxGeometry x="582" y="222" width="80" height="16" as="geometry" />
         </mxCell>
 
@@ -53,7 +53,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="31" value="AUV 之字形航迹" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=0;fontColor=#3a5f8f;" vertex="1" parent="1">
+        <mxCell id="31" value="AUV 之字形航迹" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#3a5f8f;" vertex="1" parent="1">
           <mxGeometry x="392" y="147" width="140" height="16" as="geometry" />
         </mxCell>
 
@@ -84,7 +84,7 @@
         <mxCell id="48" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="542" y="221" width="9" height="9" as="geometry" />
         </mxCell>
-        <mxCell id="49" value="穿缆峰值观测点" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=0;fontColor=#9c6a00;" vertex="1" parent="1">
+        <mxCell id="49" value="穿缆峰值观测点" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#9c6a00;" vertex="1" parent="1">
           <mxGeometry x="84" y="251" width="130" height="16" as="geometry" />
         </mxCell>
 
@@ -94,11 +94,11 @@
             <mxPoint x="560" y="225" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="51" value="估计中心线（加权 PCA 拟合）" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#4a7a2f;" vertex="1" parent="1">
+        <mxCell id="51" value="估计中心线（加权 PCA 拟合）" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#4a7a2f;" vertex="1" parent="1">
           <mxGeometry x="427" y="249" width="210" height="16" as="geometry" />
         </mxCell>
 
-        <mxCell id="60" value="横切角 θ" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+        <mxCell id="60" value="横切角 θ" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
           <mxGeometry x="183" y="210" width="90" height="16" as="geometry" />
         </mxCell>
 
@@ -120,11 +120,11 @@
             <mxPoint x="378" y="329" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="73" value="扫描间距 d" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=0;fontColor=#333333;" vertex="1" parent="1">
+        <mxCell id="73" value="扫描间距 d" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#333333;" vertex="1" parent="1">
           <mxGeometry x="304" y="333" width="110" height="16" as="geometry" />
         </mxCell>
 
-        <mxCell id="80" value="声呐定位 → 中心线方向无歧义" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#9673a6;" vertex="1" parent="1">
+        <mxCell id="80" value="声呐定位 → 中心线方向无歧义" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=2;fontColor=#9673a6;" vertex="1" parent="1">
           <mxGeometry x="470" y="200" width="230" height="16" as="geometry" />
         </mxCell>
         <mxCell id="81" value="" style="endArrow=open;html=1;strokeColor=#9673a6;strokeWidth=1.2;dashed=1;" edge="1" parent="1">
@@ -134,7 +134,7 @@
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="200" value="图注：AUV 以小幅之字形（zig-zag）反复横切电缆走向，每次穿越在磁场包络上形成「升–峰–落」并记录一个峰值观测点；将连续多个峰值点（必要时叠加声呐定位点）做加权 PCA 拟合，得到局部直线/圆弧中心线及其方向。声呐定位为中心线提供绝对方向，消除纯磁拟合的 180° 朝向歧义。" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=0;fontColor=#666666;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="200" value="图注：AUV 通过之字形横切获得穿缆峰值观测，以加权 PCA 拟合局部中心线；声呐定位用于消除纯磁拟合的 180° 方向歧义。" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=0;fontColor=#666666;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="28" y="357" width="660" height="60" as="geometry" />
         </mxCell>
       </root>
