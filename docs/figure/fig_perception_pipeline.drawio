@@ -1,101 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="drawio" version="26.0.0">
-  <diagram name="perception-pipeline">
-    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" math="0" shadow="0">
+<mxfile host="drawio" version="30.3.14">
+  <diagram name="fig_perception_pipeline">
+    <mxGraphModel dx="1200" dy="760" grid="1" gridSize="10" guides="1"
+      tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1"
+      pageWidth="1400" pageHeight="650" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-
-        <mxCell id="2" value="磁感知融合流水线：原始磁场块 → 多级估计 → 统一感知状态（声磁协同）" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="30" y="16" width="1020" height="30" as="geometry" />
-        </mxCell>
-
-        <mxCell id="32" value="内层 200 Hz 逐样本" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;fontStyle=2;fontColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="30" y="58" width="150" height="18" as="geometry" />
-        </mxCell>
-
-        <mxCell id="10" value="原始磁场块&#xa;（block sampling）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="30" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="11" value="滤波 / RMS 包络&#xa;（filters）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="230" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="12" value="包络梯度+磁矢量&#xa;（vector）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="430" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="13" value="峰值检测&#xa;（peaks 升–峰–落）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="630" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="14" value="加权 PCA 中心线拟合&#xa;（fitter）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=15;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="830" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="15" value="局部路径几何&#xa;（local_path）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="1030" y="84" width="150" height="58" as="geometry" />
-        </mxCell>
-
-        <mxCell id="16" value="无峰磁路径/前视/影子&#xa;（magnetic_path）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="1030" y="300" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="17" value="横偏+埋深反演&#xa;（cross_track·burial）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="830" y="300" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="18" value="失锁重捕区&#xa;（reacquire_region）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="630" y="300" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="19" value="置信度融合&#xa;（confidence）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="430" y="300" width="150" height="58" as="geometry" />
-        </mxCell>
-        <mxCell id="20" value="统一感知状态&#xa;PerceptionState&#xa;（输出契约）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;fontStyle=1;fontColor=#1f3a5f;" vertex="1" parent="1">
-          <mxGeometry x="170" y="292" width="190" height="74" as="geometry" />
-        </mxCell>
-        <mxCell id="33" value="外层 20 Hz 输出" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;fontStyle=2;fontColor=#1f3a5f;" vertex="1" parent="1">
-          <mxGeometry x="170" y="370" width="190" height="18" as="geometry" />
-        </mxCell>
-
-        <mxCell id="30" value="声呐定位观测&#xa;（sonar reading）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="830" y="195" width="150" height="50" as="geometry" />
-        </mxCell>
-
-        <mxCell id="31" value="块采样双速率：外层每帧约 20 Hz 推进，磁力计内层 200 Hz 逐样本跑滤波 / RMS；拟合与置信度每外层帧计算一次。&#xa;声呐定位点侧向汇入拟合器，消除中心线方向歧义（声磁协同入口）。" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=0;fontColor=#666666;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="430" y="430" width="750" height="40" as="geometry" />
-        </mxCell>
-
-        <mxCell id="100" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="10" target="11">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="101" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="11" target="12">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="102" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="12" target="13">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="103" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="13" target="14">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="104" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="14" target="15">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="105" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="15" target="16">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="106" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="16" target="17">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="107" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="17" target="18">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="108" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#666666;" edge="1" parent="1" source="18" target="19">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="109" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=1.5;" edge="1" parent="1" source="19" target="20">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="110" value="声磁协同汇入" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=1.5;fontColor=#9673a6;fontSize=14;dashed=1;" edge="1" parent="1" source="30" target="14">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="caption_auto_20260806" value="图注：200 Hz 磁采样经过滤波、峰值检测、PCA 与局部路径估计，在 20 Hz 外层形成统一感知状态；声呐定位用于消除方向歧义。" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Noto Serif CJK SC;fontSize=16;fontColor=#4B5563;spacingLeft=8;spacingRight=8;" vertex="1" parent="1">
-          <mxGeometry x="20" y="500" width="1140" height="70" as="geometry" />
-        </mxCell>
+        <mxCell id="sampling_lane" value="高频磁采样与特征提取（现实现 200 Hz）" style="swimlane;whiteSpace=wrap;html=1;rounded=0;collapsible=0;childLayout=none;startSize=40;fillColor=#F2EDF7;strokeColor=#8F78AF;strokeWidth=2.5;fontFamily=Songti SC;fontSize=21;fontStyle=1;fontColor=#26323D;" vertex="1" parent="1"><mxGeometry x="30" y="30" width="1340" height="155" as="geometry" /></mxCell>
+        <mxCell id="geometry_lane" value="声磁几何估计" style="swimlane;whiteSpace=wrap;html=1;rounded=0;collapsible=0;childLayout=none;startSize=40;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;fontFamily=Songti SC;fontSize=21;fontStyle=1;fontColor=#26323D;" vertex="1" parent="1"><mxGeometry x="30" y="205" width="1340" height="245" as="geometry" /></mxCell>
+        <mxCell id="output_lane" value="置信度融合与统一输出（现实现约 20 Hz）" style="swimlane;whiteSpace=wrap;html=1;rounded=0;collapsible=0;childLayout=none;startSize=40;fillColor=#EAF2F8;strokeColor=#5F8FB8;strokeWidth=2.5;fontFamily=Songti SC;fontSize=21;fontStyle=1;fontColor=#26323D;" vertex="1" parent="1"><mxGeometry x="30" y="470" width="1340" height="150" as="geometry" /></mxCell>
+        <mxCell id="raw" value="&lt;b&gt;原始磁场块&lt;/b&gt;&lt;br&gt;三轴块采样" style="shape=parallelogram;perimeter=parallelogramPerimeter;fixedSize=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#F2EDF7;strokeColor=#8F78AF;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="sampling_lane"><mxGeometry x="35" y="65" width="240" height="68" as="geometry" /></mxCell>
+        <mxCell id="mag_filter" value="&lt;b&gt;滤波与包络&lt;/b&gt;&lt;br&gt;稳健去噪 / RMS" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="sampling_lane"><mxGeometry x="325" y="65" width="240" height="68" as="geometry" /></mxCell>
+        <mxCell id="vector" value="&lt;b&gt;梯度与磁矢量&lt;/b&gt;&lt;br&gt;幅值 / 方向特征" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="sampling_lane"><mxGeometry x="615" y="65" width="240" height="68" as="geometry" /></mxCell>
+        <mxCell id="peaks" value="&lt;b&gt;峰值检测&lt;/b&gt;&lt;br&gt;升峰 / 落峰 / 时效" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="sampling_lane"><mxGeometry x="905" y="65" width="240" height="68" as="geometry" /></mxCell>
+        <mxCell id="sonar" value="&lt;b&gt;声呐定位观测&lt;/b&gt;&lt;br&gt;稀疏绝对锚点" style="shape=parallelogram;perimeter=parallelogramPerimeter;fixedSize=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#F2EDF7;strokeColor=#8F78AF;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="30" y="80" width="195" height="72" as="geometry" /></mxCell>
+        <mxCell id="fit" value="&lt;b&gt;中心线拟合&lt;/b&gt;&lt;br&gt;加权 PCA" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#EEF6EF;strokeColor=#6E9F78;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="260" y="80" width="195" height="72" as="geometry" /></mxCell>
+        <mxCell id="path" value="&lt;b&gt;局部路径几何&lt;/b&gt;&lt;br&gt;中心线 / 前视" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#EEF6EF;strokeColor=#6E9F78;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="490" y="80" width="210" height="72" as="geometry" /></mxCell>
+        <mxCell id="mag_path" value="&lt;b&gt;磁路径与影子&lt;/b&gt;&lt;br&gt;候选路径 / 时效" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FBEFE5;strokeColor=#C9824D;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="735" y="80" width="210" height="72" as="geometry" /></mxCell>
+        <mxCell id="cross" value="&lt;b&gt;横偏与埋深&lt;/b&gt;&lt;br&gt;近过线反演 / 质量" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="980" y="80" width="210" height="72" as="geometry" /></mxCell>
+        <mxCell id="region" value="&lt;b&gt;失锁重捕区&lt;/b&gt;&lt;br&gt;有界候选区域" style="shape=trapezoid;perimeter=trapezoidPerimeter;fixedSize=1;direction=north;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="geometry_lane"><mxGeometry x="1090" y="160" width="210" height="62" as="geometry" /></mxCell>
+        <mxCell id="confidence" value="&lt;b&gt;置信度融合&lt;/b&gt;&lt;br&gt;质量 / 新鲜度 / 一致性" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFF7E8;strokeColor=#C69B42;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="output_lane"><mxGeometry x="335" y="55" width="260" height="72" as="geometry" /></mxCell>
+        <mxCell id="state" value="&lt;b&gt;统一感知状态&lt;/b&gt;&lt;br&gt;路径 / 横偏 / 埋深 / 置信度" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#EAF2F8;strokeColor=#5F8FB8;strokeWidth=2.5;spacing=8;fontFamily=Songti SC;fontSize=19;fontColor=#26323D;" vertex="1" parent="output_lane"><mxGeometry x="750" y="50" width="320" height="82" as="geometry" /></mxCell>
+        <mxCell id="p1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="raw" target="mag_filter"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="mag_filter" target="vector"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="vector" target="peaks"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p4" value="峰值序列" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="peaks" target="fit"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1250" y="195" /><mxPoint x="388" y="195" /></Array></mxGeometry></mxCell>
+        <mxCell id="p5" value="方向锚定" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=2.4;fontFamily=Songti SC;fontSize=17;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;dashed=1;dashPattern=7 5;exitX=1;entryX=0;" edge="1" parent="1" source="sonar" target="fit"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="fit" target="path"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="path" target="mag_path"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="mag_path" target="cross"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p9" value="失锁触发" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=2.4;fontFamily=Songti SC;fontSize=17;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;dashed=1;dashPattern=7 5;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cross" target="region"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="p10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=2.4;fontFamily=Songti SC;fontSize=17;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cross" target="confidence"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1085" y="460" /><mxPoint x="465" y="460" /></Array></mxGeometry></mxCell>
+        <mxCell id="p11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=2.4;fontFamily=Songti SC;fontSize=17;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;dashed=1;dashPattern=7 5;exitX=0.5;exitY=1;entryX=0.8;entryY=0;" edge="1" parent="1" source="region" target="confidence"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1265" y="460" /><mxPoint x="550" y="460" /></Array></mxGeometry></mxCell>
+        <mxCell id="p12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#536F87;strokeWidth=3.2;fontFamily=Songti SC;fontSize=18;fontStyle=1;fontColor=#25384A;labelBackgroundColor=#FFFFFF;labelBorderColor=none;endArrow=block;endFill=1;endSize=10;exitX=1;entryX=0;" edge="1" parent="1" source="confidence" target="state"><mxGeometry relative="1" as="geometry" /></mxCell>
       </root>
     </mxGraphModel>
   </diagram>

@@ -18,3 +18,11 @@ health*
 results/
 .trae/
 thesis/
+!thesis/
+thesis/*
+!thesis/figures/
+thesis/figures/*
+!thesis/figures/architecture/
+thesis/figures/architecture/*
+!thesis/figures/architecture/*.drawio
+!thesis/figures/architecture/_SOURCE.md

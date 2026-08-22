@@ -10,8 +10,21 @@ import numpy as np
 try:
     from tqdm.auto import tqdm
 except ModuleNotFoundError:
+    class _TqdmFallback:
+        def __init__(self, iterable, **_kwargs):
+            self._iterable = iterable
+
+        def __iter__(self):
+            return iter(self._iterable)
+
+        def set_postfix(self, **_kwargs) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
     def tqdm(iterable, **kwargs):
-        return iterable
+        return _TqdmFallback(iterable, **kwargs)
 
 from .config import ScenarioConfig
 from .controller import GuidanceCommand, ZigZagController, apply_attitude_profile, propagate_vehicle
