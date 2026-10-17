@@ -1,0 +1,65 @@
+{
+  "role": "synthetic_local_target_association_discrimination_budget",
+  "scope": "three single-source v2 Confirm scans and exact interval geometry; not ROS, a physical survey, or a success probability",
+  "target_anchor_m": [
+    5.8,
+    6.2
+  ],
+  "survey_claimed_exclusive_corridor_m": [
+    5.45,
+    6.55
+  ],
+  "sonar_half_width_m": 0.5,
+  "cases": {
+    "near_neighbor_anchor_only": {
+      "source_lateral_m": 6.6,
+      "exclusive_enabled": false,
+      "final_mode": "track",
+      "last_lateral_center_m": 6.599999648388403,
+      "last_lateral_reason_codes": [],
+      "final_guidance_speed_mps": 0.7981221660246194,
+      "depth_published": false
+    },
+    "near_neighbor_exclusive": {
+      "source_lateral_m": 6.6,
+      "exclusive_enabled": true,
+      "final_mode": "hold",
+      "last_lateral_center_m": 6.599999648388403,
+      "last_lateral_reason_codes": [
+        "runtime_target_exclusive_corridor_inconsistent"
+      ],
+      "final_guidance_speed_mps": 0.0,
+      "depth_published": false
+    },
+    "true_source_exclusive": {
+      "source_lateral_m": 6.0,
+      "exclusive_enabled": true,
+      "final_mode": "track",
+      "last_lateral_center_m": 5.999999239248394,
+      "last_lateral_reason_codes": [],
+      "final_guidance_speed_mps": 0.7980875478404936,
+      "depth_published": false
+    }
+  },
+  "grid": {
+    "centers_m": [
+      5.5,
+      7.2,
+      171
+    ],
+    "half_widths_m": [
+      0.1,
+      0.5,
+      81
+    ],
+    "anchor_only_permitted_cells": 7741,
+    "exclusive_permitted_cells": 3833,
+    "anchor_only_risk_cells_outside_exclusive": 225,
+    "exclusive_permitted_cells_outside_exclusive": 0,
+    "note": "Cells are a deterministic geometry grid, not stochastic trials."
+  },
+  "source_script_sha256": "57530365bfa0ea958d73462ee21a04e26e5755cc6f4ecb280afde473417a337f",
+  "flythrough_sha256": "fc82a6ec51bae1bdbd78899b6d656d558d585f735f231dff2da14548558bf018",
+  "png_sha256": "c4271da30cace011b427a2e01a0defb999b3ee58ff21ba99a8549dce3aabd187",
+  "pdf_sha256": "3a3ea09d6ca7233b12ea747f46e20e3c65e85b3c3ab91847a6fc0e9f2c774468"
+}

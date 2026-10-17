@@ -1,0 +1,906 @@
+"""Mission-FSM-backed zig-zag controller and constrained AUV kinematics.
+
+The controller is the kinematic layer: it asks :class:`MissionManager` *what* to do
+(sweep / align / track / surface) and translates that into a heading + speed command
+under the vehicle's turning-radius and yaw-rate limits.  All strategic decisions live
+in the mission manager; the controller only owns geometry.
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
+
+from .config import ScenarioConfig
+from .math_utils import (
+    Pose,
+    build_nominal_route_xy,
+    build_polyline_projection_cache,
+    heading_from_direction_xy,
+    nearest_point_on_polyline,
+    smallest_angle_error_deg,
+    wrap_angle_deg,
+)
+from .mission_manager import MissionDecision, MissionInput, MissionManager, MissionState, MissionThresholds
+from .perception import PerceptionState
+from .probe_burst_manager import (
+    ProbeBurstDecision,
+    ProbeBurstInput,
+    ProbeBurstManager,
+    ProbeBurstState,
+    ProbeBurstThresholds,
+)
+
+
+@dataclass
+class GuidanceCommand:
+    """表示控制器输出给车辆运动学的单步航向与速度指令。"""
+
+    desired_heading_deg: float
+    speed_mps: float
+    mode: MissionState
+    guidance_source: str = "SEARCH"
+    commanded_turn_radius_m: float = float("inf")
+    yaw_rate_deg_s: float = 0.0
+    safe_lock_active: bool = False
+    zigzag_width_m: float = 0.0
+    emergency_flag: bool = False
+
+
+class ZigZagController:
+    def __init__(self, scenario: ScenarioConfig) -> None:
+        """根据场景配置初始化之字形控制器、任务 FSM 与名义路线缓存。"""
+        self.scenario = scenario
+        self.leg_sign = 1.0
+        self.last_leg_flip_time_s = 0.0
+        self.mission_manager = MissionManager(self._build_mission_thresholds())
+        self.nominal_route_xy = build_nominal_route_xy(self.scenario.environment)
+        self.nominal_route_lookup = build_polyline_projection_cache(self.nominal_route_xy)
+        self.smoothed_base_heading_deg: Optional[float] = None
+        self.last_trusted_cable_point_xy_m: Optional[np.ndarray] = None
+        self.last_trusted_cable_heading_deg: Optional[float] = None
+        self.reacquire_anchor_xy_m: Optional[np.ndarray] = None
+        self.reacquire_anchor_heading_deg: Optional[float] = None
+        self.reacquire_leg_index: int = 0
+        # Optional handle to the perception orchestrator so we can reuse its
+        # corrected route prior cache and progress-guard window (single source of
+        # route-prior correction; the controller no longer corrects on its own).
+        self._perception_route_provider: Optional[object] = None
+        self.last_magnetic_crossing_offset_sign: int = 0
+        self.magnetic_crossing_probe_missed_count: int = 0
+        self.magnetic_crossing_probe_forced_flip: bool = False
+        self.last_nominal_route_progress_m: Optional[float] = None
+        self.decoupled_lateral_probe_lockout_until_s: float = 0.0
+        self.probe_burst_manager = ProbeBurstManager(self._build_probe_burst_thresholds())
+        self.probe_burst_decision: Optional[ProbeBurstDecision] = None
+        self.probe_burst_reacquire_safe_control_allowed: bool = False
+
+    def attach_perception(self, perception: object) -> None:
+        """Bind the perception orchestrator that owns the corrected route prior."""
+        self._perception_route_provider = perception
+
+    def _build_mission_thresholds(self) -> MissionThresholds:
+        """从场景配置组装任务层阈值（暂用默认 + 复用已有置信度阈值）。"""
+        tracking = self.scenario.tracking
+        vehicle = self.scenario.vehicle
+        # The loss hold must outlast one zig-zag crossing period so a sweep
+        # trough is never mistaken for cable loss.
+        sweep_period_s = tracking.max_zigzag_width_m * tracking.crossing_width_periods / max(vehicle.cruise_speed_mps, 0.5)
+        return MissionThresholds(
+            track_confidence_required=tracking.high_confidence_threshold,
+            signal_hold_s=max(tracking.lost_timeout_s, sweep_period_s),
+            cov_perp_converged_m2=tracking.fsm_cov_perp_converged_m2,
+            yaw_err_converged_deg=tracking.fsm_yaw_err_converged_deg,
+            reacquire_region_min_confidence=tracking.reacquire_region_min_confidence,
+            reacquire_region_entry_streak_required=tracking.reacquire_region_entry_streak_required,
+            reacquire_region_recovery_streak_required=tracking.reacquire_region_recovery_streak_required,
+            reacquire_region_unavailable_hold_s=tracking.reacquire_region_unavailable_hold_s,
+            reacquire_region_max_duration_s=tracking.reacquire_region_max_duration_s,
+        )
+
+    def _nominal_route_reference(self, position_xy_m: np.ndarray) -> tuple:
+        """返回当前位置在名义路线上的最近点、切向与距离。"""
+        best_point, best_tangent, best_distance, _, _ = self._nearest_nominal_route_projection(position_xy_m)
+        return best_point, best_tangent, best_distance
+
+    def _nominal_route_progress_m(self, position_xy_m: np.ndarray) -> float:
+        """Return progress along the nominal route for controller-side guards."""
+        _, _, _, progress_m, _ = self._nearest_nominal_route_projection(position_xy_m)
+        return float(progress_m)
+
+    def _nearest_nominal_route_projection(self, position_xy_m: np.ndarray) -> tuple:
+        """Project onto the route prior, reusing the perception orchestrator when attached.
+
+        The orchestrator is the single source of route-prior correction and owns the
+        progress-guard window; the controller only falls back to its uncorrected local
+        polyline when no perception handle is bound (e.g. unit tests).
+        """
+        provider = self._perception_route_provider
+        if provider is not None and hasattr(provider, "nominal_route_projection"):
+            return provider.nominal_route_projection(position_xy_m)
+        return nearest_point_on_polyline(position_xy_m, self.nominal_route_lookup)
+
+    def _nominal_route_point_at_progress_m(self, progress_m: float) -> np.ndarray:
+        """Return an interpolated nominal-route point at the requested progress."""
+        cache = self.nominal_route_lookup
+        total_length_m = float(cache.cumulative_length_m[-1] + cache.segment_lengths_m[-1])
+        target_progress_m = float(np.clip(progress_m, 0.0, total_length_m))
+        segment_index = int(np.searchsorted(cache.cumulative_length_m, target_progress_m, side="right") - 1)
+        segment_index = int(np.clip(segment_index, 0, cache.segment_lengths_m.size - 1))
+        segment_length_m = max(float(cache.segment_lengths_m[segment_index]), 1e-9)
+        segment_start_progress_m = float(cache.cumulative_length_m[segment_index])
+        alpha = float(np.clip((target_progress_m - segment_start_progress_m) / segment_length_m, 0.0, 1.0))
+        return cache.segment_starts_xy[segment_index] + alpha * cache.segment_vectors_xy[segment_index]
+
+    def _build_probe_burst_thresholds(self) -> ProbeBurstThresholds:
+        tracking = self.scenario.tracking
+        return ProbeBurstThresholds(
+            idle_min_duration_s=tracking.probe_burst_manager_idle_min_duration_s,
+            entry_min_route_delta_m=tracking.probe_burst_manager_entry_min_route_delta_m,
+            entry_max_abs_cross_track_m=tracking.probe_burst_manager_entry_max_abs_cross_track_m,
+            burst_min_duration_s=tracking.probe_burst_manager_burst_min_duration_s,
+            burst_max_duration_s=tracking.probe_burst_manager_burst_max_duration_s,
+            burst_target_evidence_count=tracking.probe_burst_manager_burst_target_evidence_count,
+            recovery_min_duration_s=tracking.probe_burst_manager_recovery_min_duration_s,
+            recovery_target_route_delta_m=tracking.probe_burst_manager_recovery_target_route_delta_m,
+            recovery_max_abs_cross_track_m=tracking.probe_burst_manager_recovery_max_abs_cross_track_m,
+            recovery_timeout_s=tracking.probe_burst_manager_recovery_timeout_s,
+            cooldown_duration_s=tracking.probe_burst_manager_cooldown_duration_s,
+        )
+
+    def _decoupled_lateral_target_heading_deg(
+        self,
+        pose: Pose,
+        perception: PerceptionState,
+    ) -> Optional[float]:
+        """Use route-forward lookahead and lateral band target as separate objectives."""
+        nearest_xy, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
+        normal_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
+        half_band_m = 0.5 * max(
+            perception.zigzag_width_m,
+            self.scenario.tracking.min_zigzag_half_band_width_m,
+        )
+        target_xy = (
+            nearest_xy
+            + self.scenario.tracking.magnetic_shadow_decoupled_lateral_lookahead_m * tangent_xy
+            + self.leg_sign * half_band_m * normal_xy
+        )
+        to_target_xy = target_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(to_target_xy) < 1e-9:
+            return None
+        return heading_from_direction_xy(to_target_xy)
+
+    def _route_centerline_recovery_heading_deg(self, pose: Pose) -> Optional[float]:
+        """Steer to a route-forward centerline target during post-probe recovery."""
+        nearest_xy, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
+        target_xy = (
+            nearest_xy
+            + self.scenario.tracking.decoupled_lateral_probe_recovery_lookahead_m * tangent_xy
+        )
+        to_target_xy = target_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(to_target_xy) < 1e-9:
+            return None
+        return heading_from_direction_xy(to_target_xy)
+
+    def _decoupled_lateral_probe_burst_active(self, perception: PerceptionState) -> bool:
+        """Return whether the short decoupled probe burst may override p36 heading."""
+        tracking = self.scenario.tracking
+        if tracking.probe_burst_manager_enabled:
+            return bool(self.probe_burst_decision and self.probe_burst_decision.burst_active)
+        if not tracking.decoupled_lateral_probe_burst_enabled:
+            return True
+        start_delay_s = max(tracking.decoupled_lateral_probe_burst_start_delay_s, 0.0)
+        if perception.time_s < start_delay_s:
+            return False
+        if perception.time_s < self.decoupled_lateral_probe_lockout_until_s:
+            return False
+        burst_s = max(tracking.decoupled_lateral_probe_burst_duration_s, 0.0)
+        recovery_s = max(tracking.decoupled_lateral_probe_recovery_duration_s, 0.0)
+        if burst_s <= 0.0:
+            return False
+        cycle_s = burst_s + recovery_s
+        if cycle_s <= 0.0:
+            return False
+        return ((perception.time_s - start_delay_s) % cycle_s) < burst_s
+
+    def _decoupled_lateral_probe_recovery_active(self, perception: PerceptionState) -> bool:
+        """Return whether route-centerline recovery should override probe heading."""
+        tracking = self.scenario.tracking
+        if tracking.probe_burst_manager_enabled:
+            return bool(self.probe_burst_decision and self.probe_burst_decision.recovery_active)
+        if not tracking.decoupled_lateral_probe_recovery_control_enabled:
+            return False
+        if not tracking.decoupled_lateral_probe_burst_enabled:
+            return False
+        start_delay_s = max(tracking.decoupled_lateral_probe_burst_start_delay_s, 0.0)
+        if perception.time_s < start_delay_s:
+            return False
+        if perception.time_s < self.decoupled_lateral_probe_lockout_until_s:
+            return True
+        burst_s = max(tracking.decoupled_lateral_probe_burst_duration_s, 0.0)
+        recovery_s = max(tracking.decoupled_lateral_probe_recovery_duration_s, 0.0)
+        cycle_s = burst_s + recovery_s
+        if burst_s <= 0.0 or recovery_s <= 0.0 or cycle_s <= 0.0:
+            return False
+        return ((perception.time_s - start_delay_s) % cycle_s) >= burst_s
+
+    def _probe_burst_reacquire_safe_control_allowed(
+        self,
+        state: MissionState,
+        cross_track_offset_m: Optional[float],
+    ) -> bool:
+        """Allow a pending burst/recovery to execute inside a tightly bounded reacquire window."""
+        tracking = self.scenario.tracking
+        decision = self.probe_burst_decision
+        if not tracking.probe_burst_manager_reacquire_safe_window_enabled:
+            return False
+        if state != MissionState.TRACK_ACTIVE or decision is None:
+            return False
+        if decision.state not in {ProbeBurstState.BURST_COLLECT_EVIDENCE, ProbeBurstState.RECOVER_ROUTE}:
+            return False
+        if cross_track_offset_m is None or not np.isfinite(decision.entry_abs_cross_track_m):
+            return False
+        if (
+            decision.entry_abs_cross_track_m
+            > tracking.probe_burst_manager_reacquire_safe_max_abs_cross_track_m
+        ):
+            return False
+        return True
+
+    def _crossing_angle_deg(self, zigzag_width_m: float) -> float:
+        """根据当前之字形宽度估计交叉入射角。"""
+        tracking = self.scenario.tracking
+        lookahead_distance_m = max(
+            tracking.lookahead_turn_radius_factor * self.scenario.vehicle.min_turning_radius_m,
+            tracking.lookahead_min_distance_m,
+        )
+        nominal_angle_deg = float(np.rad2deg(np.arctan2(max(zigzag_width_m, 1e-6), lookahead_distance_m)))
+        return float(np.clip(
+            nominal_angle_deg,
+            self.scenario.tracking.approach_angle_min_deg,
+            self.scenario.tracking.approach_angle_max_deg,
+        ))
+
+    def _adaptive_track_zigzag_angle_deg(self, base_angle_deg: float) -> float:
+        """Bound TRACK zig-zag angle around a target lateral excitation distance."""
+        tracking = self.scenario.tracking
+        if (
+            not tracking.adaptive_track_zigzag_angle_enabled
+            or tracking.use_nominal_route_prior
+            or base_angle_deg <= 0.0
+        ):
+            return max(0.0, base_angle_deg)
+        lookahead_distance_m = max(
+            tracking.lookahead_turn_radius_factor * self.scenario.vehicle.min_turning_radius_m,
+            tracking.lookahead_min_distance_m,
+        )
+        target_angle_deg = float(np.rad2deg(np.arctan2(
+            max(tracking.adaptive_track_zigzag_effective_distance_m, 0.0),
+            lookahead_distance_m,
+        )))
+        adjustment_deg = max(tracking.adaptive_track_zigzag_angle_adjustment_deg, 0.0)
+        min_angle_deg = max(0.0, base_angle_deg - adjustment_deg)
+        max_angle_deg = max(min_angle_deg, base_angle_deg + adjustment_deg)
+        return float(np.clip(target_angle_deg, min_angle_deg, max_angle_deg))
+
+    def _limited_yaw_rate_deg_s(self, speed_mps: float, desired_heading_deg: float, current_heading_deg: float) -> float:
+        """在转弯半径和最大角速度约束下计算可执行的偏航角速度。"""
+        heading_error_deg = smallest_angle_error_deg(desired_heading_deg, current_heading_deg)
+        max_radius_rate_deg_s = float(np.rad2deg(max(speed_mps, 1e-6) / max(self.scenario.vehicle.min_turning_radius_m, 1e-6)))
+        max_yaw_rate_deg_s = min(self.scenario.vehicle.max_yaw_rate_deg_s, max_radius_rate_deg_s)
+        requested_yaw_rate_deg_s = heading_error_deg / max(self.scenario.dt_s, 1e-6)
+        return float(np.clip(requested_yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+
+    def _base_heading_deg(self, pose: Pose, perception: PerceptionState) -> float:
+        """选择本步之字形扫描的基准（沿电缆纵向）航向。
+
+        纵向基准与横向压线分属两个轴：名义模式下纵向参考权威地来自先验路线切向，
+        磁/声呐只负责横向回缆（见 :meth:`_cross_track_offset_m` /
+        :meth:`_track_cross_track_offset_m`），不参与纵向基准。否则在急弯处滑窗
+        【直线】拟合会结构性滞后真实切向（拟合窗内电缆非直线），又被 TRACK 压线
+        饿死峰值而冻结，反过来污染基准航向、把车辆甩出弯道。
+
+        部署模式没有先验路线，此时纵向基准只能退回采信融合航向（置信度足够时）。
+        """
+        if self.scenario.tracking.use_nominal_route_prior:
+            _, tangent_xy, _ = self._nominal_route_reference(pose.position_ned_m[:2])
+            return heading_from_direction_xy(tangent_xy)
+
+        along_cable_heading_deg = pose.heading_deg
+        if (
+            perception.local_path_tracking_state == "curve_track"
+            and perception.fused_heading_deg is not None
+        ):
+            candidate_heading_deg = perception.fused_heading_deg
+            if (
+                self.scenario.tracking.local_path_curve_track_flip_to_vehicle_enabled
+                and abs(smallest_angle_error_deg(candidate_heading_deg, pose.heading_deg)) > 90.0
+            ):
+                candidate_heading_deg = wrap_angle_deg(candidate_heading_deg + 180.0)
+            return candidate_heading_deg
+        if (
+            perception.fused_heading_deg is not None
+            and perception.confidence >= self.scenario.tracking.low_confidence_threshold
+        ):
+            candidate_heading_deg = perception.fused_heading_deg
+            if abs(smallest_angle_error_deg(candidate_heading_deg, pose.heading_deg)) > 90.0:
+                candidate_heading_deg = wrap_angle_deg(candidate_heading_deg + 180.0)
+            along_cable_heading_deg = candidate_heading_deg
+        return along_cable_heading_deg
+
+    def _cross_track_offset_m(self, pose: Pose, perception: PerceptionState, base_heading_deg: float) -> Optional[float]:
+        """返回车辆相对电缆的带符号横向偏移（沿基准航向左正右负）。
+
+        名义模式用先验路线最近点，部署模式用感知估计的电缆点；无可用电缆点时返回
+        ``None``，此时退回看门狗按时间翻腿。
+        """
+        position_xy_m = pose.position_ned_m[:2]
+        if self.scenario.tracking.use_nominal_route_prior:
+            cable_point_xy_m, _, _ = self._nominal_route_reference(position_xy_m)
+        elif perception.estimated_cable_point_xy_m is not None:
+            cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
+        else:
+            return None
+        heading_rad = np.deg2rad(base_heading_deg)
+        perpendicular_xy = np.array([-np.sin(heading_rad), np.cos(heading_rad)], dtype=float)
+        return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
+
+    def _track_cross_track_offset_m(self, pose: Pose, perception: PerceptionState, base_heading_deg: float) -> Optional[float]:
+        """返回 TRACK_ACTIVE 压线用的带符号横向偏移，按 声呐 > 磁 > 路由 优先级取信号。
+
+        声呐在线时直接用其电缆点（声呐优先）；声呐失效后改用磁比值偏移实现稳定
+        独立持续跟踪；二者都不可用时退回先验路线。返回值与 :meth:`_cross_track_offset_m`
+        同符号约定（沿基准航向左正右负），供控制器驱动偏移趋零。
+        """
+        position_xy_m = pose.position_ned_m[:2]
+        heading_rad = np.deg2rad(base_heading_deg)
+        perpendicular_xy = np.array([-np.sin(heading_rad), np.cos(heading_rad)], dtype=float)
+        sonar_fresh = perception.last_detection_age_s <= self.scenario.tracking.lost_timeout_s
+        if sonar_fresh and perception.estimated_cable_point_xy_m is not None:
+            cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
+            return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
+        if perception.magnetic_lookahead_valid and perception.magnetic_lookahead_cable_point_xy_m is not None:
+            cable_point_xy_m = np.asarray(perception.magnetic_lookahead_cable_point_xy_m, dtype=float)
+            return float(np.dot(position_xy_m - cable_point_xy_m, perpendicular_xy))
+        if perception.magnetic_cross_track_offset_m is not None:
+            return float(perception.magnetic_cross_track_offset_m)
+        return self._cross_track_offset_m(pose, perception, base_heading_deg)
+
+    def _mission_input(self, pose: Pose, perception: PerceptionState) -> MissionInput:
+        """将感知状态与位姿投影为任务 FSM 的输入契约。"""
+        yaw_error_deg = (
+            smallest_angle_error_deg(perception.fused_heading_deg, pose.heading_deg)
+            if perception.fused_heading_deg is not None
+            else None
+        )
+        return MissionInput(
+            time_s=perception.time_s,
+            mag_strength_nT=perception.tracking_strength_nt,
+            sonar_confidence=perception.sonar_confidence,
+            confidence=perception.confidence,
+            fused_heading_deg=perception.fused_heading_deg,
+            yaw_error_deg=yaw_error_deg,
+            fit_covariance_xy_m2=perception.fit_result.covariance_xy_m2,
+            peak_detected=perception.peak_detected,
+            reacquire_required=perception.deployment_reacquire_required,
+            reacquire_region_available=perception.reacquire_region_center_xy_m is not None,
+            reacquire_region_confidence=perception.reacquire_region_confidence,
+            reacquire_region_control_enabled=self.scenario.tracking.reacquire_region_control_enabled,
+        )
+
+    def _crossing_angle_for_state(
+        self,
+        state: MissionState,
+        zigzag_width_m: float,
+        magnetic_fit_ready: bool,
+        local_path_tracking_state: str = "collecting",
+    ) -> float:
+        """按任务状态决定本步穿越角。
+
+        SEARCH 与 LOCK_ALIGN 都需主动横摆穿越电缆以持续产生磁峰值（拟合收敛的前提）；
+        二者唯一区别是 LOCK_ALIGN 降速取更密采样。TRACK_ACTIVE 默认压线；
+        若场景显式配置 ``track_active_zigzag_angle_deg``，则按国标/测线需求保留低幅 zig-zag。
+        """
+        if local_path_tracking_state == "curve_track":
+            return max(0.0, self.scenario.tracking.curve_track_crossing_angle_deg)
+        if state in (MissionState.SEARCH_ZIGZAG, MissionState.LOCK_ALIGN):
+            angle_deg = self._crossing_angle_deg(zigzag_width_m)
+            if not magnetic_fit_ready:
+                angle_deg = max(angle_deg, self.scenario.tracking.probing_crossing_angle_deg)
+            return angle_deg
+        if state == MissionState.TRACK_ACTIVE:
+            return self._adaptive_track_zigzag_angle_deg(
+                self.scenario.tracking.track_active_zigzag_angle_deg
+            )
+        return 0.0  # EMERGENCY_SURFACE: hold centerline
+
+    def _remember_trusted_cable_state(self, perception: PerceptionState) -> None:
+        """Store the last usable cable anchor for turn-aware reacquisition."""
+        if perception.deployment_reacquire_required:
+            return
+        if perception.estimated_cable_point_xy_m is None:
+            return
+        heading_deg = (
+            perception.local_path_heading_deg
+            if perception.local_path_heading_deg is not None
+            else perception.fused_heading_deg
+        )
+        if heading_deg is None:
+            return
+        if perception.confidence < self.scenario.tracking.low_confidence_threshold:
+            return
+        self.last_trusted_cable_point_xy_m = np.asarray(perception.estimated_cable_point_xy_m, dtype=float).copy()
+        self.last_trusted_cable_heading_deg = float(heading_deg)
+        self.reacquire_anchor_xy_m = None
+        self.reacquire_anchor_heading_deg = None
+        self.reacquire_leg_index = 0
+
+    def _magnetic_crossing_offset_sign(self, perception: PerceptionState, base_heading_deg: float) -> int:
+        min_abs_offset_m = self.scenario.tracking.magnetic_crossing_probe_min_abs_offset_m
+        offset_m = perception.magnetic_cross_track_offset_m
+        if offset_m is not None and np.isfinite(offset_m):
+            if abs(offset_m) < min_abs_offset_m:
+                return 0
+            return 1 if offset_m > 0.0 else -1
+
+        offset_m = perception.magnetic_path_cross_track_offset_m
+        if offset_m is None or not np.isfinite(offset_m):
+            return 0
+        if abs(offset_m) < min_abs_offset_m:
+            return 0
+        sign = 1 if offset_m > 0.0 else -1
+        magnetic_heading_deg = perception.magnetic_path_heading_deg
+        if magnetic_heading_deg is not None and np.isfinite(magnetic_heading_deg):
+            if abs(smallest_angle_error_deg(magnetic_heading_deg, base_heading_deg)) > 90.0:
+                sign *= -1
+        return sign
+
+    def _update_magnetic_crossing_probe_leg(
+        self,
+        perception: PerceptionState,
+        expected_cross_time_s: float,
+        base_heading_deg: float,
+    ) -> bool:
+        """Use magnetic cross-track sign changes to align probe leg flips."""
+        tracking = self.scenario.tracking
+        if not tracking.magnetic_crossing_probe_control_enabled:
+            self.magnetic_crossing_probe_forced_flip = False
+            return False
+
+        self.magnetic_crossing_probe_forced_flip = False
+        current_sign = self._magnetic_crossing_offset_sign(perception, base_heading_deg)
+        if current_sign == 0:
+            return False
+
+        if self.last_magnetic_crossing_offset_sign == 0:
+            self.last_magnetic_crossing_offset_sign = current_sign
+            self.leg_sign = -float(current_sign)
+            self.last_leg_flip_time_s = perception.time_s
+            return True
+
+        time_since_flip_s = perception.time_s - self.last_leg_flip_time_s
+        min_flip_interval_s = max(0.0, tracking.magnetic_crossing_probe_min_flip_interval_s)
+        if current_sign != self.last_magnetic_crossing_offset_sign:
+            if time_since_flip_s < min_flip_interval_s:
+                return True
+            self.leg_sign = -float(current_sign)
+            self.last_leg_flip_time_s = perception.time_s
+            self.last_magnetic_crossing_offset_sign = current_sign
+            return True
+
+        max_wait_s = min(
+            tracking.magnetic_crossing_probe_max_wait_s,
+            max(
+                expected_cross_time_s * tracking.magnetic_crossing_probe_forced_flip_multiplier,
+                tracking.watchdog_min_cross_time_s,
+            ),
+        )
+        if time_since_flip_s > max_wait_s:
+            self.leg_sign *= -1.0
+            self.last_leg_flip_time_s = perception.time_s
+            self.magnetic_crossing_probe_missed_count += 1
+            self.magnetic_crossing_probe_forced_flip = True
+        return True
+
+    def _reacquire_heading_deg(
+        self,
+        pose: Pose,
+        perception: PerceptionState,
+        fallback_heading_deg: float,
+    ) -> Optional[float]:
+        """Search around the last cable anchor instead of sweeping along a stale heading."""
+        anchor_xy = self.last_trusted_cable_point_xy_m
+        heading_deg = self.last_trusted_cable_heading_deg
+        if not perception.deployment_reacquire_required and perception.estimated_cable_point_xy_m is not None:
+            anchor_xy = np.asarray(perception.estimated_cable_point_xy_m, dtype=float)
+        if not perception.deployment_reacquire_required and perception.local_path_heading_deg is not None:
+            heading_deg = perception.local_path_heading_deg
+        elif not perception.deployment_reacquire_required and perception.fused_heading_deg is not None:
+            heading_deg = perception.fused_heading_deg
+
+        if anchor_xy is None:
+            return None
+        if heading_deg is None:
+            heading_deg = fallback_heading_deg
+        if perception.deployment_reacquire_required and self.scenario.tracking.reacquire_zigzag_enabled:
+            if self.reacquire_anchor_xy_m is None:
+                self.reacquire_anchor_xy_m = anchor_xy.copy()
+                self.reacquire_anchor_heading_deg = float(heading_deg)
+                self.reacquire_leg_index = 0
+            return self._reacquire_zigzag_heading_deg(pose)
+
+        heading_rad = np.deg2rad(heading_deg)
+        tangent_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+        perpendicular_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
+        radius_m = max(self.scenario.tracking.reacquire_search_radius_m, self.scenario.tracking.min_zigzag_half_band_width_m)
+        anchor_delta_xy = anchor_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(anchor_delta_xy) > 1.5 * radius_m:
+            target_xy = anchor_xy
+        else:
+            target_xy = anchor_xy + 0.5 * radius_m * tangent_xy + self.leg_sign * radius_m * perpendicular_xy
+        delta_xy = target_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(delta_xy) < 1e-6:
+            return None
+        return heading_from_direction_xy(delta_xy)
+
+    def _reacquire_zigzag_heading_deg(self, pose: Pose) -> Optional[float]:
+        """Run a bounded zig-zag around the last trusted cable anchor."""
+        if self.reacquire_anchor_xy_m is None or self.reacquire_anchor_heading_deg is None:
+            return None
+
+        heading_rad = np.deg2rad(self.reacquire_anchor_heading_deg)
+        tangent_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+        perpendicular_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
+        half_band_m = max(self.scenario.tracking.reacquire_search_radius_m, self.scenario.tracking.min_zigzag_half_band_width_m)
+        along_step_m = max(self.scenario.tracking.reacquire_zigzag_along_step_m, 1.0)
+        max_along_m = max(self.scenario.tracking.reacquire_zigzag_max_along_m, along_step_m)
+
+        relative_xy = pose.position_ned_m[:2] - self.reacquire_anchor_xy_m
+        along_m = float(np.dot(relative_xy, tangent_xy))
+        lateral_m = float(np.dot(relative_xy, perpendicular_xy))
+        if self.leg_sign > 0.0 and lateral_m >= half_band_m:
+            self.leg_sign = -1.0
+            self.reacquire_leg_index += 1
+        elif self.leg_sign < 0.0 and lateral_m <= -half_band_m:
+            self.leg_sign = 1.0
+            self.reacquire_leg_index += 1
+
+        target_along_m = min(max_along_m, max(along_step_m, self.reacquire_leg_index * along_step_m))
+        target_xy = self.reacquire_anchor_xy_m + target_along_m * tangent_xy + self.leg_sign * half_band_m * perpendicular_xy
+        delta_xy = target_xy - pose.position_ned_m[:2]
+        if np.linalg.norm(delta_xy) < 1e-6:
+            return None
+        return heading_from_direction_xy(delta_xy)
+
+    def _region_reacquire_heading_deg(self, pose: Pose, perception: PerceptionState) -> Optional[float]:
+        """Execute the observable region selected by perception/mission."""
+        if perception.reacquire_region_center_xy_m is None or perception.reacquire_region_heading_deg is None:
+            return None
+
+        center_xy = np.asarray(perception.reacquire_region_center_xy_m, dtype=float)
+        heading_rad = np.deg2rad(perception.reacquire_region_heading_deg)
+        tangent_xy = np.array([np.cos(heading_rad), np.sin(heading_rad)], dtype=float)
+        normal_xy = np.array([-tangent_xy[1], tangent_xy[0]], dtype=float)
+        half_length_m = max(perception.reacquire_region_half_length_m, 1.0)
+        half_width_m = max(perception.reacquire_region_half_width_m, self.scenario.tracking.min_zigzag_half_band_width_m)
+
+        position_xy = pose.position_ned_m[:2]
+        relative_xy = position_xy - center_xy
+        along_m = float(np.dot(relative_xy, tangent_xy))
+        lateral_m = float(np.dot(relative_xy, normal_xy))
+
+        if abs(along_m) > half_length_m or abs(lateral_m) > half_width_m:
+            if self.scenario.tracking.reacquire_region_route_guard_enabled:
+                _, _, _, current_progress_m, _ = nearest_point_on_polyline(
+                    position_xy,
+                    self.nominal_route_lookup,
+                )
+                lookahead_m = max(
+                    self.scenario.tracking.reacquire_region_route_guard_lookahead_m,
+                    1.0,
+                )
+                target_xy = self._nominal_route_point_at_progress_m(current_progress_m + lookahead_m)
+            else:
+                entry_xy = center_xy - half_length_m * tangent_xy
+                if np.linalg.norm(entry_xy - position_xy) > np.linalg.norm(center_xy - position_xy):
+                    entry_xy = center_xy
+                target_xy = entry_xy
+        else:
+            if self.leg_sign > 0.0 and lateral_m >= half_width_m:
+                self.leg_sign = -1.0
+                self.last_leg_flip_time_s = perception.time_s
+            elif self.leg_sign < 0.0 and lateral_m <= -half_width_m:
+                self.leg_sign = 1.0
+                self.last_leg_flip_time_s = perception.time_s
+            target_along_m = float(np.clip(along_m + 0.5 * half_length_m, -half_length_m, half_length_m))
+            target_xy = center_xy + target_along_m * tangent_xy + self.leg_sign * half_width_m * normal_xy
+
+        delta_xy = target_xy - position_xy
+        if np.linalg.norm(delta_xy) < 1e-6:
+            return None
+        return heading_from_direction_xy(delta_xy)
+
+    def update(self, pose: Pose, perception: PerceptionState) -> GuidanceCommand:
+        """结合感知状态与任务 FSM 输出当前控制指令。"""
+        decision: MissionDecision = self.mission_manager.update(self._mission_input(pose, perception))
+        state = decision.state
+
+        base_heading_deg = self._base_heading_deg(pose, perception)
+        zigzag_width_m = perception.zigzag_width_m
+        self._remember_trusted_cable_state(perception)
+        previous_nominal_route_progress_m = self.last_nominal_route_progress_m
+        nominal_route_progress_m = self._nominal_route_progress_m(pose.position_ned_m[:2])
+        if self.scenario.tracking.decoupled_lateral_probe_route_governor_enabled:
+            if previous_nominal_route_progress_m is not None:
+                route_delta_m = nominal_route_progress_m - previous_nominal_route_progress_m
+                if route_delta_m < self.scenario.tracking.decoupled_lateral_probe_route_governor_min_delta_m:
+                    self.decoupled_lateral_probe_lockout_until_s = max(
+                        self.decoupled_lateral_probe_lockout_until_s,
+                        perception.time_s
+                        + self.scenario.tracking.decoupled_lateral_probe_route_governor_lockout_s,
+                    )
+        self.last_nominal_route_progress_m = nominal_route_progress_m
+        reacquire_zigzag_active = (
+            perception.deployment_reacquire_required
+            and self.scenario.tracking.reacquire_zigzag_enabled
+        )
+
+        # --- Cross-track-band leg flip ---
+        # The sweep flips when the vehicle reaches the half-band edge on the side
+        # it is currently steering toward.  Because the base heading is the cable
+        # tangent, every leg advances along-track while weaving ±half_band across
+        # the line, so cable crossings recur at a fixed along-track spacing and the
+        # field reliably rises-peaks-falls (the peak detector's prerequisite).
+        half_band_m = 0.5 * max(zigzag_width_m, self.scenario.tracking.min_zigzag_half_band_width_m)
+        cross_track_offset_m = self._cross_track_offset_m(pose, perception, base_heading_deg)
+        magnetic_crossing_probe_available = (
+            self.scenario.tracking.magnetic_crossing_probe_control_enabled
+            and self._magnetic_crossing_offset_sign(perception, base_heading_deg) != 0
+        )
+        self.probe_burst_reacquire_safe_control_allowed = (
+            self._probe_burst_reacquire_safe_control_allowed(state, cross_track_offset_m)
+        )
+        if self.scenario.tracking.probe_burst_manager_enabled:
+            self.probe_burst_decision = self.probe_burst_manager.update(
+                ProbeBurstInput(
+                    time_s=perception.time_s,
+                    route_progress_m=nominal_route_progress_m,
+                    abs_cross_track_m=(
+                        abs(cross_track_offset_m)
+                        if cross_track_offset_m is not None
+                        else float("inf")
+                    ),
+                    evidence_available=(
+                        perception.shadow_axis_progress_aligned_candidate_valid
+                        or perception.shadow_axis_progress_aligned_dual_gate_passed
+                    ),
+                    enabled=(
+                        state == MissionState.TRACK_ACTIVE
+                        and self.scenario.tracking.decoupled_lateral_target_control_enabled
+                    ),
+                    control_allowed=(
+                        state == MissionState.TRACK_ACTIVE
+                        and (
+                            (
+                                not reacquire_zigzag_active
+                                and not perception.deployment_reacquire_required
+                            )
+                            or self.probe_burst_reacquire_safe_control_allowed
+                        )
+                        and self.scenario.tracking.decoupled_lateral_target_control_enabled
+                    ),
+                )
+            )
+        else:
+            self.probe_burst_decision = None
+            self.probe_burst_reacquire_safe_control_allowed = False
+        if (
+            cross_track_offset_m is not None
+            and not perception.safe_lock_active
+            and not reacquire_zigzag_active
+            and not magnetic_crossing_probe_available
+        ):
+            decoupled_burst_active = (
+                self.scenario.tracking.decoupled_lateral_target_control_enabled
+                and self._decoupled_lateral_probe_burst_active(perception)
+            )
+            min_flip_interval_s = (
+                self.scenario.tracking.decoupled_lateral_target_min_flip_interval_s
+                if decoupled_burst_active
+                else 0.0
+            )
+            flip_interval_satisfied = (
+                perception.time_s - self.last_leg_flip_time_s >= min_flip_interval_s
+            )
+            if self.leg_sign > 0.0 and cross_track_offset_m >= half_band_m and flip_interval_satisfied:
+                self.leg_sign = -1.0
+                self.last_leg_flip_time_s = perception.time_s
+            elif self.leg_sign < 0.0 and cross_track_offset_m <= -half_band_m and flip_interval_satisfied:
+                self.leg_sign = 1.0
+                self.last_leg_flip_time_s = perception.time_s
+
+        # --- Watchdog leg flip (anti-escape fallback) ---
+        # Guards the case where no cable point is available (deployment cold start)
+        # so the band rule cannot fire; forces a turn after a generous sweep time.
+        expected_cross_time_s = max(
+            zigzag_width_m * self.scenario.tracking.crossing_width_periods / max(pose.speed_mps, 0.5),
+            self.scenario.tracking.watchdog_min_cross_time_s,
+        )
+        magnetic_crossing_probe_handled = (
+            not perception.safe_lock_active
+            and not reacquire_zigzag_active
+            and self._update_magnetic_crossing_probe_leg(perception, expected_cross_time_s, base_heading_deg)
+        )
+        perception.magnetic_crossing_probe_wait_s = max(0.0, perception.time_s - self.last_leg_flip_time_s)
+        perception.magnetic_crossing_probe_missed_count = self.magnetic_crossing_probe_missed_count
+        perception.magnetic_crossing_probe_forced_flip = self.magnetic_crossing_probe_forced_flip
+        if (
+            not magnetic_crossing_probe_handled
+            and not reacquire_zigzag_active
+            and perception.time_s - self.last_leg_flip_time_s > expected_cross_time_s
+        ):
+            self.leg_sign *= -1.0
+            self.last_leg_flip_time_s = perception.time_s
+
+        # --- Base-heading low-pass ---
+        if perception.local_path_tracking_state == "curve_track":
+            self.smoothed_base_heading_deg = base_heading_deg
+        elif self.smoothed_base_heading_deg is None:
+            self.smoothed_base_heading_deg = base_heading_deg
+        else:
+            heading_diff = smallest_angle_error_deg(base_heading_deg, self.smoothed_base_heading_deg)
+            self.smoothed_base_heading_deg = wrap_angle_deg(self.smoothed_base_heading_deg + heading_diff * self.scenario.tracking.base_heading_smoothing)
+        effective_base_heading_deg = self.smoothed_base_heading_deg
+
+        magnetic_fit_ready = perception.fit_result.origin_xy_m is not None and len(perception.estimated_path_points_xy_m) >= 3
+        crossing_angle_deg = self._crossing_angle_for_state(
+            state,
+            zigzag_width_m,
+            magnetic_fit_ready,
+            perception.local_path_tracking_state,
+        )
+        desired_heading_deg = wrap_angle_deg(effective_base_heading_deg + self.leg_sign * crossing_angle_deg)
+        if (
+            self.scenario.tracking.decoupled_lateral_target_control_enabled
+            and state in {MissionState.LOCK_ALIGN, MissionState.TRACK_ACTIVE}
+            and (
+                (
+                    not reacquire_zigzag_active
+                    and not perception.deployment_reacquire_required
+                )
+                or self.probe_burst_reacquire_safe_control_allowed
+            )
+            and self._decoupled_lateral_probe_burst_active(perception)
+        ):
+            decoupled_heading_deg = self._decoupled_lateral_target_heading_deg(pose, perception)
+            if decoupled_heading_deg is not None:
+                decoupled_error_deg = smallest_angle_error_deg(decoupled_heading_deg, desired_heading_deg)
+                decoupled_correction_deg = float(np.clip(
+                    self.scenario.tracking.decoupled_lateral_target_control_blend * decoupled_error_deg,
+                    -self.scenario.tracking.decoupled_lateral_target_control_max_correction_deg,
+                    self.scenario.tracking.decoupled_lateral_target_control_max_correction_deg,
+                ))
+                desired_heading_deg = wrap_angle_deg(desired_heading_deg + decoupled_correction_deg)
+        if (
+            (
+                self.scenario.tracking.decoupled_lateral_probe_recovery_control_enabled
+                or self.scenario.tracking.probe_burst_manager_enabled
+            )
+            and state in {MissionState.LOCK_ALIGN, MissionState.TRACK_ACTIVE}
+            and (
+                (
+                    not reacquire_zigzag_active
+                    and not perception.deployment_reacquire_required
+                )
+                or self.probe_burst_reacquire_safe_control_allowed
+            )
+            and self._decoupled_lateral_probe_recovery_active(perception)
+        ):
+            recovery_heading_deg = self._route_centerline_recovery_heading_deg(pose)
+            if recovery_heading_deg is not None:
+                desired_heading_deg = recovery_heading_deg
+        safe_probe_override_active = (
+            self.probe_burst_reacquire_safe_control_allowed
+            and (
+                self._decoupled_lateral_probe_burst_active(perception)
+                or self._decoupled_lateral_probe_recovery_active(perception)
+            )
+        )
+        if perception.deployment_reacquire_required and not safe_probe_override_active:
+            reacquire_heading_deg = self._reacquire_heading_deg(pose, perception, effective_base_heading_deg)
+            if reacquire_heading_deg is not None:
+                desired_heading_deg = reacquire_heading_deg
+        if state == MissionState.REACQUIRE_REGION:
+            region_heading_deg = self._region_reacquire_heading_deg(pose, perception)
+            if region_heading_deg is not None:
+                desired_heading_deg = region_heading_deg
+
+        # --- TRACK_ACTIVE centerline hold ---
+        # Holding the cable tangent alone lets residual cross-track offset persist
+        # (and drift during sonar outages).  A proportional correction steers the
+        # signed offset to zero: a positive (left) offset subtracts heading to bank
+        # right.  Source priority is sonar > magnetic ratio > prior route, so the
+        # vehicle keeps tracking the line from the magnetometer alone when sonar
+        # drops out, without the coarse offset ever touching the line fit.
+        if state == MissionState.TRACK_ACTIVE:
+            if (
+                self.scenario.tracking.magnetic_lookahead_pursuit_enabled
+                and perception.magnetic_lookahead_valid
+                and perception.magnetic_lookahead_target_xy_m is not None
+            ):
+                target_xy_m = np.asarray(perception.magnetic_lookahead_target_xy_m, dtype=float)
+                to_target_xy = target_xy_m - pose.position_ned_m[:2]
+                target_heading_deg = heading_from_direction_xy(to_target_xy)
+                if target_heading_deg is not None:
+                    pursuit_error_deg = smallest_angle_error_deg(target_heading_deg, desired_heading_deg)
+                    pursuit_correction_deg = float(np.clip(
+                        self.scenario.tracking.magnetic_lookahead_pursuit_gain * pursuit_error_deg,
+                        -self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
+                        self.scenario.tracking.magnetic_lookahead_pursuit_max_correction_deg,
+                    ))
+                    desired_heading_deg = wrap_angle_deg(desired_heading_deg + pursuit_correction_deg)
+            track_offset_m = self._track_cross_track_offset_m(pose, perception, effective_base_heading_deg)
+            if track_offset_m is not None:
+                correction_deg = float(np.clip(
+                    -self.scenario.tracking.track_cross_track_gain_deg_per_m * track_offset_m,
+                    -self.scenario.tracking.track_cross_track_max_correction_deg,
+                    self.scenario.tracking.track_cross_track_max_correction_deg,
+                ))
+                desired_heading_deg = wrap_angle_deg(desired_heading_deg + correction_deg)
+
+        # The align slow-down only helps once a fit exists to refine; while still
+        # bootstrapping, keep cruise speed so the zig-zag legs are long enough to
+        # produce clean magnetic peaks (the fit's only input).
+        speed_factor = decision.speed_factor
+        if state == MissionState.LOCK_ALIGN and not magnetic_fit_ready:
+            speed_factor = 1.0
+        if perception.local_path_tracking_state == "curve_track":
+            speed_factor = min(speed_factor, self.scenario.tracking.curve_track_speed_factor)
+        speed_mps = self.scenario.vehicle.cruise_speed_mps * speed_factor
+
+        yaw_rate_deg_s = self._limited_yaw_rate_deg_s(speed_mps, desired_heading_deg, pose.heading_deg)
+        turning_radius_m = float("inf")
+        if abs(yaw_rate_deg_s) > 1e-6:
+            turning_radius_m = max(speed_mps, 1e-6) / max(np.deg2rad(abs(yaw_rate_deg_s)), 1e-6)
+
+        return GuidanceCommand(
+            desired_heading_deg=desired_heading_deg,
+            speed_mps=speed_mps,
+            mode=state,
+            guidance_source=decision.guidance_source,
+            commanded_turn_radius_m=turning_radius_m,
+            yaw_rate_deg_s=yaw_rate_deg_s,
+            safe_lock_active=perception.safe_lock_active,
+            zigzag_width_m=zigzag_width_m,
+            emergency_flag=decision.emergency_flag,
+        )
+
+
+def apply_attitude_profile(pose: Pose, scenario: ScenarioConfig, time_s: float) -> None:
+    """根据场景配置为当前姿态叠加周期性俯仰和横滚扰动。"""
+    vehicle = scenario.vehicle
+    pose.pitch_deg = vehicle.pitch_amplitude_deg * np.sin(2.0 * np.pi * vehicle.pitch_frequency_hz * time_s)
+    pose.roll_deg = vehicle.roll_amplitude_deg * np.sin(2.0 * np.pi * vehicle.roll_frequency_hz * time_s)
+
+
+def propagate_vehicle(pose: Pose, command: GuidanceCommand, scenario: ScenarioConfig, seabed_depth_m: float, dt_s: float) -> Pose:
+    """根据控制指令和简化运动学模型推进车辆状态。"""
+    updated_pose = pose.copy()
+    speed_mps = max(command.speed_mps, 1e-6)
+    radius_limited_yaw_rate_deg_s = float(np.rad2deg(speed_mps / max(scenario.vehicle.min_turning_radius_m, 1e-6)))
+    max_yaw_rate_deg_s = min(scenario.vehicle.max_yaw_rate_deg_s, radius_limited_yaw_rate_deg_s)
+    commanded_yaw_rate_deg_s = float(np.clip(command.yaw_rate_deg_s, -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+    if abs(commanded_yaw_rate_deg_s) <= 1e-9:
+        heading_error_deg = smallest_angle_error_deg(command.desired_heading_deg, updated_pose.heading_deg)
+        commanded_yaw_rate_deg_s = float(np.clip(heading_error_deg / max(dt_s, 1e-6), -max_yaw_rate_deg_s, max_yaw_rate_deg_s))
+    heading_step_deg = commanded_yaw_rate_deg_s * dt_s
+    updated_pose.heading_deg = wrap_angle_deg(updated_pose.heading_deg + heading_step_deg)
+    updated_pose.speed_mps = command.speed_mps
+
+    heading_rad = np.deg2rad(updated_pose.heading_deg)
+    north_rate = updated_pose.speed_mps * np.cos(heading_rad)
+    east_rate = updated_pose.speed_mps * np.sin(heading_rad)
+    updated_pose.position_ned_m[0] += north_rate * dt_s
+    updated_pose.position_ned_m[1] += east_rate * dt_s
+    updated_pose.position_ned_m[2] = seabed_depth_m - scenario.vehicle.altitude_above_seabed_m
+    return updated_pose

@@ -1,0 +1,11 @@
+{
+  "role": "synthetic_opt_in_route_hold_admission_geometry",
+  "old_minimum_clearance_m": 15.0,
+  "new_minimum_clearance_m": 25.0,
+  "required_clearance_m": 19.6,
+  "old_admitted": false,
+  "new_admitted": true,
+  "old_config_sha256": "99dd4873d5782cbd6cc9b0eb29329c86f24a926b97481ee099ab41d4ee341fd5",
+  "new_config_sha256": "39b589de9b3b9f910c298429988718259822c9f720fb4ec761dee9f61bf95631",
+  "caveat": "Known initial straight leg only; later rejoin geometry needs online motion guard. Synthetic stop/current bounds are not field measurements."
+}

@@ -1,0 +1,20 @@
+{
+  "role": "synthetic_independent_process_diagnostic_figure",
+  "normal_completed": [
+    true,
+    true
+  ],
+  "normal_route_mae_m": [
+    0.7579259499215278,
+    0.7574016514544775
+  ],
+  "guard_loss_zero_udp_ticks": 241,
+  "identity_hold_displacement_m": 4.64561591233226,
+  "source_csv_sha256": {
+    "wire_seed_104.csv": "627ec3f3428e935207d658b1c8a93c00acb80cd8ee33516f6d1582a3e9d2e29e",
+    "wire_seed_107.csv": "3ddfc88b08a144f9e285b0722d611959b0e4d08fb5a2c43636aa0568485a9f3d",
+    "wire_guard_telemetry_loss_seed_105.csv": "38c617741b4df758bf1ce829177cf77a730f48e39eec57156e08e90b74ff06c7",
+    "wire_seed_106.csv": "d105065da79c0bfe58f083938f106b235d28c23c0e0ea617ffaec2d8d7c13fde"
+  },
+  "caveat": "Four separate synthetic harness invocations, not one uninterrupted soak or physical PC104/vehicle evidence."
+}

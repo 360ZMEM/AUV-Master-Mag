@@ -1,0 +1,12 @@
+{
+  "scope": "single-seed ROS/PID/guard/UDP/native PVS adaptive route run-in; historical Fig25 baseline retained",
+  "files": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/26_current_conditioned_rejoin.png": "1e86d57c7e862480a9f243247d75a3cf0d48674ba31fa89d7516112e23252265",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/26_current_conditioned_rejoin.pdf": "aa4908c8e166248bee1fabbf488c9cf5bfa5e71d25e187b04de13ee242ea303b",
+    "docs/thesis/figures/experiments/fwhm_v2/26_current_conditioned_rejoin.pdf": "aa4908c8e166248bee1fabbf488c9cf5bfa5e71d25e187b04de13ee242ea303b",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/26_current_conditioned_rejoin_summary.json": "d24c13b1684cb21dd8d49573363556a0407d7944a520d87aec1cbf7d12dddf1d",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/26_current_conditioned_rejoin_three_seed_audit.json": "c8641957eab48c9cacbe565ebed979e8af2914968ac68deb2a26d1d2caca4a11",
+    "tools/plot_v2_rejoin_runin_policy.py": "1e7a1f4de1d04dbf5f90b8d319955debf4dc42c0b652ef47710c927edddac211",
+    "tools/audit_v2_rejoin_runin_repeats.py": "b860c4f036e702423ce189157f96e29b4f4ca9be975e3de3fc92ee14dbacdbf0"
+  }
+}

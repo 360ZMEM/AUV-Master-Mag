@@ -1,0 +1,21 @@
+# Isolated algorithm experiment; this file is not an enabled ROS mission profile.
+mission_geometry: multi_crossing_corridor_candidate
+prior_frame: local_ned
+prior_path_xy_m: [[0.0, 0.0], [60.0, 0.0]]
+search_boundary_xy_m: [[-10.0, -24.0], [75.0, -24.0], [75.0, 24.0], [-10.0, 24.0]]
+survey:
+  half_width_m: 15.0
+  station_spacing_m: 20.0
+  station_count: 3
+  velocity_mps: 0.3
+  boundary_margin_m: 5.0
+  maximum_scan_gap_m: 1.0
+  maximum_along_excursion_m: 2.0
+  maximum_center_sigma_m: 0.75
+  maximum_line_residual_m: 0.75
+  maximum_heading_deviation_deg: 15.0
+  maximum_prior_bend_deg: 5.0
+release:
+  magnetic_line_geometry_only: true
+  target_identity_from_magnetic_profile: false
+  burial_depth_without_independent_calibration: false

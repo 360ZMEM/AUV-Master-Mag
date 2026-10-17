@@ -1,0 +1,50 @@
+{
+  "role": "synthetic_inspection_bridge_budget_stop_gate",
+  "cases": {
+    "normal_cross": {
+      "completed": true,
+      "duration_s": 1105.75,
+      "first_hold_s": null,
+      "first_recovery_required_s": null,
+      "mission_retransmission_rejections": 0,
+      "bridge_budget_latched": false,
+      "bridge_recovery_stop_observed": false,
+      "bridge_stale_budget_stop_observed": true,
+      "final_inspection_status": "LOCALIZED_DEPTH_PENDING",
+      "depth_published": false,
+      "positive_rpm_ticks": 4419,
+      "hold_zero_rpm_ticks": null,
+      "summary_path": "AUV-Master-Mag/results/v2/inspection_bridge_hold_gate_20260927/normal_cross/wire_seed_101_summary.json",
+      "summary_sha256": "e711985630b6c2192b0302b788d4680a94da774427ad6d16aab32f0ed2280eff",
+      "csv_path": "AUV-Master-Mag/results/v2/inspection_bridge_hold_gate_20260927/normal_cross/wire_seed_101.csv",
+      "csv_sha256": "206d9980e5c943f41004686734d11e65cb19c706e1b119d62ae4a2ddd9cb833c"
+    },
+    "switch_cross": {
+      "completed": false,
+      "duration_s": 593.5,
+      "first_hold_s": 583.5,
+      "first_recovery_required_s": 583.5,
+      "mission_retransmission_rejections": 2,
+      "bridge_budget_latched": true,
+      "bridge_recovery_stop_observed": true,
+      "bridge_stale_budget_stop_observed": true,
+      "final_inspection_status": "RECOVERY_REQUIRED",
+      "depth_published": false,
+      "positive_rpm_ticks": 2330,
+      "hold_zero_rpm_ticks": 41,
+      "summary_path": "AUV-Master-Mag/results/v2/inspection_bridge_hold_gate_20260927/switch_cross/wire_seed_101_summary.json",
+      "summary_sha256": "83f662443c25b48ac5c63f0d32c63d1cf6fe6981330d0cdca1afc43fa684e512",
+      "csv_path": "AUV-Master-Mag/results/v2/inspection_bridge_hold_gate_20260927/switch_cross/wire_seed_101.csv",
+      "csv_sha256": "63583cfa50f8f907db8f2be14dd4f254e4fffd9ae8837e126875f09d425cd10d"
+    }
+  },
+  "implementation_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "a015979b921b571a35d4f2ecaab360d69c910dbba7c2ec966d3c4b80865afaba",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "c58193c22257f16a27f4de9da66236e9959cb4cbb0627fbb3fa334e92c0dca6b",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "2d65c56424f777200548837a8f1ac3cfe02e90a65d7e5d71a3c32b35d46f970e",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "99dd4873d5782cbd6cc9b0eb29329c86f24a926b97481ee099ab41d4ee341fd5",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "617744b9f49a578bce2e1729dbdb26592c6fa84977440f6ab370898422ef5558"
+  },
+  "field_release_authorized": false,
+  "caveat": "No physical sonar, authenticated DDS publisher, certified upper-level disposition, or PC104 physical response."
+}

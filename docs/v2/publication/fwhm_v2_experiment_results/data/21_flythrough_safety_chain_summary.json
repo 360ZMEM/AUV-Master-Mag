@@ -1,0 +1,41 @@
+{
+  "scope": "isolated ROS2 + inspection PID + real guard/arbiter + localhost UDP + native PVS; synthetic magnetic source and scripted guard inputs; no PC104",
+  "seed": 101,
+  "manual_cancel_trigger_s": 592.25,
+  "manual_before_controller_gate": {
+    "ticks": 241,
+    "positive_pid_ticks": 241,
+    "positive_udp_rpm_ticks": 0,
+    "max_pid_thrust_percent": 13.478523254394531
+  },
+  "manual_after_controller_gate": {
+    "ticks": 241,
+    "positive_pid_ticks": 0,
+    "positive_udp_rpm_ticks": 0,
+    "max_pid_thrust_percent": 0.0
+  },
+  "persistent_magnetic_invalid": {
+    "ticks": 241,
+    "positive_pid_ticks": 0,
+    "positive_udp_rpm_ticks": 0,
+    "max_pid_thrust_percent": 0.0,
+    "completed": false,
+    "final_speed_mps": 0.01022098172390347
+  },
+  "navigation_invalid_15_s": {
+    "ticks": 60,
+    "positive_pid_ticks": 0,
+    "positive_udp_rpm_ticks": 0,
+    "max_pid_thrust_percent": 0.0,
+    "completed_after_recovery": true,
+    "duration_s": 1137.25
+  },
+  "stale_guard_telemetry": {
+    "ticks": 241,
+    "positive_pid_ticks": 0,
+    "positive_udp_rpm_ticks": 0,
+    "max_pid_thrust_percent": 0.0,
+    "completed": false,
+    "final_speed_mps": 0.010093642920313579
+  }
+}

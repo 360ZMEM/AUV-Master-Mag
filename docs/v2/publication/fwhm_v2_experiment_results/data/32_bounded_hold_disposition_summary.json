@@ -1,0 +1,15 @@
+{
+  "role": "synthetic_hold_budget_alarm_without_recovery_action",
+  "first_hold_s": 583.5,
+  "first_recovery_required_s": 583.5,
+  "first_recovery_reason": "hold_boundary_budget_exhausted",
+  "clearance_at_hold_m": 14.481428458575644,
+  "required_clearance_at_hold_m": 17.6,
+  "remaining_budget_at_hold_m": -3.118571541424357,
+  "zero_rpm_hold_ticks": 41,
+  "source_csv": "AUV-Master-Mag/results/v2/inspection_hold_budget_20260927/switch_cross/wire_seed_101.csv",
+  "source_csv_sha256": "0ea6aeea82301db0ae69ec2945262651583e22282ce10d3bc9e2e5529b73c06c",
+  "source_summary": "AUV-Master-Mag/results/v2/inspection_hold_budget_20260927/switch_cross/wire_seed_101_summary.json",
+  "source_summary_sha256": "56de139a50582f1cc1b192d410d71c0f9ebb7c97a22158c66853d339a498d1b7",
+  "caveat": "PVS and synthetic sonar; alarm only, without an accepted upper-level/PC104 recovery action."
+}

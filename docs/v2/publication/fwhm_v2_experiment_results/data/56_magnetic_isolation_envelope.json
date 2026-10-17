@@ -1,0 +1,248 @@
+{
+  "families": {
+    "physical_single_wire": {
+      "by_ratio": [
+        {
+          "ratio": 0.0,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.034757492224963826
+        },
+        {
+          "ratio": 0.05,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.28528070160143093
+        },
+        {
+          "ratio": 0.1,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 54,
+          "worst_accepted_error_m": 0.6195671840067916
+        },
+        {
+          "ratio": 0.15,
+          "cases": 160,
+          "accepted": 154,
+          "accepted_error_over_limit": 101,
+          "worst_accepted_error_m": 1.0395383275606944
+        },
+        {
+          "ratio": 0.2,
+          "cases": 160,
+          "accepted": 111,
+          "accepted_error_over_limit": 71,
+          "worst_accepted_error_m": 1.3628675365707492
+        },
+        {
+          "ratio": 0.25,
+          "cases": 160,
+          "accepted": 90,
+          "accepted_error_over_limit": 58,
+          "worst_accepted_error_m": 1.3674034235909782
+        },
+        {
+          "ratio": 0.3,
+          "cases": 160,
+          "accepted": 82,
+          "accepted_error_over_limit": 51,
+          "worst_accepted_error_m": 1.4076491826330688
+        },
+        {
+          "ratio": 0.35,
+          "cases": 160,
+          "accepted": 76,
+          "accepted_error_over_limit": 52,
+          "worst_accepted_error_m": 1.4014489186330734
+        },
+        {
+          "ratio": 0.4,
+          "cases": 160,
+          "accepted": 74,
+          "accepted_error_over_limit": 50,
+          "worst_accepted_error_m": 1.5282912117170775
+        },
+        {
+          "ratio": 0.45,
+          "cases": 160,
+          "accepted": 73,
+          "accepted_error_over_limit": 49,
+          "worst_accepted_error_m": 1.6591484834841044
+        },
+        {
+          "ratio": 0.5,
+          "cases": 160,
+          "accepted": 70,
+          "accepted_error_over_limit": 52,
+          "worst_accepted_error_m": 1.5801041858339273
+        }
+      ],
+      "worst_accepted_error_m": 1.6591484834841044
+    },
+    "thesis_dipole": {
+      "by_ratio": [
+        {
+          "ratio": 0.0,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.012391283091214955
+        },
+        {
+          "ratio": 0.05,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.12888444647651576
+        },
+        {
+          "ratio": 0.1,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.279795310643685
+        },
+        {
+          "ratio": 0.15,
+          "cases": 160,
+          "accepted": 160,
+          "accepted_error_over_limit": 0,
+          "worst_accepted_error_m": 0.4593789953763552
+        },
+        {
+          "ratio": 0.2,
+          "cases": 160,
+          "accepted": 156,
+          "accepted_error_over_limit": 30,
+          "worst_accepted_error_m": 0.642071056272407
+        },
+        {
+          "ratio": 0.25,
+          "cases": 160,
+          "accepted": 140,
+          "accepted_error_over_limit": 41,
+          "worst_accepted_error_m": 0.8703337329100951
+        },
+        {
+          "ratio": 0.3,
+          "cases": 160,
+          "accepted": 119,
+          "accepted_error_over_limit": 31,
+          "worst_accepted_error_m": 0.950602941208766
+        },
+        {
+          "ratio": 0.35,
+          "cases": 160,
+          "accepted": 108,
+          "accepted_error_over_limit": 36,
+          "worst_accepted_error_m": 0.9420882545043345
+        },
+        {
+          "ratio": 0.4,
+          "cases": 160,
+          "accepted": 95,
+          "accepted_error_over_limit": 29,
+          "worst_accepted_error_m": 1.037294281215045
+        },
+        {
+          "ratio": 0.45,
+          "cases": 160,
+          "accepted": 93,
+          "accepted_error_over_limit": 29,
+          "worst_accepted_error_m": 1.1209799301837156
+        },
+        {
+          "ratio": 0.5,
+          "cases": 160,
+          "accepted": 89,
+          "accepted_error_over_limit": 40,
+          "worst_accepted_error_m": 1.2124998039270818
+        }
+      ],
+      "worst_accepted_error_m": 1.2124998039270818
+    }
+  },
+  "cases": 3520,
+  "accepted_false_center_count": 774,
+  "worst_false_center": {
+    "family": "physical_single_wire",
+    "noise_nt": 0.05,
+    "seed": 101,
+    "neighbor_side": 1,
+    "separation_m": 5.0,
+    "neighbor_peak_gain_ratio": 0.45,
+    "lateral_valid": true,
+    "center_m": 1.6591484834841044,
+    "target_center_error_m": 1.6591484834841044,
+    "confidence": 0.8572953912113752,
+    "reason_codes": ""
+  },
+  "scope": "finite synthetic scalar-envelope sensitivity only; no physical target uniqueness or ROS/PVS completion claim",
+  "scan_m": [
+    -15,
+    15
+  ],
+  "scan_samples": 301,
+  "baseline_nt": 1.0,
+  "target_amplitude_nt": 20.0,
+  "vertical_separation_m": 3.0,
+  "separations_m": [
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    3.5,
+    4.0,
+    4.5,
+    5.0,
+    5.5,
+    6.0,
+    6.5,
+    7.0,
+    7.5,
+    8.0,
+    8.5,
+    9.0,
+    9.5,
+    10.0
+  ],
+  "gain_ratios": [
+    0.0,
+    0.05,
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5
+  ],
+  "noise_nt": [
+    0.0,
+    0.05
+  ],
+  "noise_seeds": [
+    101,
+    102,
+    103
+  ],
+  "neighbor_sides": [
+    -1,
+    1
+  ],
+  "error_limit_m": 0.5,
+  "method": "unchanged estimate_fwhm + qualify_lateral_center; target truth at x=0",
+  "source_script_sha256": "a9dde9eae1ebf280b5fbf57b5fdd1a4d71810dd878713382be2128b63f10fa26",
+  "fwhm_sha256": "2a8abdddc102329bc76f326d36828de0be63eeab06d44179c09220af8641d14e",
+  "lateral_sha256": "ae9c76f5172cf8e8bfa7740dade7727afdda0800d723bc67e6cba1b706c2b357",
+  "csv_sha256": "0f7356bf88243bf70dd3d7b461b5d3669b38b38622e7769a0760264795262550",
+  "png_sha256": "3ab3a8faa18396391ba7be733dfa6ad7d7fe15dac1ae1a9f0576e8a6bbbe647b",
+  "pdf_sha256": "96a4d985ba899e39ad16037838abbef00b073d4b6ac6c4629620f37ff07c729c"
+}

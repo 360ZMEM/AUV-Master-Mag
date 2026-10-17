@@ -1,0 +1,162 @@
+{
+  "role": "single_run_synthetic_wall_clock_imu_stamp_replay_on_passive_inspection_shadow",
+  "ros_domain_id": "229",
+  "healthy_s": 10.0,
+  "replay_s": 4.0,
+  "counts": {
+    "bridge": 1117,
+    "nav": 279,
+    "covariance": 279,
+    "capability": 28,
+    "tracking": 90,
+    "setpoint": 90,
+    "depth_valid": 90
+  },
+  "tracking_modes": {
+    "hold": 90
+  },
+  "last_tracking_payload": {
+    "time_s": 1790472900.3621495,
+    "estimated_cable_xy_m": [
+      -250.0,
+      -15.0
+    ],
+    "cross_track_m": 0.0,
+    "route_progress_m": 0.0,
+    "cable_heading_deg": 10.0,
+    "burial_depth_m": null,
+    "burial_sigma_m": null,
+    "confidence": 0.0,
+    "mode": "hold",
+    "magnetic_strength_nt": null,
+    "magnetic_snr_db": null,
+    "magnetic_confidence": null,
+    "fit_residual_m": null,
+    "prior_alignment_residual_m": null,
+    "burial_fit_quality": null,
+    "burial_sample_count": null,
+    "quality_flags": [],
+    "acceptance_flags": [
+      "confidence_below_limit",
+      "burial_uncertainty_missing",
+      "hold_budget_recovery_required"
+    ],
+    "industrial_ready": false,
+    "industrial_acceptance_pass": false,
+    "dlt1278": {
+      "standard": "DL/T 1278-style",
+      "runtime_scope": "实时样本摘要；最终结论以离线报告为准",
+      "state": "正常状态",
+      "total_score": 0,
+      "worst_single_score": 0,
+      "score_items": [],
+      "industrial_conclusion_readiness": "limited",
+      "industrial_acceptance_pass": false,
+      "acceptance_flags": [
+        "confidence_below_limit",
+        "burial_uncertainty_missing",
+        "hold_budget_recovery_required"
+      ],
+      "quality_flags": [],
+      "thresholds": {
+        "burial_target_m": 1.5,
+        "route_offset_target_m": 2.0,
+        "burial_accuracy_target_m": 0.15
+      },
+      "output_products": [
+        "tracking.jsonl",
+        "inspection_summary.json",
+        "dlt1278_report.md",
+        "cable_ops_points.csv",
+        "burial_profile.csv",
+        "route_deviation.csv",
+        "figures/*.png",
+        "operator_view/*.png"
+      ]
+    },
+    "guidance": {
+      "desired_heading_deg": 10.0,
+      "raw_desired_heading_deg": 10.0,
+      "speed_mps": 1e-06,
+      "yaw_rate_deg_s": 0.0,
+      "commanded_turn_radius_m": null
+    },
+    "diagnostics": {
+      "algorithm_version": "v2",
+      "mission_phase": "hold",
+      "source": "unavailable",
+      "continuity_reason": "flythrough_side_hint_simulation_only",
+      "lateral_valid": false,
+      "depth_valid": false,
+      "inspection_enabled": true,
+      "observation_only_available": false,
+      "hold_budget": {
+        "state": "RECOVERY_REQUIRED",
+        "recovery_required": true,
+        "reason": "hold_budget_unconfigured",
+        "hold_elapsed_s": 8.89870840300864,
+        "boundary_clearance_m": null,
+        "remaining_budget_m": null
+      },
+      "recovery_guidance_enabled": false,
+      "recovery_guidance_active": false,
+      "recovery_guidance_streak": 0,
+      "zigzag_probe_active": false,
+      "zigzag_probe_suppressed_by_recovery": false,
+      "zigzag_probe_suppressed_by_inspection_hold": false,
+      "zigzag_probe_lateral_amplitude_m": 1.2,
+      "zigzag_probe_wavelength_m": 24.0,
+      "zigzag_probe_phase_rad": 0.0,
+      "zigzag_probe_heading_bias_deg": 0.0,
+      "zigzag_probe_required_peak_heading_deg": 17.440594490511867,
+      "zigzag_probe_required_min_turn_radius_m": 14.002250465704435,
+      "zigzag_probe_required_peak_lateral_speed_mps": 0.0,
+      "zigzag_probe_dynamics_feasible": true,
+      "zigzag_probe_feasibility_reasons": [],
+      "zigzag_limited": false,
+      "limit_reason": "",
+      "acceptance_flags": [
+        "confidence_below_limit",
+        "burial_uncertainty_missing",
+        "hold_budget_recovery_required"
+      ],
+      "industrial_ready": false,
+      "industrial_acceptance_pass": false,
+      "dlt1278_state": "正常状态",
+      "dlt1278_total_score": 0
+    }
+  },
+  "last_covariance_diag": [
+    0.010427583940327168,
+    0.010427583940327168,
+    1.0433453098812606e-05,
+    1.0433453098812606e-05,
+    0.25080281496047974
+  ],
+  "last_position_min_eigenvalue": 0.010427583940327168,
+  "nav_count_after_fault": 80,
+  "nav_count_after_one_second_grace": 59,
+  "checks": {
+    "raw_sensor_to_filtered_nav": true,
+    "healthy_inspection_capability": true,
+    "mission_command_sent": true,
+    "tracking_and_setpoint_output": true,
+    "unapproved_synthetic_side_hint_does_not_search": true,
+    "passive_bridge_never_authorized": true,
+    "no_uncalibrated_depth": true,
+    "replay_stops_filtered_navigation": false,
+    "replay_revokes_capability": false,
+    "replay_degrades_tracking": false,
+    "replay_sets_zero_speed": true
+  },
+  "checks_passed": false,
+  "source_sha256": {
+    "probe": "28244ec60deb34e2b003b36ac47da00462ed730330d18bf25fec04ffdfcbf955",
+    "localization": "842dfe55b0052490430c327bfee05741c5a4912bd0b7cbfe350dfc0407e639a0",
+    "shadow_launch": "4a316fbb9b89be21ea7682f57f3322f32f49882e9a410e7dc048d1776915ea4d",
+    "v2_config": "52343a728b1e6dab4447cbe09a06f7a537c0a5ff806138e3fdb33d6b60e56d24",
+    "base_params": "21b296ecf83a0fad6561587715ae22ba4dc6c4eab9824a98e6cd9d5ef0235daf"
+  },
+  "physical_sensors_tested": false,
+  "field_release_authorized": false
+}

@@ -1,0 +1,156 @@
+{
+  "role": "synthetic_joint_wrong_sonar_magnetic_target_association_counterexample_and_optional_anchor_fix",
+  "scope": "three separate seed-101 installed-v2 ROS/PID/guard/localhost-UDP/native-PVS runs; synthetic sonar, magnetic sources, and anchor; not physical success rates",
+  "target_lateral_m": 6.0,
+  "neighbor_lateral_m": 9.0,
+  "neighbor_gain_nt": 10.0,
+  "biased_search_hint_m": [
+    6.6,
+    7.5
+  ],
+  "independent_anchor_m": [
+    5.8,
+    6.2
+  ],
+  "joint_wrong_sonar_line_m": 7.026,
+  "seed": 101,
+  "cases": {
+    "before_anchor": {
+      "case": "before_anchor",
+      "summary_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_before_anchor/wire_seed_101_summary.json",
+      "summary_sha256": "f5e47da2023ed68bd5e937df4f90475003de8973fa82b5a6949f033daa115c5b",
+      "csv_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_before_anchor/wire_seed_101.csv",
+      "csv_sha256": "187880557e728539b8d98cf7c8c04bc13887d795885b3c0a15366c1249e48203",
+      "log_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_before_anchor.log",
+      "log_sha256": "1f2905d5545d6f485dbef4276ec818c085154147642d9a0dc0b60f9fde47a254",
+      "installed_v2_node_path": "/home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py",
+      "installed_v2_node_sha256": "d17507791ca53ac0589c0c49aba1ec88a6864157323b3048376ca72c2c2d776a",
+      "completed": true,
+      "ever_track": true,
+      "duration_s": 1105.0,
+      "magnetic_center_m": 7.025917285430622,
+      "lateral_reason_codes": [],
+      "online_track_mae_m": 0.7210851575415494,
+      "target_true_track_mae_m": 1.0898021934994784,
+      "target_true_track_max_m": 2.3092857803357862,
+      "target_true_track_samples": 1039,
+      "depth_published": false,
+      "sonar_line_lateral_m": 7.026,
+      "last_identity_reason": "accepted",
+      "confirm_sonar_center_m": 7.026,
+      "confirm_sonar_half_width_m": 0.3957385508661137,
+      "final_target_speed_mps": 0.0,
+      "final_pid_thrust_percent": 0.0,
+      "final_udp_rpm": 0,
+      "transitions": [
+        {
+          "time_s": 1.0,
+          "mode": "search"
+        },
+        {
+          "time_s": 203.25,
+          "mode": "confirm"
+        },
+        {
+          "time_s": 577.0,
+          "mode": "track"
+        }
+      ]
+    },
+    "wrong_with_anchor": {
+      "case": "wrong_with_anchor",
+      "summary_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_wrong_with_anchor/wire_seed_101_summary.json",
+      "summary_sha256": "9343119c8c296827d0deefea92628450a2bccceb45723d1d77291d454aa11a8c",
+      "csv_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_wrong_with_anchor/wire_seed_101.csv",
+      "csv_sha256": "f6313a7f16689d12ea98b6820707a68dbe2361d11f62cb17e02770f6bfec07ee",
+      "log_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_wrong_with_anchor.log",
+      "log_sha256": "4035734ce0dae5abd1d2aafaafad3af39f8e9dce557683b728cf5e36f0f62865",
+      "installed_v2_node_path": "/home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py",
+      "installed_v2_node_sha256": "d17507791ca53ac0589c0c49aba1ec88a6864157323b3048376ca72c2c2d776a",
+      "completed": false,
+      "ever_track": false,
+      "duration_s": 577.0,
+      "magnetic_center_m": 7.025917285430622,
+      "lateral_reason_codes": [
+        "runtime_target_anchor_inconsistent"
+      ],
+      "online_track_mae_m": null,
+      "target_true_track_mae_m": null,
+      "target_true_track_max_m": null,
+      "target_true_track_samples": 0,
+      "depth_published": false,
+      "sonar_line_lateral_m": 7.026,
+      "last_identity_reason": "accepted",
+      "confirm_sonar_center_m": 7.026,
+      "confirm_sonar_half_width_m": 0.3957385508661137,
+      "final_target_speed_mps": 0.0,
+      "final_pid_thrust_percent": 0.0,
+      "final_udp_rpm": 0,
+      "transitions": [
+        {
+          "time_s": 1.0,
+          "mode": "search"
+        },
+        {
+          "time_s": 203.25,
+          "mode": "confirm"
+        },
+        {
+          "time_s": 577.0,
+          "mode": "hold"
+        }
+      ]
+    },
+    "correct_with_anchor": {
+      "case": "correct_with_anchor",
+      "summary_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_correct_with_anchor/wire_seed_101_summary.json",
+      "summary_sha256": "3c545ce3775dc6d349c1d18ea2af58dc8d444e100fb4e53ac6c3ab959eeff038",
+      "csv_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_correct_with_anchor/wire_seed_101.csv",
+      "csv_sha256": "9f91f06ef3e05286abecf94e56b4ed8dd3ea749025109e5d6348ad81339a1493",
+      "log_source": "AUV-Master-Mag/results/v2/inspection_joint_wrong_target_20260927/final_correct_with_anchor.log",
+      "log_sha256": "2a98d4ed1d9a7965e5e67b3d23ebe7fd3ee2eb3bdd2066def46803da08c61776",
+      "installed_v2_node_path": "/home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py",
+      "installed_v2_node_sha256": "d17507791ca53ac0589c0c49aba1ec88a6864157323b3048376ca72c2c2d776a",
+      "completed": true,
+      "ever_track": true,
+      "duration_s": 1105.25,
+      "magnetic_center_m": 6.0136925717499095,
+      "lateral_reason_codes": [],
+      "online_track_mae_m": 0.7536394999499273,
+      "target_true_track_mae_m": 0.7537493603834902,
+      "target_true_track_max_m": 1.346044779986996,
+      "target_true_track_samples": 1039,
+      "depth_published": false,
+      "sonar_line_lateral_m": null,
+      "last_identity_reason": "accepted",
+      "confirm_sonar_center_m": 5.999999999999998,
+      "confirm_sonar_half_width_m": 0.43041284084064596,
+      "final_target_speed_mps": 0.0,
+      "final_pid_thrust_percent": 0.0,
+      "final_udp_rpm": 0,
+      "transitions": [
+        {
+          "time_s": 1.0,
+          "mode": "search"
+        },
+        {
+          "time_s": 229.0,
+          "mode": "confirm"
+        },
+        {
+          "time_s": 577.0,
+          "mode": "track"
+        }
+      ]
+    }
+  },
+  "source_script_sha256": "e586da5bf1a43ef3378a056a815193798c56d8025d74928cbcbcdca5e38d6d47",
+  "harness_sha256": "cb31893c0dd056c4913c7d5433bbf73803a82089fa4921a0d21c9e432d490651",
+  "flythrough_sha256": "a353221ddaca9d965bd7bf6549a158a1d89638df43f3fbe7c9f509ad26c8b09c",
+  "ros_node_sha256": "d17507791ca53ac0589c0c49aba1ec88a6864157323b3048376ca72c2c2d776a",
+  "anchor_validator_sha256": "89f00f5084976579e01ea0aa1dedef651fb0455ac4c85268394e932841e1b7b4",
+  "old_config_sha256": "c7dd9b96675fe34d5702526850210e75230c413f72f6bd727d69d0ce92c647e2",
+  "new_config_sha256": "e64d68063fddeb6362ae1f46126b9a013c6cb8ebd47c280f0a912f9704a8a6cc",
+  "png_sha256": "3c6707a6ec9631527e77835909e783c1e386b102467719cd5e067dd752abfd41",
+  "pdf_sha256": "e3706fe9986ac92bb86d13aae082b277148272ececbce0216cce32ae8ec7ff52"
+}

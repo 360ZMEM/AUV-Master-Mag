@@ -1,0 +1,16 @@
+{
+  "source_run": "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/defense_robustness_20260929/05_held_out",
+  "source_split": "held_out",
+  "seed": 501,
+  "not_independent_held_out_claim": false,
+  "source_plan_sha256": "1d3e8b20c17db4da4871fc29f9d287ca85144d830380811f6695a0f77aa25fdc",
+  "plot_script_sha256": "913cb6e9d66c0dfd9669bab4d9d41fdee4e387dedc250a05b70d142daf722c34",
+  "assets": {
+    "72_defense_robustness_process_maps.pdf": "cc245d761bb8138d7cddb47788b96e97b1f24091aa5910c37d9122f554808458",
+    "72_defense_robustness_process_maps.png": "19cbbe6cfe21e9350416ee2432bc5917ec711258a513e7127b98a015c3cf827a",
+    "73_defense_navigation_withdrawal_diagnostics.pdf": "5ea47be1379c17cde7f5f784c904fdde179eb30a3d459431b14b801000e61928",
+    "73_defense_navigation_withdrawal_diagnostics.png": "4f454efd99910d97f9aabc7d99d57d60d3470813f6a383f3b778722abdede8af",
+    "74_defense_geometry_vs_tracking_insight.pdf": "568e7f7b8413dbc05da3bd65f21293412e1c0fa7ebfb0fccec225e50dd86e586",
+    "74_defense_geometry_vs_tracking_insight.png": "8dfd560b841efb8ab77b834c2179d4235ef21810cc3c1d0c3b81b31c0b918e7e"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "role": "inspection_v2_operational_status_software_candidate",
+  "field_release_authorized": false,
+  "guard_loss": {
+    "authorized_before_cycles": 2336,
+    "revoked_after_cycles": 241,
+    "localization_still_valid_cycles": 241,
+    "zero_udp_rpm_cycles": 241
+  },
+  "identity_hold": {
+    "hold_cycles": 41,
+    "authority_revoked_cycles": 41,
+    "zero_udp_rpm_cycles": 41
+  },
+  "source_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4ab144a0cc4a7ac0946d30c0ec30abb57ae005c1f95b8d44a6e4b54726c82be5",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "97cda3ff9a7268d8266c13e7163ba99b60f30ee3aa7a95f8f9bb47563c74acba",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "b495270839c667004719707d72fb7c0197ac31c3f33b365c86140b90e719d3fb",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/operational_status.py": "04bafe16261e238b852bf6b1fec1ba7066cb6020bfbb3e828c085305896e45ab",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_corridor_budget_sim.yaml": "39b589de9b3b9f910c298429988718259822c9f720fb4ec761dee9f61bf95631",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_inspection_bridge_gate.py": "d598e608446a850ba5e7bba3564aed1c1abe2ffb48c8f34b01dd8090d738d0b4",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_operational_status.py": "2f396c0e782fda36e194b3d4f2544cd07f717e9d4d0174f7a3dc52f2701c8cef",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "79fc96029dd0f13126a8ab43767054f4009f19617fc798cb32cc5571a6cf25ba",
+    "tools/plot_v2_operational_status.py": "f2942183167671b997b299e3403f7a7a67929e1ee2d0559493036b566afbc040",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/36_localization_vs_autonomy_authority_summary.json": "f2df6982e1b0360f1e3b1f3e97c2321f0e0cc145912e2ee9eb82dd25ecf0df22",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/36_localization_vs_autonomy_authority.pdf": "d57d2af258f82c2c16a253199c2fdc4d3b3e02927788871051814bc46303d783"
+  },
+  "run_sha256": {
+    "AUV-Master-Mag/results/v2/operational_status/guard_loss_verified/wire_guard_telemetry_loss_seed_101.csv": "d4bcba473cb389cfd782e23cfad1cff032801f96ff7846bc36d4881139c4a1ea",
+    "AUV-Master-Mag/results/v2/operational_status/guard_loss_verified/wire_guard_telemetry_loss_seed_101_summary.json": "65d6f310fe56a5e2d0baf0067f74f2c8828cdee9b9fb8f68d495ccedff2a1c53",
+    "AUV-Master-Mag/results/v2/operational_status/identity_hold/wire_seed_101.csv": "d2ca93691fd13e126f36c3419895d870748b02e6e85119de065e6ad64ba720e1",
+    "AUV-Master-Mag/results/v2/operational_status/identity_hold/wire_seed_101_summary.json": "2b993ae6d3f6df81ee484f020e0433b9953cbf560e443bafe59787e85339a684"
+  },
+  "audit_script_sha256": "d70cf11f36f266b68a369449163492838c779ec8e4b7308a16cec510ddff8be1",
+  "remaining_field_gates": [
+    "physical target-sonar evidence and independent identity calibration",
+    "measured zero-thrust drift, current and stop envelope within a real corridor",
+    "physical PC104 command receipt and upper-level disposition timing",
+    "controlled magnetic width-to-distance and synchronized altitude calibration before depth release"
+  ]
+}

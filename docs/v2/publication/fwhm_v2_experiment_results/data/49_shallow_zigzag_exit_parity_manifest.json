@@ -1,0 +1,10 @@
+{
+  "summary_sha256": "2c1c25465053a23767baaadd249eb4a6d5792b64c6db38b6f862036185479766",
+  "figure_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/49_shallow_zigzag_exit_parity.pdf": "14aa0e3acb47a467db1e4e182120ff0fffabae1534317bb0700ec6b891cd4266",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/49_shallow_zigzag_exit_parity.png": "5edaa1feec8213946976e185a9153aec61eaae8692a0dcda7643039af9140cb6",
+    "docs/thesis/figures/experiments/fwhm_v2/49_shallow_zigzag_exit_parity.pdf": "67852782014c94530dd3c3d2b1ea2d2eed5136e2e2422f133f3daa691bcba909",
+    "docs/thesis/figures/experiments/fwhm_v2/49_shallow_zigzag_exit_parity.png": "5edaa1feec8213946976e185a9153aec61eaae8692a0dcda7643039af9140cb6"
+  },
+  "plot_script_sha256": "15527035282f2b56610350bf2ee7c83e350d50a8e3a883f12db4be96d62e55c3"
+}

@@ -1,0 +1,45 @@
+{
+  "role": "synthetic_route_hold_admission_ros_pid_bridge_udp_native_pvs",
+  "normal": {
+    "completed": true,
+    "duration_s": 1105.25,
+    "depth_published": false,
+    "recovery_status_observed": false,
+    "route_observed_lateral_mae_m": 0.7536394999499957,
+    "files": {
+      "csv": "AUV-Master-Mag/results/v2/route_hold_admission/normal/wire_seed_101.csv",
+      "csv_sha256": "771681a849bcb14568cd530441c4109b90af1021ba4550d6fd772e0ebcccb5b0",
+      "summary": "AUV-Master-Mag/results/v2/route_hold_admission/normal/wire_seed_101_summary.json",
+      "summary_sha256": "8e95ccce080b8e2e779d29b4b9316010d0b9a145b491129c70e7d6f0ae1a64bf"
+    }
+  },
+  "identity_switch": {
+    "first_hold_s": 585.0,
+    "first_hold_reason": "flythrough_runtime_identity_diverged",
+    "hold_ticks": 41,
+    "post_hold_nonzero_rpm_ticks": 0,
+    "minimum_hold_remaining_budget_m": 6.765058734646754,
+    "mission_retransmission_rejections": 2,
+    "hold_to_final_displacement_m": 2.1822204335211723,
+    "final_ground_speed_mps": 0.15063761836793793,
+    "files": {
+      "csv": "AUV-Master-Mag/results/v2/route_hold_admission/fault/wire_seed_101.csv",
+      "csv_sha256": "0fe8fd61fb71d7de3e9abc370200439c45af2ec28985906976589d9f93b64e0c",
+      "summary": "AUV-Master-Mag/results/v2/route_hold_admission/fault/wire_seed_101_summary.json",
+      "summary_sha256": "27e0c6e528a7e5cb5de153895aca64c388273628a9a0e22a3627e78d4f80da80"
+    }
+  },
+  "guard_telemetry_loss": {
+    "duration_s": 645.0,
+    "affected_ticks": 241,
+    "zero_pid_ticks": 241,
+    "zero_udp_ticks": 241,
+    "files": {
+      "csv": "AUV-Master-Mag/results/v2/route_hold_admission/guard_loss/wire_guard_telemetry_loss_seed_101.csv",
+      "csv_sha256": "85641ecc22dc0fe936339bed3982e2b4d716a0850d616ed3a8c3664b3b1f179a",
+      "summary": "AUV-Master-Mag/results/v2/route_hold_admission/guard_loss/wire_guard_telemetry_loss_seed_101_summary.json",
+      "summary_sha256": "8186f5b1a690413d71f9d7fc97991f80f1b1bc54fd8671ba471d206d7563d4c3"
+    }
+  },
+  "caveat": "Synthetic sonar and PVS; no physical stop/current envelope or PC104 recovery acceptance."
+}

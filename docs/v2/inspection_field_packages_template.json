@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "data_domain": "physical",
+  "mission_id": "",
+  "target_id": "",
+  "site_id": "",
+  "coordinate_frame": "",
+  "max_receipt_lag_s": null,
+  "receipt_mode": "",
+  "software_snapshot": {"path": "", "sha256": ""},
+  "identity_basis": "reviewed_static_prior",
+  "identity_source": {"path": "", "sha256": ""},
+  "clock_alignment": {
+    "method": "",
+    "measured_max_error_ms": null,
+    "raw_alignment_trace": {"path": "", "sha256": ""}
+  },
+  "target_package": {
+    "cases": [
+      {
+        "case_id": "target_01", "kind": "target", "session_id": "",
+        "truth_method": "", "raw_archive": {"path": "", "sha256": ""},
+        "exports": {
+          "magnetic": {"path": "", "sha256": ""},
+          "navigation": {"path": "", "sha256": ""},
+          "identity": {"path": "", "sha256": ""},
+          "independent_truth": {"path": "", "sha256": ""},
+          "target_decision": {"path": "", "sha256": ""}
+        }
+      },
+      {
+        "case_id": "neighbor_01", "kind": "neighbor", "session_id": "",
+        "truth_method": "", "raw_archive": {"path": "", "sha256": ""},
+        "exports": {
+          "magnetic": {"path": "", "sha256": ""},
+          "navigation": {"path": "", "sha256": ""},
+          "identity": {"path": "", "sha256": ""},
+          "independent_truth": {"path": "", "sha256": ""},
+          "target_decision": {"path": "", "sha256": ""}
+        }
+      },
+      {
+        "case_id": "cue_loss_01", "kind": "cue_loss", "session_id": "",
+        "truth_method": "", "raw_archive": {"path": "", "sha256": ""},
+        "exports": {
+          "magnetic": {"path": "", "sha256": ""},
+          "navigation": {"path": "", "sha256": ""},
+          "identity": {"path": "", "sha256": ""},
+          "independent_truth": {"path": "", "sha256": ""},
+          "target_decision": {"path": "", "sha256": ""}
+        }
+      }
+    ]
+  },
+  "execution_package": {
+    "cases": [
+      {
+        "case_id": "nominal_01", "kind": "nominal", "session_id": "",
+        "raw_archive": {"path": "", "sha256": ""},
+        "exports": {
+          "ros_setpoint": {"path": "", "sha256": ""},
+          "udp_downlink": {"path": "", "sha256": ""},
+          "pc104_receipt": {"path": "", "sha256": ""},
+          "vehicle_motion": {"path": "", "sha256": ""},
+          "boundary": {"path": "", "sha256": ""},
+          "fault_events": {"path": "", "sha256": ""}
+        }
+      },
+      {
+        "case_id": "uplink_loss_01", "kind": "uplink_loss", "session_id": "",
+        "raw_archive": {"path": "", "sha256": ""},
+        "exports": {
+          "ros_setpoint": {"path": "", "sha256": ""},
+          "udp_downlink": {"path": "", "sha256": ""},
+          "pc104_receipt": {"path": "", "sha256": ""},
+          "vehicle_motion": {"path": "", "sha256": ""},
+          "boundary": {"path": "", "sha256": ""},
+          "fault_events": {"path": "", "sha256": ""}
+        }
+      }
+    ]
+  }
+}

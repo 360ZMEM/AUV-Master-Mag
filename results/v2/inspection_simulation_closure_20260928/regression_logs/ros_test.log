@@ -1,0 +1,29 @@
+Starting >>> auv_cable_tracking_v2
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-7.4.3, pluggy-1.6.0
+cachedir: /home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/build/auv_cable_tracking_v2/.pytest_cache
+rootdir: /home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/src/auv_cable_tracking_v2
+collected 101 items
+
+test/test_dvl_sidecar_join.py ...                                        [  2%]
+test/test_field_identity_calibration.py ........                         [ 10%]
+test/test_hold_budget.py ...........                                     [ 21%]
+test/test_identity_cue.py ......                                         [ 27%]
+test/test_identity_cue_ros.py .                                          [ 28%]
+test/test_imu_sidecar_bridge_exclusion.py ...                            [ 31%]
+test/test_imu_sidecar_gate.py ....                                       [ 35%]
+test/test_imu_sidecar_ros.py ....                                        [ 39%]
+test/test_inspection_bridge_gate.py ....                                 [ 43%]
+test/test_inspection_controller.py .................                     [ 60%]
+test/test_inspection_task_status.py ...                                  [ 63%]
+test/test_operational_status.py ..                                       [ 65%]
+test/test_runtime_target_anchor.py .............                         [ 78%]
+test/test_setpoint_supervisor.py .......                                 [ 85%]
+test/test_shallow_survey_ros.py ..                                       [ 87%]
+test/test_v2_package.py .............                                    [100%]
+
+- generated xml file: /home/zmem063/auv_console_python/AUV-Master-Project/brain_linux/build/auv_cable_tracking_v2/pytest.xml -
+======================= 101 passed in 147.44s (0:02:27) ========================
+Finished <<< auv_cable_tracking_v2 [2min 57s]
+
+Summary: 1 package finished [3min 10s]

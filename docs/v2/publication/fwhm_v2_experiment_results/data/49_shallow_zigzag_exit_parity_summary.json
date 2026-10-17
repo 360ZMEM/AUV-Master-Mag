@@ -1,0 +1,86 @@
+{
+  "evidence_level": "native_pvs_protocol_survey_exit_probe",
+  "rejoin_distance_is_nominal_geometry_approximation": true,
+  "track_phase_executed": false,
+  "field_release_authorized": false,
+  "cases": {
+    "positive_three_correct_exit": {
+      "terminal_phase": "survey_path_end",
+      "station_count": 3,
+      "amplitude_m": 24.0,
+      "half_wavelength_m": 135.0,
+      "current_direction_deg": 90.0,
+      "start_side": -1,
+      "reference_track_max_m": 1.4965526546271146,
+      "geometry_valid": true,
+      "center_mae_m": 0.02168513020941069,
+      "survey_exit_truth_lateral_error_m": 9.498607995574488,
+      "minimum_rejoin_distance_at_10deg_m": 53.86928283697701,
+      "burial_depth_m": null,
+      "trajectory_sha256": "94542eb8a307102df3320456428f6f8f1cab6b772b52dd3a83523165c35bb766"
+    },
+    "negative_three_wrong_exit": {
+      "terminal_phase": "survey_path_end",
+      "station_count": 3,
+      "amplitude_m": 24.0,
+      "half_wavelength_m": 135.0,
+      "current_direction_deg": 270.0,
+      "start_side": 1,
+      "reference_track_max_m": 1.4976550196950935,
+      "geometry_valid": true,
+      "center_mae_m": 0.01214835691367148,
+      "survey_exit_truth_lateral_error_m": 37.699836287919375,
+      "minimum_rejoin_distance_at_10deg_m": 213.80639614224114,
+      "burial_depth_m": null,
+      "trajectory_sha256": "01b46254c47024b17ec64c8c47faf524b76da00600e4897de9f63570f42df99f"
+    },
+    "negative_four_correct_exit": {
+      "terminal_phase": "survey_path_end",
+      "station_count": 4,
+      "amplitude_m": 27.0,
+      "half_wavelength_m": 135.0,
+      "current_direction_deg": 270.0,
+      "start_side": 1,
+      "reference_track_max_m": 1.6656621636894045,
+      "geometry_valid": true,
+      "center_mae_m": 0.01596046540710283,
+      "survey_exit_truth_lateral_error_m": 9.871750457096965,
+      "minimum_rejoin_distance_at_10deg_m": 55.98547889513683,
+      "burial_depth_m": null,
+      "trajectory_sha256": "27c5fd6cc785381ae208d857e6d527f379cf06b5776e9dd0c8231a4f0faef16c"
+    },
+    "positive_four_wrong_exit": {
+      "terminal_phase": "survey_path_end",
+      "station_count": 4,
+      "amplitude_m": 27.0,
+      "half_wavelength_m": 135.0,
+      "current_direction_deg": 90.0,
+      "start_side": -1,
+      "reference_track_max_m": 1.6649300571363845,
+      "geometry_valid": true,
+      "center_mae_m": 0.01203413092672112,
+      "survey_exit_truth_lateral_error_m": 43.48308757580398,
+      "minimum_rejoin_distance_at_10deg_m": 246.6048440295018,
+      "burial_depth_m": null,
+      "trajectory_sha256": "351eaf9f00aa811ff7e0eb90ecaef379b7c9b6692acc532abb966d9b5787742d"
+    }
+  },
+  "source_sha256": {
+    "tools/probe_v2_shallow_zigzag_exit_pvs.py": "e916cdcc99e06d9df6e1a45053d299383749b304a13f4773ebcb1a2c436f48e6",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/corridor_survey.py": "5e5e5a8168bae3af09b9e43316f9b6aac901bf6beab5ca383d2e896f50729d94",
+    "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb"
+  },
+  "raw_summary_sha256": {
+    "positive_three_correct_exit": "712ab217e4f177d165a690a0e3ac01912dff078e23204912ba5a928e218ac3d0",
+    "negative_three_wrong_exit": "cd9301f197d8745af2cf84c72c2dcb2ea2ffc1817627abf8b6a4619d517c1b94",
+    "negative_four_correct_exit": "d8fd288e77a676d29111d5b393edca80869fc042a16752bf9c8f99d555726090",
+    "positive_four_wrong_exit": "20e0a4ea0daec523321a1915adf60d212bf2112061925c730bf0ea12ba02147e"
+  },
+  "negative_four_80m_track_projection": {
+    "last_measured_center_x_m": 500.02479369454494,
+    "hypothetical_track_end_x_m": 675.9854788951368,
+    "hypothetical_line_extrapolation_m": 175.96068520059185,
+    "track_phase_executed": false
+  }
+}

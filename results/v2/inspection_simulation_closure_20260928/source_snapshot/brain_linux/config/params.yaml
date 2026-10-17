@@ -1,0 +1,202 @@
+# Unified parameters for bridge/localization/controller/decision.
+
+auv_data_root: "/auv_data"
+
+bridge:
+  backend: zenoh_json
+  passive_mode: false
+  command_publish_hz: 10.0
+  protocol_control_mode_byte: 238
+  protocol_work_instruction: 0
+  protocol_send_zero_on_idle: true
+  main_motor_rpm_scale: 15.0
+  downlink_cmd_key: rt/auv/control/cmd_vel
+  shadow_cmd_topic: /auv/bridge/shadow_cmd
+  shadow_telemetry_topic: /auv/bridge/shadow_telemetry
+  imu_key: rt/auv/sensors/imu
+  dvl_key: rt/auv/sensors/dvl
+  depth_key: rt/auv/sensors/depth
+  magnetic_key: rt/auv/sensors/magnetic
+  arbiter:
+    enabled: false
+    arbiter_status_topic: /auv/arbiter/status
+    sensor_status_topic: /auv/sensors/status
+    mpc_topic: /auv/control/mpc_cmd
+    pc_cmd_raw_key: rt/pc/cmd_raw
+    telemetry_key: rt/auv/telemetry
+    viz_internal_key: rt/auv/viz/internal
+    mpc_timeout_s: 0.5
+    guard_min_total_voltage_v: 47.0
+    guard_min_confidence: 0.5
+    guard_max_uplink_age_ms: 200.0
+  protocol_udp:
+    local_host: 0.0.0.0
+    local_port: 52365
+    remote_host: 127.0.0.1
+    remote_port: 52364
+    socket_timeout_s: 0.1
+    recv_buffer_size: 2048
+    obj_address: 1
+    main_motor_rpm_scale: 15.0
+    side_motor_rpm: 0
+    zenoh_side_channel_enabled: false
+
+controller:
+  control_rate_hz: 20.0
+  bypass_ekf: false
+  filtered_state_topic: /auv/state/filtered
+  raw_state_topic: /auv/state/raw_dr
+  use_mpc: false
+  control_mode_byte: 239
+  heading_ramp_limit_deg: 30.0
+  heading_ramp_rate_deg_s: 10.0
+  depth_mode: 'CONSTANT'
+
+mappers:
+  rudder:
+    center_bias: 0.0
+    gain: 1.0
+    flip: false
+  thrust:
+    deadzone_percent: 5.0
+    rpm_per_percent: 15.0
+    voltage_nominal: 24.0
+    voltage_compensation: true
+
+limits:
+  fin_deg_max: 15.0
+  thrust_min: -100.0
+  thrust_max: 100.0
+
+control:
+  terrain_cbf:
+    lookahead_time_s: 4.0
+    lpf_alpha: 0.2
+    min_clearance_m: 1.8
+    alpha: 0.7
+    max_descend_rate_mps: 0.4
+    emergency_clearance_m: 2.0
+    emergency_rise_m: 2.0
+    slowdown_clearance_margin_m: 1.5
+    minimum_control_speed_scale: 0.8
+    min_depth_m: 0.5
+  target_u: 1.1
+  u0: 1.0
+  u_min: 0.6
+  feedforward_trim_deg: -1.5
+  attitude_guard:
+    enable: true
+    roll_deg_max: 120.0
+    pitch_deg_max: 45.0
+    recovery_target_pitch_deg: 0.0
+    recovery_thrust: 20.0
+  depth:
+    kp: 1.0
+    ki: 0.01
+    kd: 0.0
+    integral_limit: 50.0
+    target_pitch_deg_max: 15.0
+    target_pitch_rate_limit_deg_s: 10.0
+  pitch:
+    kp: 12.0
+    ki: 0.3
+    kd: 1.0
+    integral_limit: 45.0
+  yaw:
+    kp: 40.0
+    ki: 5.0
+    kd: 5.0
+    integral_limit: 45.0
+  speed:
+    kp: 5.0
+    ki: 2.0
+    kd: 1.0
+    integral_limit: 30.0
+    feedforward:
+      a: 0.0
+      b: 0.0
+      c: 0.0
+
+mpc:
+  prediction_horizon: 20
+  dt: 0.2
+  solver: 'ipopt'
+  warm_start: true
+  max_solve_time_ms: 50.0
+  fail_safe_fallback: true
+  # WP-C C2 / P0-3 复核: 输出级深度积分补偿，作为鲁棒裕度而非修正实测漂移。
+  # z_cmd_out = z_opt + ki_z * clamp(∫(z_ref - z)dt, ±z_integral_clamp_m)
+  # P0-3 离线 A/B（tools/wp_c_depth_ab.py）结论: 现实浮力量级下 MPC heave 已把
+  # 稳态误差压到 sub-mm，ki_z 仅在极端模型失配（≈8×）时边际有用；plant 中性
+  # 时不引入偏置 → 良性，保留。
+  ki_z: 0.1
+  z_integral_clamp_m: 2.0
+
+mpc_model:
+  mass_u: 50.0
+  mass_w: 50.0
+  drag_u: 12.0
+  drag_w: 20.0
+  # WP-C C1 / P0-3 复核: 模型级浮力补偿（NED 下 z+/w+ 向下，负值=上推）。
+  # 注意: 原"观测上漂≈0.02 m/s"依据已被 P0-3 推翻——真 bag 的 depth_m 为压力
+  # 派生（与 localization 常值 datum bug 无关），其"上漂"实为 terrain-following
+  # 与 baseline 缓慢收敛，非浮力漂移。保留 -0.5 作为良性鲁棒裕度: 离线 A/B 证明
+  # plant 中性时不引入稳态偏置，模型失配时抑制误差。
+  buoyancy_term: -0.5
+  yaw_rate_gain: 8.0
+  pitch_depth_gain: 0.8
+  depth_to_heave_gain: 12.0
+  max_pitch_deg: 20.0
+
+mpc_weights:
+  tracking:
+    x: 1.0
+    y: 1.0
+    z: 40.0
+    psi: 80.0
+    u: 0.5
+    w: 3.0
+  control:
+    psi_cmd: 0.005
+    z_cmd: 0.002
+    T_cmd: 0.01
+  confidence_threshold: 0.6
+  low_confidence_scale: 3.0
+  low_confidence_control_scale: 0.3
+
+mpc_constraints:
+  min_speed_ms: 0.3
+  max_pitch_deg: 20.0
+  min_altitude_m: 1.5
+  max_thrust_percent: 100.0
+  # P1 (MPC v2): 制导级参考的速率/带宽约束，避免 z_cmd / psi_cmd 飞出 PVS 内环可执行域。
+  # 取值与 PID v2 内环 wn_d_z / r_max 相容（dt=0.2s 下每步上限）。
+  min_thrust_percent: 15.0
+  delta_z_max_per_step: 0.3        # m/step：与 PVS 20 deg 艉舵包线匹配
+  delta_psi_max_per_step: 0.0419   # rad/step：12 deg/s * 0.2s ≈ 2.4 deg/step（保守 0.0419≈2.4°）
+  z_band_m: 4.0                    # m：z_cmd 与当前 z 的最大偏差
+  psi_band_rad: 0.7854             # rad：45° 带宽
+  enable_rate_constraints: true
+  enable_band_constraints: true
+  enable_constraint_slack: false
+
+ekf:
+  gravity: 9.81
+  sigma_acc: 0.08
+  sigma_gyro: 0.01
+  sigma_ba: 0.001
+  sigma_bg: 0.0005
+  sigma_dvl: 0.03
+  sigma_depth: 0.05
+  sigma_gps_xy: 0.5
+  imu_acc_is_linear: true
+  init_pos: [0.0, 0.0, 0.0]
+  init_vel: [0.0, 0.0, 0.0]
+  init_quat_wxyz: [1.0, 0.0, 0.0, 0.0]
+  init_ba: [0.0, 0.0, 0.0]
+  init_bg: [0.0, 0.0, 0.0]
+  init_P_diag: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.2, 0.2, 0.2, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+
+localization:
+  publish_raw_state: false
+  raw_state_topic: /auv/state/raw_dr

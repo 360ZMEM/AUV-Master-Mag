@@ -1,0 +1,323 @@
+{
+  "scope": "Local ROS bag metadata under .auv_data/bags, log, results; quality-calibration JSON under brain_linux/config.",
+  "metadata_files_inspected": 43,
+  "cable_sonar_observation_messages": 0,
+  "sonar_quality_messages": 0,
+  "physically_approved_sonar_calibrations": 0,
+  "bags": [
+    {
+      "metadata": ".auv_data/bags/20260917_171648/rosbag/metadata.yaml",
+      "metadata_sha256": "2a60c7fef0563b6509778b12db302ee4407924e93d6990130d5534f5c1ae3af7",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": ".auv_data/bags/20260917_171838/rosbag/metadata.yaml",
+      "metadata_sha256": "08a5ed782b0a4fa253392df53c38c336344c0e0bba007dffffbb77c4543ba2f0",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": ".auv_data/bags/20260917_172857/rosbag/metadata.yaml",
+      "metadata_sha256": "6021b9182ee1aecd339b843a1df7175e095a0c97a65242d46a1e120b868f76c5",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {
+        "/auv/sensors/forward_sonar_slope": 857
+      }
+    },
+    {
+      "metadata": "log/experiments/20260408_232856/rosbag/metadata.yaml",
+      "metadata_sha256": "8eb451d10aa384e712249a73ef3e60bc17afddd803796e1ac0756aea916d0955",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/20260408_234016/rosbag/metadata.yaml",
+      "metadata_sha256": "33090ab12a529a768d973bd247d63fe0bd65c18ac484948ce04841b57c127d4d",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/20260410_223311/rosbag/metadata.yaml",
+      "metadata_sha256": "c0d26364ad9a3722819cb82373f0308d0b59901f98edfd3424544751a9539b18",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/20260410_223510/rosbag/metadata.yaml",
+      "metadata_sha256": "028b204ec2b3d19a23ba414bbe8cdbdf28566f0cf2def60254fd40159f2e72a7",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/20260411_162254/rosbag/metadata.yaml",
+      "metadata_sha256": "f0099c07bd7f37ade11fcef4557607e6ae3d863d029754677bd7fee5591cd0f0",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/20260503_204842/rosbag/metadata.yaml",
+      "metadata_sha256": "9a13771088b829209532e26b5ea723e7e0820c817f30110245e27d3658ec1c1d",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/phase78_bundle_20260410_231717/experiment_runs/20260410_232022/rosbag/metadata.yaml",
+      "metadata_sha256": "8c0c9973ad0563e54aacafa40b1754841ea2f4cdff3019e1e7f9262ae1416bfe",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/experiments/phase78_bundle_20260410_231717/experiment_runs/20260410_232402/rosbag/metadata.yaml",
+      "metadata_sha256": "4af71b46c0612068682817fff4593097a96c031d2a01e2e237ff5ede27063a4d",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/smoke_test/20260427_201119/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "0026f35211aa817bc812c247e45ea72e0c4a07db9edf8bdd29455da442d14cf5",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/smoke_test/20260427_201119/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "112561322a21676c6fea12dd51fb6dc7661e12e8ac9b96a826a13a0edaea6fdb",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/smoke_test/20260427_201119/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "254c6fd7339a4b8781b80d02e9988b36eb8f28439db0918a1feb5969a86aa4e4",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_132802/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "5352764aeb57ca1034b5d27ff14803a312cefaa723291263320518d6f640d82f",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_132802/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "ce46e67fcefd147c7c3b0b3574af057fc4496b58f436295dd0aca08c9f199cc9",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_132802/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "d644e81144294ac90996f85a271ce69a8e9cf60cccb6065b446e82ad59e3d9f4",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_133445/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "865e5fc64e210448f550469664266d1da6ddeeaf7c4557f49b973eb2d1a55f60",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_133445/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "01c462902551b00d261dd772745fb4eed6b64fc303f22c935f408ccb062c7123",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_133445/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "7a9e4a3ca7a71736d24e3a216c74f6baeca1d4dd2e51de33eb271bc26f4fcd0d",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_134454/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "43b6194c6a6fe24a2a4b41d401148666a962146cd80c1c78b6e1d409f3058335",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_134454/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "60ea14a55957d07dd064c006de8219e8ebad27599b37650efbbffe97f4c05e8c",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_134454/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "bcceae4e4c6be952471cc5b7f648b55a6aef441bdae80fb0ccf86e102d9b9fb5",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135217/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "91a134e543da294f7ebe200ffe44cbd0fc405c583d817938f93d7a3b418f640e",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135217/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "ab41301980d8b99c6eee12fb39191c4f5bd8857acd1c07d7aa563cbbab9c4d82",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135217/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "e0c5f8821f067a201137debeff422a7295203cc29a73db5f5472f0c5cf51feff",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135741/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "529a6d010a0ff69076757a16e0bc59a64a7e93a3c4a3e6687f08bb694f0ab44b",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135741/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "67530cdedaa9d39f9c0cfe9a35ae38feeaf92bb7f4d1bd4ba2fc474b7db0b48d",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135741/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "bc6e0aa7822a5eb87a89333daca728f57ccde6c91ee91c6e98fe4949664d0f81",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135940/level_1/rosbag/metadata.yaml",
+      "metadata_sha256": "bb4c0d6f668752292852adaef2ec84b5cfe557b8b30270964bb96ff64dd7618b",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135940/level_2/rosbag/metadata.yaml",
+      "metadata_sha256": "4cf0b9bc58863ed9e155e40147f7bd68ecdd6bcd7b4f7a9e6ac3605590f6a8ec",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "log/transparency_benchmarks/20260427_135940/level_3/rosbag/metadata.yaml",
+      "metadata_sha256": "4d44eb1628239a1f4598bcab119df1eb0abbd5319059cfb2ad54ae273376470e",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/direction_a_decoupled/20260706_221801/rosbag/metadata.yaml",
+      "metadata_sha256": "b351fe7c105ce9c505da543590b9c79d32d7ab7d0e8602f89f3625668cfbf537",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/clean_regression_bag1/rosbag/metadata.yaml",
+      "metadata_sha256": "d55438edd11e1d377e9f8a3b2b40087cefebd27befa828b6ab9af92a02a5ea89",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/heavy_run1_bag1/rosbag/metadata.yaml",
+      "metadata_sha256": "157ecce076e14cd0eceaffa3ca249a0c76a066c4d6ef877a7dd5c73caecfa497",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/heavy_run2_bag2/rosbag/metadata.yaml",
+      "metadata_sha256": "5484e9f5117f0dc7824bd9b5ee5488d5deece6dabfbae3cd654f350298de565a",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/heavy_run3_bag3/rosbag/metadata.yaml",
+      "metadata_sha256": "f1c6cf24b0e9c561b9220ffaf5ec66cce3ff572f2df5e6df20881357e706b4b4",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/mid_run1_bag1/rosbag/metadata.yaml",
+      "metadata_sha256": "489f910e882e971195210e8bdf6aecb97e2040b2b0347d233da6ac294fd0b022",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/mid_run2_bag2/rosbag/metadata.yaml",
+      "metadata_sha256": "999e6cc87e142324de51f75b9bb354b124a822406aae2190db25075303a914bb",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/cable_ops_report/replay_e2e/mid_run3_bag3/rosbag/metadata.yaml",
+      "metadata_sha256": "d3649d6beb899136135001c94c389f02d6150fd727469181d23f847479cebab2",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/control/native_pvs_execution_chain_constant_feature_smoke_20260810/20260810_225652/rosbag/metadata.yaml",
+      "metadata_sha256": "a237de2f3698dea400a4ff215306e3a519145ad1cf845c3b987d42d43142b4fe",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/control/native_pvs_execution_chain_constant_smoke_20260810/20260810_225353/rosbag/metadata.yaml",
+      "metadata_sha256": "0f6a17ddcc1248eb3b697deba04282fb236d8a2868aab09147d574d6cd2e0c53",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    },
+    {
+      "metadata": "results/control/native_pvs_execution_chain_smoke_20260810/20260810_225034/rosbag/metadata.yaml",
+      "metadata_sha256": "935cd347104acba63975ea65f2fe4a1d819de142da8ba8046dc51b9af4e85ef2",
+      "cable_sonar_observation_count": 0,
+      "sonar_quality_count": 0,
+      "other_nonzero_sonar_topics": {}
+    }
+  ],
+  "calibrations": [
+    {
+      "path": "brain_linux/config/perception_quality_sim_sonar.json",
+      "sha256": "85e6aa886e1a6df1087b1d4149687fd64cebaea56dcf9b854af9cc79c56b1009",
+      "calibration_id": "sim_proxy_sonar_v1",
+      "domain": "simulation_proxy",
+      "deployment_approved": true,
+      "physical_deployment_approved": false
+    }
+  ],
+  "audit_script_sha256": "0f2b88894eeee16d95931afb4dae4c2d0dd00d60e0626db53b15203f74fdd1a9"
+}

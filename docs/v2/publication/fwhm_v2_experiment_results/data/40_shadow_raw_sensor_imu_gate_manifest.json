@@ -1,0 +1,25 @@
+{
+  "role": "matched_synthetic_raw_sensor_imu_dropout_shadow_comparison",
+  "control_launch_override": "inspection_navigation_imu_max_age_s:=0.0",
+  "gated_launch_default_s": 0.75,
+  "sensor_input": "synthetic stationary IMU/DVL/depth/magnetic; IMU only stops at 12 s",
+  "passive_bridge": true,
+  "published_field_depth": false,
+  "field_release_authorized": false,
+  "source_sha256": {
+    "plot_script": "f42e0b3607c8c995aa76eff2da7a1e20fe023d51f338a60ee437de9a25e1a4e3",
+    "localization": "842dfe55b0052490430c327bfee05741c5a4912bd0b7cbfe350dfc0407e639a0",
+    "shadow_launch": "4111d42f3efd5887b40b34dee4c279bdf971e1e14778737d906d00c056de99af",
+    "probe": "3262a02c61e40b9168720638a79b1db0c0d9f7f16eac345fd8b843bfb862076a"
+  },
+  "data_sha256": {
+    "40_control_222_summary.json": "ecef13802a3777d3f78f355e513b9929946d4a47ace82b700c2cb74f22064e96",
+    "40_control_222_trace.csv": "eabef0d305e6b2f7d10d2069a97825747acb1080998ad08ba9ed9bae30790467",
+    "40_fixed_221_summary.json": "85b6cdd6b8cd880325ad60e606a135945e4c46e1a7001df533887ead0700c3e6",
+    "40_fixed_221_trace.csv": "2aa16c7f38ba12c8187168f6dac8bac70ec7be7219ed09c3655b016b4db1a0e0"
+  },
+  "figure_sha256": {
+    "40_shadow_raw_sensor_imu_gate.pdf": "f95eb4fb7c3e62d3fd053bfbf82ea63d79f008135ce43c5382c45afd25184a6b",
+    "40_shadow_raw_sensor_imu_gate.png": "2f1cbbe27f02e9a205b770291130740181498ad675ed5792014a13670e0066dd"
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "experiment": "current_F_runin_native_pvs_simulation",
+  "generated_at_utc": "2026-09-28T00:56:45.766060+00:00",
+  "repository": {
+    "root": "/home/zmem063/auv_console_python/AUV-Master-Project",
+    "commit": null,
+    "dirty": null
+  },
+  "environment": {
+    "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+    "platform": "Linux-6.8.0-90-generic-x86_64-with-glibc2.35",
+    "numpy": "1.24.4"
+  },
+  "config": {
+    "cases": [
+      "wire",
+      "dipole",
+      "no_source"
+    ],
+    "seed_start": 102,
+    "seeds": 2,
+    "max_time_s": 1600.0,
+    "pvs_dt_s": 0.05,
+    "mission_dt_s": 0.25,
+    "speed_feedforward_b": 40.0,
+    "simulator_heading_unwrap": true,
+    "not_ros_or_hardware_acceptance": true,
+    "repository_commit": "6e4632a296feef6c706588b06dc57bfe0899e967",
+    "source_sha256": {
+      "tools/probe_v2_flythrough_pvs.py": "724b3bdd8fbe14ef19edf188e5513375e8aa35e0dda268d6c1bd3d66552b1718",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/flythrough.py": "44f94c347839e7f9f9495b2c33436f9a0a63db798b1541859d658dc89ea529d7",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/pipeline.py": "1ea8d7b1e10f9e1071a603160655680476dfe1802d841e9c27c2183b3ef2f144",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/fwhm.py": "2a8abdddc102329bc76f326d36828de0be63eeab06d44179c09220af8641d14e",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/config.py": "c775d27ab4034a17571a55859fac24bbed3ed16fd49d4f1572428a6b15e91aa9",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/types.py": "2b07ccac5fc351da3cd5bd4dac7a91d11b0b3a31780b0b24363bc3e5df87fc59",
+      "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+      "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+      "tools/probe_v2_flythrough_simulation_candidate.py": "2d89fe686aefd1fded0b26f847a6a707768b405dff02c22444b2352320c51697"
+    },
+    "flythrough_policy": {
+      "start_along_m": -250.0,
+      "end_along_m": -80.0,
+      "start_lateral_m": -15.0,
+      "end_lateral_m": 15.0,
+      "staging_tolerance_m": 2.0,
+      "heading_tolerance_deg": 15.0,
+      "maximum_prior_bend_deg": 2.0,
+      "path_lookahead_m": 40.0,
+      "current_filter_alpha": 0.05,
+      "maximum_estimated_current_mps": 0.08,
+      "rejoin_overshoot_m": 5.0,
+      "side_hint_required": true,
+      "side_hint_min_m": 2.0,
+      "side_hint_max_m": 8.0,
+      "side_hint_source": "synthetic_test_fixture",
+      "allow_synthetic_side_hint": true,
+      "maximum_side_hint_width_m": null,
+      "require_runtime_identity_cue": false,
+      "runtime_identity_supersedes_side_hint_center": false,
+      "maximum_runtime_identity_age_s": 0.5,
+      "maximum_runtime_identity_gap_s": 2.0,
+      "maximum_runtime_identity_confirm_half_width_m": 0.5,
+      "maximum_runtime_identity_track_half_width_m": 0.6,
+      "runtime_target_anchor_min_m": null,
+      "runtime_target_anchor_max_m": null,
+      "runtime_target_exclusive_min_m": null,
+      "runtime_target_exclusive_max_m": null,
+      "minimum_halfmax_tail_m": 7.0,
+      "side_hint_observation_tolerance_m": 0.5,
+      "rejoin_runin_m": 20.0,
+      "rejoin_opposed_runin_m": null,
+      "rejoin_current_direction_threshold_mps": 0.02,
+      "maximum_heading_sigma_deg": 2.0,
+      "maximum_ground_velocity_sigma_mps": 0.03,
+      "route_quality_mean_limit_m": 1.0,
+      "route_quality_max_limit_m": 2.0,
+      "route_quality_min_samples": 200,
+      "maximum_track_lateral_disturbance_change_mps": null,
+      "track_disturbance_window_s": 4.0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dipole_seed_102.csv",
+      "size_bytes": 1503087,
+      "sha256": "ac7facf214f285d4bb79693a88e147a29ef16c49c276e90cb941d25e4ac0690c"
+    },
+    {
+      "path": "dipole_seed_103.csv",
+      "size_bytes": 1431651,
+      "sha256": "6ef15aaf0b7688ce4d76b989127e612b989a27b837e00400c443d6f2ce3268e3"
+    },
+    {
+      "path": "no_source_seed_102.csv",
+      "size_bytes": 401571,
+      "sha256": "6a49c1a913a1a8df36bcaf29376e64ab5dd2a19bed039192b919be09fa6257d2"
+    },
+    {
+      "path": "no_source_seed_103.csv",
+      "size_bytes": 401613,
+      "sha256": "f32705f07ea3b7d343fbc739828c3bb1724a1ea4fd0a23cc629a1d8dec50ee70"
+    },
+    {
+      "path": "summary.json",
+      "size_bytes": 5568,
+      "sha256": "764f42158638b12e4bc93d9f7e4555abda4cd670ca5e09dd4ead626bc85d8073"
+    },
+    {
+      "path": "wire_seed_102.csv",
+      "size_bytes": 1474987,
+      "sha256": "ad2e142b1985d9ab7c646af527fdfd3bf41232e5c230996e8007d9b624f26e05"
+    },
+    {
+      "path": "wire_seed_103.csv",
+      "size_bytes": 1472961,
+      "sha256": "d5c8b1ce896628c5fef0ffdaa393fe436a59c6dc189603e7154f1f7c362ad055"
+    }
+  ]
+}

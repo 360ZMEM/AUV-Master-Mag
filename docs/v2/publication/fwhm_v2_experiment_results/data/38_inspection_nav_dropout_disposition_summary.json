@@ -1,0 +1,14 @@
+{
+  "role": "synthetic_navigation_dropout_safe_disposition_figure",
+  "fault_window_s": [
+    585.0,
+    600.0
+  ],
+  "after_fault_track_rows": 2404,
+  "after_fault_authorized_rows": 0,
+  "after_fault_zero_udp_rows": 2404,
+  "post_hold_displacement_m": 4.84246812164224,
+  "csv_sha256": "6dba1a02d5ad8c62a0f3f541149b7b0554095ffb0316e2130d8a6d2d60841787",
+  "audit_sha256": "79b96ac5bbca0542fbfac8ee36743984401b7e31d26abf7e8bb4744231ff5a0f",
+  "caveat": "One synthetic NaN navigation fault; no physical vehicle or PC104."
+}

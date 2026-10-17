@@ -1,0 +1,10 @@
+{
+  "summary_sha256": "2bc2b19f1ed1823fd024c3e37607dbcc679ffdae70e6edcf66db3a0ec59a282b",
+  "figure_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/50_shallow_zigzag_pvs_rejoin_track.pdf": "c00c3742a8404d435ac0cb7e9d94f42adc109a4bee0c7a1c966022e5264c7980",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/50_shallow_zigzag_pvs_rejoin_track.png": "a27103b74ac19e6acd628c98dfcac5fd3a649b80aef99db175d6be5d5b1f7550",
+    "docs/thesis/figures/experiments/fwhm_v2/50_shallow_zigzag_pvs_rejoin_track.pdf": "b02340e5eb025f77e18e0c42fd5e559d4bbdd754de8833f1655210854e4267da",
+    "docs/thesis/figures/experiments/fwhm_v2/50_shallow_zigzag_pvs_rejoin_track.png": "1628a283bd2edf8142cc103df4f11e13368e5b1b0500a1babdbed1059e7e9683"
+  },
+  "plot_script_sha256": "c7ee904e9add597a80c9c1b80f145b9ee05ab7843244d5943bc8029f7e5c4e43"
+}

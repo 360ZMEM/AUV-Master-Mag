@@ -1,0 +1,28 @@
+{
+  "role": "inspection_v2_route_hold_admission_candidate_snapshot",
+  "field_release_authorized": false,
+  "status": "synthetic_software_chain_accepted_only",
+  "missing_acceptance": [
+    "physical sonar observation and independent probability calibration",
+    "measured AUV zero-effort drift/current and real field corridor bounds",
+    "certified upper-level disposition and physical PC104 response",
+    "controlled magnetic shape/depth calibration and synchronized altitude truth"
+  ],
+  "files_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4ab144a0cc4a7ac0946d30c0ec30abb57ae005c1f95b8d44a6e4b54726c82be5",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "97cda3ff9a7268d8266c13e7163ba99b60f30ee3aa7a95f8f9bb47563c74acba",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "c58193c22257f16a27f4de9da66236e9959cb4cbb0627fbb3fa334e92c0dca6b",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "99dd4873d5782cbd6cc9b0eb29329c86f24a926b97481ee099ab41d4ee341fd5",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_corridor_budget_sim.yaml": "39b589de9b3b9f910c298429988718259822c9f720fb4ec761dee9f61bf95631",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_hold_budget.py": "ab3f0ac7ff6007a68031788b53dc1a1ba7977d68656895951d1497cc34264209",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_v2_package.py": "3d7101e0af8a5dc9b6457b69fd2e96a0b95cf06102a2038665592136c00e02a0",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "cc82ce76b469e35ebb276a7d960ebd3ea1f2a7984827850f578c190221e12baf",
+    "tools/plot_v2_route_hold_admission.py": "adca30ca61a93abb1a296893211a8c700d839cff01630cfd9217e6745fe6b388",
+    "tools/audit_v2_route_hold_admission.py": "f42fd51d6a46d662650c140fbac7ea828ba6700397ffec1d1fa306003aab8826",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/35_route_hold_admission_summary.json": "834b95bdadb440a9547effafd348ef8fde87e645e6b9655abfc7851559b6d3e9",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/35_route_hold_admission_runs.json": "77a14e3658a22504586306efd3f8426a93886b7d7881d6a893cd4f2e53152566",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/35_route_hold_admission.pdf": "c041a92636752a89702ede1a3ad691f1824061033ba0003f9e9f6992046d7adf",
+    "AUV-Master-Mag/results/v2/route_hold_admission/guard_loss/wire_guard_telemetry_loss_seed_101.csv": "85641ecc22dc0fe936339bed3982e2b4d716a0850d616ed3a8c3664b3b1f179a",
+    "AUV-Master-Mag/results/v2/route_hold_admission/guard_loss/wire_guard_telemetry_loss_seed_101_summary.json": "8186f5b1a690413d71f9d7fc97991f80f1b1bc54fd8671ba471d206d7563d4c3"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "role": "synthetic_source_matched_body_dvl_contract_diagnostic",
+  "case_data": [
+    {
+      "case": "新鲜且对时",
+      "diagnostic": "间隔 50 ms，限 150 ms",
+      "accepted": true,
+      "reason": "body_dvl_rotated_with_sidecar_imu",
+      "world_velocity_xyz_mps": [
+        -6.661338147750939e-17,
+        0.30000000000000004,
+        0.0
+      ]
+    },
+    {
+      "case": "包内 DVL 旧",
+      "diagnostic": "样本龄 600 ms，限 500 ms",
+      "accepted": false,
+      "reason": "dvl_sample_stale_in_uplink",
+      "world_velocity_xyz_mps": null
+    },
+    {
+      "case": "跨源时间不符",
+      "diagnostic": "间隔 250 ms，限 150 ms",
+      "accepted": false,
+      "reason": "dvl_imu_time_mismatch",
+      "world_velocity_xyz_mps": null
+    },
+    {
+      "case": "横切转动过快",
+      "diagnostic": "转角 5.7°，限 2°",
+      "accepted": false,
+      "reason": "rotation_between_samples_too_large",
+      "world_velocity_xyz_mps": null
+    },
+    {
+      "case": "越出速度包络",
+      "diagnostic": "速度 3 m/s，限 2 m/s",
+      "accepted": false,
+      "reason": "dvl_speed_out_of_envelope",
+      "world_velocity_xyz_mps": null
+    }
+  ],
+  "same_version_ros_probe_counts": {
+    "imu": 7,
+    "dvl": 7,
+    "depth": 8,
+    "odom": 15
+  },
+  "same_version_ros_probe_last_filtered_velocity_xyz_mps": [
+    6.662046290897466e-17,
+    0.30004355055956855,
+    1.1398589025430883e-05
+  ],
+  "source_sha256": {
+    "plot": "7dc8ece284880188960e231711bb38a2530e6a9f8c7885370936c2063bb4fa10",
+    "join": "9ce501ab7772b841cc4e500ce881b37257168eaa914d0ac133b4f02f1200b168",
+    "ros_test": "237ef14e83e8b2618135862bc17dfe72cc00473ed8c0106b0e29ae3a986fb4d1",
+    "probe": "13c216ec1570d823c10824b10815118ccb0ee091a24e776caa581bec299403c3"
+  },
+  "ros_probe_result_sha256": "45b78adc868a4dc5aca9ef21c80cf5653d11c8d37184c2dab19aba14d635159a",
+  "figure_sha256": {
+    "44_sidecar_dvl_source_match.pdf": "ffd4cc8499e606d798c043c653db90d187d3d29afd9c94b9cd2406104a0935f4",
+    "44_sidecar_dvl_source_match.png": "b6ffb98360121d8e799936972e214c3ad3f4ed4976f91c18a99555df501a0f67"
+  },
+  "thesis_figure_sha256": {
+    "44_sidecar_dvl_source_match.pdf": "d58423d476a40e01ac9a3ebd271275fe20a514ee8a6d3ffda556e62429012d9e",
+    "44_sidecar_dvl_source_match.png": "a5a3ea70c1ec7150bee7b8fe2e889369a80941015f0f96f7dd8dbe3958c070d4"
+  },
+  "physical_imu_or_dvl_tested": false,
+  "field_release_authorized": false
+}

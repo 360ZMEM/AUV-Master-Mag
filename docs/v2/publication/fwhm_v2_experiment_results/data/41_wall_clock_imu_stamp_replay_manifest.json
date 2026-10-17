@@ -1,0 +1,26 @@
+{
+  "role": "matched_wall_clock_synthetic_imu_stamp_replay_shadow_comparison",
+  "control_launch_override": "inspection_navigation_imu_max_age_s:=0.0",
+  "matched_heading_source": "imu_orientation_covariance",
+  "heading_covariance_in_probe_rad2": 0.0001,
+  "gated_imu_max_age_s": 0.75,
+  "untrusted_target_side_hint": "synthetic_test_fixture rejected under non-sim clock",
+  "physical_sensor_calibration": false,
+  "field_release_authorized": false,
+  "source_sha256": {
+    "plot": "100d8051072cba3d729be693b19d59fba8830370b5b5c221fc0304964984c90a",
+    "probe": "28244ec60deb34e2b003b36ac47da00462ed730330d18bf25fec04ffdfcbf955",
+    "v2_node": "cae6c8b0da295465320327cc0300cc6c533cf473114c1f5846f7fc4115a69a03",
+    "localization": "842dfe55b0052490430c327bfee05741c5a4912bd0b7cbfe350dfc0407e639a0"
+  },
+  "data_sha256": {
+    "41_control_229_summary.json": "d215a1c3f390e588bd51907587176609fa357a8ef19aef050fe6599912411cbb",
+    "41_control_229_trace.csv": "ff8a6ee83d0545d317f0c210d99ccea31afb44a183665cba85b112f6192423c7",
+    "41_gated_228_summary.json": "e7e2189d25405c2bec8ede7d442dcb785963cdfc49f8637c73e5d504c694c44f",
+    "41_gated_228_trace.csv": "48e53e564769559dfcbcd796dc876575dafd00c21212e3d194e369f847c6056c"
+  },
+  "figure_sha256": {
+    "41_wall_clock_imu_stamp_replay.pdf": "d7d3366b69c205e15e406f8ffff1a8bccec32c50ec90f59b7f1ff173bd0da631",
+    "41_wall_clock_imu_stamp_replay.png": "503a76c1fa6d62b775848bf8782ae3621246bf98bb57d485fdf8206f41dc6e01"
+  }
+}

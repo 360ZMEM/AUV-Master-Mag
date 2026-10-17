@@ -1,0 +1,29 @@
+{
+  "role": "live_passive_inspection_shadow_graph_audit",
+  "ros_domain_id": "217",
+  "nodes": [
+    "auv_cable_tracking_v2_node",
+    "auv_inspection_bridge_node",
+    "auv_inspection_controller_node",
+    "auv_localization_node",
+    "auv_sensor_supervisor_node",
+    "zenoh_viz_bridge_node"
+  ],
+  "missing_expected_nodes": [],
+  "unexpected_general_nodes": [],
+  "bridge_passive_parameter": "Boolean value is: True",
+  "bridge_passive_verified": true,
+  "base_clock_parameters": {
+    "auv_localization_node": "Boolean value is: True",
+    "auv_sensor_supervisor_node": "Boolean value is: True",
+    "zenoh_viz_bridge_node": "Boolean value is: True"
+  },
+  "base_sim_time_verified": true,
+  "expected_sim_time": true,
+  "source_sha256": "4122da32f2fe7bb381785d41feaec206cf9aa286d25b64533ff5341cc63f159f",
+  "installed_source_equal": true,
+  "physical_actuation_tested": false,
+  "field_release_authorized": false,
+  "interpretation": "Live graph and bridge parameter in a local isolated ROS domain. No injected mission, real sonar, physical PC104, or vehicle motion was tested; absence of a mission injector does not authenticate other publishers.",
+  "checks_passed": true
+}

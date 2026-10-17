@@ -1,0 +1,5 @@
+{
+  "command": "PYTHONPATH=AUV-Master-Mag/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /usr/bin/python3 -m pytest -q AUV-Master-Mag/tests/v2",
+  "result": "105 passed in 79.14s",
+  "log_sha256": "0b374d291e396c70d5d28865dc53f30b9571413f56dbfc7954b8e40854aeca5e"
+}

@@ -1,0 +1,18 @@
+{
+  "plan_sha256": "9102cb2bb48fb609c220dcf82b4e47179cc0e7e7db2b0283ae2f7a4cbc3fab93",
+  "sources_unchanged": true,
+  "artifacts": {
+    "clean_wire_diagnostic_only_seed501.csv": "17b014d5645273cfee8626fd220e4531e34fb4920ed70039a9cfa99585ceeea0",
+    "clean_wire_diagnostic_only_seed502.csv": "558f633d4433cd011d5bb70e1685f1faab3880c6ff4c6fdca7034c3d6266b7da",
+    "clean_wire_diagnostic_only_seed503.csv": "d1250fd8309ee9238dd198eda05042025eb1419783ffd4610a3898d9010a6260",
+    "fused_neighbor_diagnostic_only_seed501.csv": "f1022ae57b8af82c07d0ac861c0686acfe51a8ffa789250309649fd69ba471e1",
+    "fused_neighbor_diagnostic_only_seed502.csv": "19bcb685a1e1eed6cf6f33911f377f64bba66074c2ab34d5ab14a8d00d17cd37",
+    "fused_neighbor_diagnostic_only_seed503.csv": "75bc6ff530188e70aee74a5baf55404e84cf22b36290377b0509c9981b9f4eb2",
+    "plan.json": "9102cb2bb48fb609c220dcf82b4e47179cc0e7e7db2b0283ae2f7a4cbc3fab93",
+    "source_snapshot_index.json": "1a5806b57ac2d9f25e06251785efebdf1d565688d617e490c80b902843730b91",
+    "steady_minus_diagnostic_only_seed501.csv": "dfc17f5bac568a5180146620a4cb054a2630cb764d971a29d500fa4d4fe5c92b",
+    "steady_minus_diagnostic_only_seed502.csv": "bde8e7867bb4d310ff367a22834b78d28710c8306688a600217ef2e5c88ee9c0",
+    "steady_minus_diagnostic_only_seed503.csv": "52f494499d2a119ac4745d0722883a5ad7e955ec840da93810b75fa9ed961924",
+    "summary.json": "52494308999f237d1965613e7e705f6ee829c557ac6a35957b17d5e8071ee8e0"
+  }
+}

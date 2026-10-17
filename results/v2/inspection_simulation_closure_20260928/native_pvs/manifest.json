@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "experiment": "current_F_runin_native_pvs_simulation",
+  "generated_at_utc": "2026-09-28T00:54:27.425674+00:00",
+  "repository": {
+    "root": "/home/zmem063/auv_console_python/AUV-Master-Project",
+    "commit": null,
+    "dirty": null
+  },
+  "environment": {
+    "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+    "platform": "Linux-6.8.0-90-generic-x86_64-with-glibc2.35",
+    "numpy": "1.24.4"
+  },
+  "config": {
+    "cases": [
+      "wire",
+      "dipole",
+      "no_source"
+    ],
+    "seed_start": 101,
+    "seeds": 1,
+    "max_time_s": 1600.0,
+    "pvs_dt_s": 0.05,
+    "mission_dt_s": 0.25,
+    "speed_feedforward_b": 40.0,
+    "simulator_heading_unwrap": true,
+    "not_ros_or_hardware_acceptance": true,
+    "repository_commit": "6e4632a296feef6c706588b06dc57bfe0899e967",
+    "source_sha256": {
+      "tools/probe_v2_flythrough_pvs.py": "724b3bdd8fbe14ef19edf188e5513375e8aa35e0dda268d6c1bd3d66552b1718",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/flythrough.py": "44f94c347839e7f9f9495b2c33436f9a0a63db798b1541859d658dc89ea529d7",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/pipeline.py": "1ea8d7b1e10f9e1071a603160655680476dfe1802d841e9c27c2183b3ef2f144",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/fwhm.py": "2a8abdddc102329bc76f326d36828de0be63eeab06d44179c09220af8641d14e",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/config.py": "c775d27ab4034a17571a55859fac24bbed3ed16fd49d4f1572428a6b15e91aa9",
+      "AUV-Master-Mag/src/auv_mag_tracking/v2/types.py": "2b07ccac5fc351da3cd5bd4dac7a91d11b0b3a31780b0b24363bc3e5df87fc59",
+      "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+      "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+      "tools/probe_v2_flythrough_simulation_candidate.py": "2d89fe686aefd1fded0b26f847a6a707768b405dff02c22444b2352320c51697"
+    },
+    "flythrough_policy": {
+      "start_along_m": -250.0,
+      "end_along_m": -80.0,
+      "start_lateral_m": -15.0,
+      "end_lateral_m": 15.0,
+      "staging_tolerance_m": 2.0,
+      "heading_tolerance_deg": 15.0,
+      "maximum_prior_bend_deg": 2.0,
+      "path_lookahead_m": 40.0,
+      "current_filter_alpha": 0.05,
+      "maximum_estimated_current_mps": 0.08,
+      "rejoin_overshoot_m": 5.0,
+      "side_hint_required": true,
+      "side_hint_min_m": 2.0,
+      "side_hint_max_m": 8.0,
+      "side_hint_source": "synthetic_test_fixture",
+      "allow_synthetic_side_hint": true,
+      "maximum_side_hint_width_m": null,
+      "require_runtime_identity_cue": false,
+      "runtime_identity_supersedes_side_hint_center": false,
+      "maximum_runtime_identity_age_s": 0.5,
+      "maximum_runtime_identity_gap_s": 2.0,
+      "maximum_runtime_identity_confirm_half_width_m": 0.5,
+      "maximum_runtime_identity_track_half_width_m": 0.6,
+      "runtime_target_anchor_min_m": null,
+      "runtime_target_anchor_max_m": null,
+      "runtime_target_exclusive_min_m": null,
+      "runtime_target_exclusive_max_m": null,
+      "minimum_halfmax_tail_m": 7.0,
+      "side_hint_observation_tolerance_m": 0.5,
+      "rejoin_runin_m": 20.0,
+      "rejoin_opposed_runin_m": null,
+      "rejoin_current_direction_threshold_mps": 0.02,
+      "maximum_heading_sigma_deg": 2.0,
+      "maximum_ground_velocity_sigma_mps": 0.03,
+      "route_quality_mean_limit_m": 1.0,
+      "route_quality_max_limit_m": 2.0,
+      "route_quality_min_samples": 200,
+      "maximum_track_lateral_disturbance_change_mps": null,
+      "track_disturbance_window_s": 4.0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dipole_seed_101.csv",
+      "size_bytes": 1508018,
+      "sha256": "55db474534a3daaf03d1e95c5c43df448ebb1677d654f7d368d9f52eb52f19d2"
+    },
+    {
+      "path": "no_source_seed_101.csv",
+      "size_bytes": 401591,
+      "sha256": "62616d13b38a2d1aec1ded3f57fbcc3d115821d2203cbcde92ca593a1498f8bb"
+    },
+    {
+      "path": "summary.json",
+      "size_bytes": 2803,
+      "sha256": "0cc7e29d918a61861fde9b41f10cf7252dc8cb6c93aeb129bba2e89968c323c6"
+    },
+    {
+      "path": "wire_seed_101.csv",
+      "size_bytes": 1479343,
+      "sha256": "1cb6853993671761b6fc5e04e873d1d2689df817e4cc187bffad73f74a7e07ea"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "role": "installed_ros_two_case_task_depth_execution_status_contract",
+  "scope": "two independent seed-101 synthetic ROS/PID/guard/localhost-UDP/native-PVS runs; software route completion only; no physical sonar/current/PC104",
+  "cases": {
+    "normal_final": {
+      "completed": true,
+      "terminal_task_status": "SOFTWARE_ROUTE_COMPLETE",
+      "terminal_localization_status": "LOCALIZED_DEPTH_PENDING",
+      "terminal_autonomous_authorized": false,
+      "route_observed_lateral_max_m": 0.742135598876831,
+      "summary_sha256": "75e019b5ee3813a45b14cac47aaea7d6e5eaa5cf37f9c579eeb5a5a0efc1367e",
+      "csv_sha256": "000ab8f109b4f6e57b3dde12c334e14508c15d478506eb668705ccd399dd6125",
+      "log_sha256": "4df214d07ba491425a94570d5c82c06fa4de1a85a91a502a5e1284f77753fab9"
+    },
+    "fault_final": {
+      "completed": false,
+      "terminal_task_status": "SUSPENDED",
+      "terminal_localization_status": "RECOVERY_REQUIRED",
+      "first_hold_s": 883.5,
+      "first_recovery_required_s": 913.5,
+      "post_hold_zero_command_cycles": 241,
+      "hold_to_final_displacement_m": 5.682610057898091,
+      "summary_sha256": "092f42ab951a5c1c13a4f1366cfc6f7641cf88d09d0326fba1b62235cf8f172c",
+      "csv_sha256": "e110038e57079d07c8fbb37d0dd0cbcd0e24cafe3f8c60281928320566eebfd1",
+      "log_sha256": "667566166712dd2bdbe98daff95da3e488472f36ee49d5ef937849d569493784"
+    }
+  },
+  "config_sha256": "0d7dcf44f4df41f225a71d358bbf953b27f77997b8eb718a07cdd7403aef4993",
+  "source_sha256": {
+    "audit_script": "32d51a01c7e715847ad0d737aada669d6c687e1ddc2320d900ce141e912e6273",
+    "bridge": "ca9c3cc0922f4b7d6e8d96a8488bdc6d69985fe72e2214a7823c4045e75fca47",
+    "task_status": "8ad2bed01c93b8f077f35a8549d66b0cf350cc4b4f15fda12ff63c8f420ba2a0",
+    "algorithm_node": "bccd3166e7d268e909ea6a80466a2cb7c774579540a79cac12531ee1e1c8d5e7",
+    "harness": "12d2943d6d3db5943e0f3d1220fa13e57bdd126eeb65b9ee1f799e19f82d2137",
+    "console_view": "455b6aa9d47a32cc39cc5af1268211f9c6a5b88f7db67ea8e41ce99dbdd1e2d0",
+    "console_window": "ac6a6deb4d360c35549fbe0d38cfff1b753004ce9499255119df4f397bff49b3"
+  },
+  "png_sha256": "cd9028a3d00e1e393fa551971ab24bb3bbfed28ee841846cc42e08753f49e50a",
+  "pdf_sha256": "4f43fecf45cc496919a9032c08910dbf5abe99deea84b808d524a9f541d073a9",
+  "source_snapshots": {
+    "audit_script": "repro_sources/62_audit_script_original.py",
+    "bridge": "repro_sources/62_bridge_original.py",
+    "task_status": "repro_sources/62_task_status_original.py",
+    "algorithm_node": "repro_sources/62_algorithm_node_original.py",
+    "harness": "repro_sources/62_harness_original.py",
+    "console_view": "repro_sources/62_console_view_original.py",
+    "console_window": "repro_sources/62_console_window_original.py"
+  }
+}

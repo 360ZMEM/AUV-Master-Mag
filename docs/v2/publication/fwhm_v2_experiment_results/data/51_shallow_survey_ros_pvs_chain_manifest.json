@@ -1,0 +1,250 @@
+{
+  "evidence_level": "mixed_ros_pid_protocol_native_pvs_and_ros_pid_guard_udp_native_pvs",
+  "guard_connected_cases": [
+    "positive",
+    "dropout"
+  ],
+  "guard_not_connected_cases": [
+    "negative",
+    "fused",
+    "no_source"
+  ],
+  "synthetic_identity_and_current_fixture": true,
+  "pc104_or_field_connected": false,
+  "field_release_authorized": false,
+  "cases": {
+    "positive": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "wire",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "complete",
+      "terminal_phase": "complete",
+      "terminal_reason": "complete",
+      "duration_s": 1824.25,
+      "ticks": 7294,
+      "survey_station_count": 3,
+      "geometry_valid": true,
+      "track_samples": 1055,
+      "track_truth_lateral_mae_m": 0.33419746838848247,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 0,
+      "hold_to_final_displacement_m": null,
+      "bridge_arbiter_sources": [
+        "JETSON_MPC",
+        "SAFETY_FALLBACK"
+      ],
+      "trajectory_sha256": "867e48d692e591f09e6f90f414d36bbb52d304efce9989b39e5aa6d1ab626c5a",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "490e4356e0388a5d8ff91a0c3055f4711aea71eb3fa9ac53c3b933ec46eb7527"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": true,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/wire_positive_seed101.csv"
+    },
+    "negative": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "wire",
+      "seed": 101,
+      "current_y_mps": -0.04,
+      "terminal_mode": "complete",
+      "terminal_phase": "complete",
+      "terminal_reason": "complete",
+      "duration_s": 2272.25,
+      "ticks": 9086,
+      "survey_station_count": 4,
+      "geometry_valid": true,
+      "track_samples": 1064,
+      "track_truth_lateral_mae_m": 0.2913637390904069,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 0,
+      "hold_to_final_displacement_m": null,
+      "bridge_arbiter_sources": null,
+      "trajectory_sha256": "06f7b522c9cd7704329906524be1a00050c92b326bdd915a31e0a91948ec4acf",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": false,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/wire_negative_seed101.csv"
+    },
+    "fused": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "fused_neighbor",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "hold",
+      "terminal_phase": "hold",
+      "terminal_reason": "survey_identity_rejected",
+      "duration_s": 1378.5,
+      "ticks": 5511,
+      "survey_station_count": 3,
+      "geometry_valid": true,
+      "track_samples": 0,
+      "track_truth_lateral_mae_m": null,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 61,
+      "hold_to_final_displacement_m": 2.847380094093175,
+      "bridge_arbiter_sources": null,
+      "trajectory_sha256": "ee0cfd53ffe71ba8876d8e4bd8509f4eae86ac72c2e185d180d9380a0e3a895d",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": false,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/fused_neighbor_positive_seed101.csv"
+    },
+    "dropout": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "identity_dropout",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "hold",
+      "terminal_phase": "hold",
+      "terminal_reason": "survey_identity_lost",
+      "duration_s": 1604.0,
+      "ticks": 6413,
+      "survey_station_count": 3,
+      "geometry_valid": true,
+      "track_samples": 114,
+      "track_truth_lateral_mae_m": 0.45653923052586054,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 61,
+      "hold_to_final_displacement_m": 2.8098357027433636,
+      "bridge_arbiter_sources": [
+        "JETSON_MPC",
+        "SAFETY_FALLBACK"
+      ],
+      "trajectory_sha256": "c7478709180e65b9ac8a4a2efea391bb07dde4110448e99d4fc15aa0dae43cb4",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "490e4356e0388a5d8ff91a0c3055f4711aea71eb3fa9ac53c3b933ec46eb7527"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": true,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/identity_dropout_positive_seed101.csv"
+    },
+    "no_source": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "no_source",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "hold",
+      "terminal_phase": "hold",
+      "terminal_reason": "survey_geometry_rejected:station_0_low_prominence,station_0_ambiguous_anomaly_peaks,station_1_low_prominence,station_1_ambiguous_anomaly_peaks,station_2_low_prominence,station_2_asymmetric_anomaly,station_2_ambiguous_anomaly_peaks",
+      "duration_s": 1378.5,
+      "ticks": 5511,
+      "survey_station_count": 3,
+      "geometry_valid": false,
+      "track_samples": 0,
+      "track_truth_lateral_mae_m": null,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 61,
+      "hold_to_final_displacement_m": 2.847380094093175,
+      "bridge_arbiter_sources": null,
+      "trajectory_sha256": "9166dcd2a065c8091026864e8f309c5af2e395f1124d4959bfca573ca7c04428",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": false,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/no_source_positive_seed101.csv"
+    }
+  },
+  "raw_hashes": {
+    "positive": {
+      "summary_sha256": "c4f4be3317a1eee1617128f953c96f2d649dcf87d9fb2b1ac262acfc19c0ff12",
+      "trajectory_sha256": "867e48d692e591f09e6f90f414d36bbb52d304efce9989b39e5aa6d1ab626c5a"
+    },
+    "negative": {
+      "summary_sha256": "75f52e2579e2d4931992bdab931a08bfbc837ed93d7b2e47616bb9f7ea76e173",
+      "trajectory_sha256": "06f7b522c9cd7704329906524be1a00050c92b326bdd915a31e0a91948ec4acf"
+    },
+    "fused": {
+      "summary_sha256": "0faae41046847d3b2e25fac27daceb2a9655bdd18469fb7d5a543631e4a50b7b",
+      "trajectory_sha256": "ee0cfd53ffe71ba8876d8e4bd8509f4eae86ac72c2e185d180d9380a0e3a895d"
+    },
+    "dropout": {
+      "summary_sha256": "7c49ec20c6d670342ab0e398e23800d94714f13bfbb1e75b6a4dfbf926b6d129",
+      "trajectory_sha256": "c7478709180e65b9ac8a4a2efea391bb07dde4110448e99d4fc15aa0dae43cb4"
+    },
+    "no_source": {
+      "summary_sha256": "eab6a426b2cfe8c3307c0c3083b953917361be0283eba2ee9ddc194157599f3b",
+      "trajectory_sha256": "9166dcd2a065c8091026864e8f309c5af2e395f1124d4959bfca573ca7c04428"
+    }
+  },
+  "figure_paths": [
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/51_shallow_survey_ros_pvs_chain.pdf",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/51_shallow_survey_ros_pvs_chain.png",
+    "docs/thesis/figures/experiments/fwhm_v2/51_shallow_survey_ros_pvs_chain.pdf",
+    "docs/thesis/figures/experiments/fwhm_v2/51_shallow_survey_ros_pvs_chain.png"
+  ],
+  "figure_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/51_shallow_survey_ros_pvs_chain.pdf": "01deb730afe3797861a45e4b74300c7b8493c4f60b670ed163091405f23d9e7c",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/51_shallow_survey_ros_pvs_chain.png": "85e277384ceb597757f57e4392c21f25d37f62b60c57ecb8894360d4e2bb5eee",
+    "docs/thesis/figures/experiments/fwhm_v2/51_shallow_survey_ros_pvs_chain.pdf": "bd97c5a7491c465269749a3a02047b3d4e51488218602b3f50c79758462a9310",
+    "docs/thesis/figures/experiments/fwhm_v2/51_shallow_survey_ros_pvs_chain.png": "85e277384ceb597757f57e4392c21f25d37f62b60c57ecb8894360d4e2bb5eee"
+  },
+  "source_sha256": {
+    "tools/plot_v2_shallow_survey_ros_pvs.py": "a5a91d82a6fe802287c1ab0334c47a4376f052d717d4ce324de923810bbb7c3b",
+    "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14"
+  }
+}

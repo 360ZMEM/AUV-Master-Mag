@@ -1,0 +1,10 @@
+{
+  "scope": "seed101 navigation perturbation and route-quality refusal; historical Fig26 retained",
+  "files": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/27_navigation_quality_gate.png": "bdb463664fe073e097d3a655bda42aed21ca91f3f5d2375c797cd0c67fc2d191",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/27_navigation_quality_gate.pdf": "d9ca73be19ae0311dbb652f00758d00a36d7dd0bd4fc45363110961264fc40f9",
+    "docs/thesis/figures/experiments/fwhm_v2/27_navigation_quality_gate.pdf": "d9ca73be19ae0311dbb652f00758d00a36d7dd0bd4fc45363110961264fc40f9",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/27_navigation_quality_gate_summary.json": "24d2e91250a5b30f1f351e3ab93a3e0813862d5e0329f9865788d9a3959b5f97",
+    "tools/plot_v2_navigation_quality_gate.py": "48255ec0338e47c97e668242b274c84a5473791c75d11e1cb5373de655b0fd4b"
+  }
+}

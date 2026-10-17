@@ -1,0 +1,78 @@
+{
+  "role": "single_run_local_udp_protocol_to_ros_imu_packet_time_gate",
+  "cases": [
+    {
+      "case": "valid_initial",
+      "pc104_uptime_ms": 1000,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "valid_advanced_fresh",
+      "pc104_uptime_ms": 1700,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "repeated",
+      "pc104_uptime_ms": 1700,
+      "expected_imu_increment": 0,
+      "imu_increment": 0,
+      "dvl_increment": 1
+    },
+    {
+      "case": "missing_marker",
+      "pc104_uptime_ms": null,
+      "expected_imu_increment": 0,
+      "imu_increment": 0,
+      "dvl_increment": 1
+    },
+    {
+      "case": "regressed",
+      "pc104_uptime_ms": 900,
+      "expected_imu_increment": 0,
+      "imu_increment": 0,
+      "dvl_increment": 1
+    },
+    {
+      "case": "advanced_but_stale",
+      "pc104_uptime_ms": 1710,
+      "expected_imu_increment": 0,
+      "imu_increment": 0,
+      "dvl_increment": 1
+    }
+  ],
+  "counts": {
+    "imu": 2,
+    "dvl": 6
+  },
+  "imu_received_stamps": [
+    {
+      "stamp_s": 1790474627.9679615,
+      "receive_wall_s": 1790474627.9689188
+    },
+    {
+      "stamp_s": 1790474628.6679616,
+      "receive_wall_s": 1790474628.6406343
+    }
+  ],
+  "checks": {
+    "every_packet_reached_bridge": true,
+    "imu_publication_matches_expected": true,
+    "timebase_behavior_matches_mode": true
+  },
+  "checks_passed": true,
+  "ros_domain_id": "202",
+  "bridge_passive_mode": true,
+  "packet_time_gate_enabled": true,
+  "physical_pc104_tested": false,
+  "imu_sensor_acquisition_time_tested": false,
+  "field_release_authorized": false,
+  "source_sha256": {
+    "probe": "3eff2b14b30ad8cd86bf569862e52c57b4ccce6110a824549f6938221786030b",
+    "bridge": "8cb613c980538e4df1cef67a5c1aaed63487a3d5727a429a9d242446156f8cce",
+    "fixture": "2b0eea956bbb5e08b45f8a61f96e45f6c952d537c1dd2071085099061fe0a78a"
+  }
+}

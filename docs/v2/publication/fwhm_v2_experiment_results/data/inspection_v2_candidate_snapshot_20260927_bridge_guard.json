@@ -1,0 +1,21 @@
+{
+  "role": "inspection_v2_bridge_hold_guard_candidate_snapshot",
+  "field_release_authorized": false,
+  "status": "synthetic_software_chain_accepted_only",
+  "missing_acceptance": [
+    "physical sonar observation and independent probability calibration",
+    "measured AUV zero-effort drift/current and field corridor bounds",
+    "authenticated ROS/DDS publisher and supervised reset",
+    "certified upper-level disposition and physical PC104 response"
+  ],
+  "files_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "a015979b921b571a35d4f2ecaab360d69c910dbba7c2ec966d3c4b80865afaba",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "c58193c22257f16a27f4de9da66236e9959cb4cbb0627fbb3fa334e92c0dca6b",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "2d65c56424f777200548837a8f1ac3cfe02e90a65d7e5d71a3c32b35d46f970e",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "99dd4873d5782cbd6cc9b0eb29329c86f24a926b97481ee099ab41d4ee341fd5",
+    "brain_linux/src/auv_cable_tracking_v2/launch/flythrough_nodes.launch.py": "d7b57d9123f98317902e38f4b81bd6a8664f692399357e879646d5fc58d02b16",
+    "brain_linux/src/auv_cable_tracking_v2/launch/inspection_nodes.launch.py": "ea74a9f2dc9ca572c63af88c9653e0119673df355d4e88e5db75650b954ef561",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "617744b9f49a578bce2e1729dbdb26592c6fa84977440f6ab370898422ef5558",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/34_bridge_hold_guard_summary.json": "f1d4ceb1b3eff1c64a88bc657dc0850f8daecb8f5fcfbc707a502e81aaee2b04"
+  }
+}

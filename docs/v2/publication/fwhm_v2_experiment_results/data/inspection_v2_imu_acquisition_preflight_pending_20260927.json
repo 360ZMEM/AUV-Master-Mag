@@ -1,0 +1,32 @@
+{
+  "role": "physical_imu_acquisition_provenance_structural_preflight",
+  "navigation_evidence_reviewable": false,
+  "field_release_authorized": false,
+  "manifest_sha256": "c428d40a7bd8469a27a5c9a572d09f240221bf0a33526abc38e7c25d2adbaf79",
+  "audit_script_sha256": "d4d5bfea75c1fc946f739be590264a42b0b401ada4ef68f32c5e33392fbc9b9a",
+  "summary": {
+    "sample_count": 0,
+    "maximum_acquisition_to_packet_s": null,
+    "maximum_acquisition_to_ros_s": null,
+    "maximum_heading_std_deg": null
+  },
+  "blockers": [
+    "mission_id: nonempty value required",
+    "target_id: nonempty value required",
+    "sensor_model: nonempty value required",
+    "firmware_version: nonempty value required",
+    "acquisition_clock_method: nonempty value required",
+    "orientation_calibration_method: nonempty value required",
+    "acquisition_time_basis must be sensor_native_timestamp; PC104 packet or ROS receipt time is insufficient",
+    "measured_max_clock_error_s: finite positive value required",
+    "candidate_max_sample_age_s: finite positive value required",
+    "sensor_driver_source: path and sha256 required",
+    "raw_imu_log: path and sha256 required",
+    "raw_pc104_uplink: path and sha256 required",
+    "raw_ros_imu_bag: path and sha256 required",
+    "raw_clock_alignment_trace: path and sha256 required",
+    "orientation_calibration_report: path and sha256 required",
+    "sample_trace: path and sha256 required"
+  ],
+  "interpretation": "Hashes, declared native provenance, monotonic samples, mapped time, and covariance structure only; physical source and calibration still need independent review."
+}

@@ -1,0 +1,121 @@
+{
+  "evidence_level": "same_code_synthetic_current_sonar_and_magnetic_model_noise_seed_repeat",
+  "field_release_authorized": false,
+  "field_success_probability_claimed": false,
+  "physical_sonar_current_pc104_connected": false,
+  "seeds": [
+    101,
+    102,
+    103
+  ],
+  "common_source_sha256_at_run_start": {
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+    "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168"
+  },
+  "aggregate_by_current_direction": {
+    "positive": {
+      "completed_runs": 3,
+      "attempted_runs": 3,
+      "mean_track_truth_lateral_mae_m": 0.33566293746028275,
+      "minimum_track_truth_lateral_mae_m": 0.3335723804660947,
+      "maximum_track_truth_lateral_mae_m": 0.3392189635262711
+    },
+    "negative": {
+      "completed_runs": 3,
+      "attempted_runs": 3,
+      "mean_track_truth_lateral_mae_m": 0.2920862341494599,
+      "minimum_track_truth_lateral_mae_m": 0.2913637390904069,
+      "maximum_track_truth_lateral_mae_m": 0.29281251698811833
+    }
+  },
+  "runs": [
+    {
+      "direction": "positive",
+      "seed": 101,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.33419746838848247,
+      "track_samples": 1055,
+      "duration_s": 1824.25,
+      "guard_connected": true,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/wire_positive_seed101_summary.json",
+      "summary_sha256": "c4f4be3317a1eee1617128f953c96f2d649dcf87d9fb2b1ac262acfc19c0ff12",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/wire_positive_seed101.csv",
+      "trajectory_sha256": "867e48d692e591f09e6f90f414d36bbb52d304efce9989b39e5aa6d1ab626c5a"
+    },
+    {
+      "direction": "positive",
+      "seed": 102,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.3335723804660947,
+      "track_samples": 1055,
+      "duration_s": 1824.5,
+      "guard_connected": false,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_positive_seed102_summary.json",
+      "summary_sha256": "7e5d4a4a3766b55a5639ca5744a587ce6da8abaecd3f5979b0ba0555861a99ea",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_positive_seed102.csv",
+      "trajectory_sha256": "bcd7fe7e233692691f4aef4b1a489eb44c2a39e9bd23af46dc7ed6602c090330"
+    },
+    {
+      "direction": "positive",
+      "seed": 103,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.3392189635262711,
+      "track_samples": 1055,
+      "duration_s": 1824.75,
+      "guard_connected": false,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_positive_seed103_summary.json",
+      "summary_sha256": "3104bae1dcf44313a6dad0c364ec817f4b2263ff74e5e16c9517a53f54705cb3",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_positive_seed103.csv",
+      "trajectory_sha256": "93ad018bea59defea7f2de00721f2ebcdd43211d493a2326b0b1d423d4263af6"
+    },
+    {
+      "direction": "negative",
+      "seed": 101,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.2913637390904069,
+      "track_samples": 1064,
+      "duration_s": 2272.25,
+      "guard_connected": false,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/wire_negative_seed101_summary.json",
+      "summary_sha256": "75f52e2579e2d4931992bdab931a08bfbc837ed93d7b2e47616bb9f7ea76e173",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/wire_negative_seed101.csv",
+      "trajectory_sha256": "06f7b522c9cd7704329906524be1a00050c92b326bdd915a31e0a91948ec4acf"
+    },
+    {
+      "direction": "negative",
+      "seed": 102,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.29281251698811833,
+      "track_samples": 1064,
+      "duration_s": 2272.25,
+      "guard_connected": false,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_negative_seed102_summary.json",
+      "summary_sha256": "d76df6dc2c5a24fedf064c81a6e4c7dc508c4cf16bb25fd43d2abeae08adc495",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_negative_seed102.csv",
+      "trajectory_sha256": "39e3b10946b6faa67319bf84d06a2123623116a7048def8d499579485f9b4e6a"
+    },
+    {
+      "direction": "negative",
+      "seed": 103,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.2920824463698544,
+      "track_samples": 1064,
+      "duration_s": 2272.25,
+      "guard_connected": false,
+      "burial_depth_published": false,
+      "summary_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_negative_seed103_summary.json",
+      "summary_sha256": "84928312ae1969bf9b107de54fce536c84900005d778b4054a0209247949141b",
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_seed_extension_20260927/wire_negative_seed103.csv",
+      "trajectory_sha256": "f2bbe18b611def8accd88cce301c51d1b3205700a30d57a21a74b49d185e37e2"
+    }
+  ]
+}

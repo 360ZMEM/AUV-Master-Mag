@@ -1,0 +1,15 @@
+{
+  "positive_runs": 27,
+  "positive_completed": 27,
+  "negative_runs": 33,
+  "negative_rejected": 33,
+  "named_false_geometry": 0,
+  "false_completion": 0,
+  "anonymous_runs": 9,
+  "anonymous_named_completions": 0,
+  "direction_only_runs": 3,
+  "direction_only_completed": 3,
+  "finite_grid_expectations_passed": true,
+  "scope": "declared finite toy assumptions only; external anchor and navigation error bounds are required",
+  "plan_sha256": "1d3e8b20c17db4da4871fc29f9d287ca85144d830380811f6695a0f77aa25fdc"
+}

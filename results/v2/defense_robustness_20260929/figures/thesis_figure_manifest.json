@@ -1,0 +1,10 @@
+{
+  "plan_sha256": "1d3e8b20c17db4da4871fc29f9d287ca85144d830380811f6695a0f77aa25fdc",
+  "seed": 501,
+  "split": "held_out",
+  "script_sha256": "cb8e6d459dae13a3e6decf84e93cc9cb95b284f47f06cf850c7a43db8d79d6b3",
+  "assets": {
+    "77_defense_robustness_thesis_summary.pdf": "2f59e7131034071a9422f4e685afcd47e7f9f1b4675fe6c91c3b772e95c3d619",
+    "77_defense_robustness_thesis_summary.png": "0b890e79818642c24c0d8183a4243c3adfaa2996825534b5f6b01b758d5e457d"
+  }
+}

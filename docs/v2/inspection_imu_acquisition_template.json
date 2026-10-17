@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "mission_id": "",
+  "target_id": "",
+  "sensor_model": "",
+  "firmware_version": "",
+  "acquisition_time_basis": "",
+  "acquisition_clock_method": "",
+  "orientation_calibration_method": "",
+  "measured_max_clock_error_s": null,
+  "candidate_max_sample_age_s": null,
+  "sensor_driver_source": {"path": "", "sha256": ""},
+  "raw_imu_log": {"path": "", "sha256": ""},
+  "raw_pc104_uplink": {"path": "", "sha256": ""},
+  "raw_ros_imu_bag": {"path": "", "sha256": ""},
+  "raw_clock_alignment_trace": {"path": "", "sha256": ""},
+  "orientation_calibration_report": {"path": "", "sha256": ""},
+  "sample_trace": {"path": "", "sha256": ""}
+}

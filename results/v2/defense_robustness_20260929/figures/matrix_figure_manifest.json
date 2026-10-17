@@ -1,0 +1,13 @@
+{
+  "source_plan_sha256": "1d3e8b20c17db4da4871fc29f9d287ca85144d830380811f6695a0f77aa25fdc",
+  "split": "held_out",
+  "seed": 501,
+  "source_run": "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/defense_robustness_20260929/05_held_out",
+  "script_sha256": "fa917868cce1aa181aa67813c3825a88f6143d440ab33e8d93bd50cab413a37f",
+  "assets": {
+    "75_defense_robustness_outcome_matrix.pdf": "b681e042b183138cbc2b4fc7e0495b66a20c041bbe964546a55e8fccd232f97f",
+    "75_defense_robustness_outcome_matrix.png": "d84fad6cca850096cc0c726004a2b04dca400feefb7ffb4dc2619bc3017ab4a3",
+    "76_defense_current_process_and_limits.pdf": "3f3113388fbefe2223c9179cf446ac49c1f1d547a597001294320c9510bc4790",
+    "76_defense_current_process_and_limits.png": "2051e0428513c20e0017ed6d4e6d4656929c76c4126d0774621be7e0a8fdb6fd"
+  }
+}

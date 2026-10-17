@@ -1,0 +1,110 @@
+{
+  "evidence_level": "same_synthetic_ros_pid_guard_udp_native_pvs_case_across_two_source_versions",
+  "old_alarm_sim_elapsed_s": 232.75,
+  "new_alarm_sim_elapsed_s": 30.0,
+  "hold_duration_sim_s": 300.0,
+  "hold_ticks_each": 1201,
+  "old_drift_300s_m": 11.992572708351576,
+  "new_drift_300s_m": 11.992572708351576,
+  "zero_command_all_hold_ticks": true,
+  "field_release_authorized": false,
+  "physical_recovery_simulated": false,
+  "cases": {
+    "before": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "identity_dropout",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "hold",
+      "terminal_phase": "hold",
+      "terminal_reason": "survey_identity_lost",
+      "duration_s": 1889.0,
+      "ticks": 7553,
+      "survey_station_count": 3,
+      "geometry_valid": true,
+      "track_samples": 114,
+      "track_truth_lateral_mae_m": 0.45653923052586054,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 1201,
+      "hold_to_final_displacement_m": 12.001728289855484,
+      "bridge_arbiter_sources": [
+        "JETSON_MPC",
+        "SAFETY_FALLBACK"
+      ],
+      "trajectory_sha256": "05fd6922e652a827fc14bb048e80638d4f0331647a7ef34ca21be9ff9f41ce4b",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "fadda8d675cb0ad8c210f21e1f600482f1a6e640d269dabe1d8f847418d2c168",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "90f308ba8bff9db0e9ca2ec5d4329adeff717a4cc0f1f591b90def21f0178c14",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "490e4356e0388a5d8ff91a0c3055f4711aea71eb3fa9ac53c3b933ec46eb7527"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": true,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_long_hold_20260927/identity_dropout_positive_seed101.csv"
+    },
+    "after": {
+      "evidence_level": "ros_pid_protocol_native_pvs_synthetic_current_and_sonar",
+      "case": "identity_dropout",
+      "seed": 101,
+      "current_y_mps": 0.04,
+      "terminal_mode": "hold",
+      "terminal_phase": "hold",
+      "terminal_reason": "survey_identity_lost",
+      "duration_s": 1889.0,
+      "ticks": 7553,
+      "survey_station_count": 3,
+      "geometry_valid": true,
+      "track_samples": 114,
+      "track_truth_lateral_mae_m": 0.45653923052586054,
+      "route_hold_admitted": true,
+      "hold_zero_ticks": 1201,
+      "hold_to_final_displacement_m": 12.001728289855484,
+      "bridge_arbiter_sources": [
+        "JETSON_MPC",
+        "SAFETY_FALLBACK"
+      ],
+      "trajectory_sha256": "562c5db62783d4dcbeeb2faad081c36bc261a72b157955e75719542865f3efed",
+      "source_sha256_at_start": {
+        "tools/smoke_v2_shallow_survey_ros_pvs.py": "cd74b03c17765cb344162903400b6d886e683e27f0e0600d8a84b11fde71ae67",
+        "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "52ea5b785f242f1759ed9e20219a1440d34a65f7ca103946b2fb64d5e3b1bf27",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "d0892ac1fd0864c80cf774edc02ce4385ad2e15648e77cca7a42ab127910980b",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+        "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+        "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1",
+        "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "490e4356e0388a5d8ff91a0c3055f4711aea71eb3fa9ac53c3b933ec46eb7527"
+      },
+      "identity_source": "synthetic_truth_line_fixture_not_physical_sonar",
+      "current_source": "synthetic_current_fixture_not_measured",
+      "burial_depth_published": false,
+      "native_pvs": true,
+      "ros_dds": true,
+      "protocol_encoded": true,
+      "guard_connected": true,
+      "pc104_or_field_connected": false,
+      "trajectory_file": "AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_clock_aligned_20260927/bridge/identity_dropout_positive_seed101.csv"
+    }
+  },
+  "raw_sha256": {
+    "before_summary": "82cee2915748ec7a48ae5d509d33a1c1d60c3ebbfebfb6924d3d8a010e0858e0",
+    "before_trajectory": "05fd6922e652a827fc14bb048e80638d4f0331647a7ef34ca21be9ff9f41ce4b",
+    "after_summary": "f5fed6c440f5295b35c929d18458601f4c2f6a413d267b6199e32bc17fe5e54c",
+    "after_trajectory": "562c5db62783d4dcbeeb2faad081c36bc261a72b157955e75719542865f3efed"
+  },
+  "figure_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/52_shallow_survey_hold_clock_and_drift.pdf": "7f4627f64ac1fbdf078e50479a9601f50de5fe4dab930e40eee6f73c85f9c350",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/52_shallow_survey_hold_clock_and_drift.png": "a9908bb58e678b0f660905e8181f3175d4a9922543c78ffcf8856e8f4090b934",
+    "docs/thesis/figures/experiments/fwhm_v2/52_shallow_survey_hold_clock_and_drift.pdf": "6a34cba82377b2b3c47705dc512f9b992f70fcbe20c823f39a70029fbc44729a",
+    "docs/thesis/figures/experiments/fwhm_v2/52_shallow_survey_hold_clock_and_drift.png": "a9908bb58e678b0f660905e8181f3175d4a9922543c78ffcf8856e8f4090b934"
+  },
+  "plot_source_sha256": "aed8d4fbb83bc920543b8afa30d0a0e58f3a3fa7c12dc8783c793cbad7293489"
+}

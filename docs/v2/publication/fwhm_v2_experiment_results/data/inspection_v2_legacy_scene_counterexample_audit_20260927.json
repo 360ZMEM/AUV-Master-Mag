@@ -1,0 +1,24 @@
+{
+  "role": "legacy_demo_synthetic_scene_counterexample",
+  "ros_domain_id": "216",
+  "observe_s": 7.0,
+  "synthetic_clock_published": false,
+  "observed": {
+    "mock_scene": 32,
+    "cable_add": 31,
+    "truth_add": 31,
+    "sim_ground_truth": 0,
+    "cable_deleteall": 0,
+    "mission_state": 32
+  },
+  "mission_states_seen": [
+    "WAITING"
+  ],
+  "viz_parameter": "Boolean value is: True",
+  "ground_truth_parameter": "Boolean value is: True",
+  "fallback_disabled": false,
+  "expect_synthetic_fallback": true,
+  "checks_passed": true,
+  "interpretation": "No live Zenoh scene was injected. A bounded DDS observation compares demo fallback with the passive inspection setting. It does not test actual mission execution or authenticate future Zenoh inputs.",
+  "field_release_authorized": false
+}

@@ -1,0 +1,224 @@
+{
+  "scope": "ROS2/PID/guard/localhost UDP/native PVS; synthetic single wire; prealigned 390x60m corridor; seed101; current +/-0.05m/s",
+  "admission_rule": "if estimated cross-current toward observed cable side >=0.02m/s choose 20m run-in, otherwise choose 5m; latch at first Track",
+  "quality_reference": {
+    "mean_route_offset_m": 1.0,
+    "max_route_offset_m": 2.0
+  },
+  "source_sha256": {
+    "tools/plot_v2_rejoin_runin_policy.py": "1e7a1f4de1d04dbf5f90b8d319955debf4dc42c0b652ef47710c927edddac211",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/flythrough.py": "f4ee9db63c694129bbed0a7637bcb025f42f738ecbc338c46fb84af06a6fbbcc",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough.yaml": "0eca6efbf67567acccfe8a89b1682d898aeed9bc61daa36f34bea3c90266ec42",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_north_start.yaml": "5231ced4091fa3366785f38f3bfcc6e4207b5ca6797635442aea89c46b6c69f3"
+  },
+  "cases": {
+    "-8_south": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_minus8_current_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1105.75,
+        "selected_runin_m": null,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.8363417754047361,
+        "track_true_lateral_max_m": 1.4471624223531894,
+        "route_rejoin_fraction": 0.4273255813953488
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_minus8_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1105.25,
+        "selected_runin_m": 20.0,
+        "track_samples": 1025,
+        "track_true_lateral_mae_m": 0.2681130521129709,
+        "track_true_lateral_max_m": 0.5432502637918599,
+        "route_rejoin_fraction": 0.0
+      }
+    },
+    "-8_north": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_minus8_current_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1107.0,
+        "selected_runin_m": null,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.8677192950078031,
+        "track_true_lateral_max_m": 1.4904728214900187,
+        "route_rejoin_fraction": 0.4583333333333333
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_minus8_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1107.0,
+        "selected_runin_m": 5.0,
+        "track_samples": 1031,
+        "track_true_lateral_mae_m": 0.7000571825340276,
+        "track_true_lateral_max_m": 1.23921832641647,
+        "route_rejoin_fraction": 0.3200775945683802
+      }
+    },
+    "-2_south": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_minus2_current_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1114.75,
+        "selected_runin_m": null,
+        "track_samples": 1048,
+        "track_true_lateral_mae_m": 1.296368882685618,
+        "track_true_lateral_max_m": 2.286486006765266,
+        "route_rejoin_fraction": 0.6374045801526718
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_minus2_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1112.0,
+        "selected_runin_m": 20.0,
+        "track_samples": 1021,
+        "track_true_lateral_mae_m": 0.5106150554090929,
+        "track_true_lateral_max_m": 0.9737103259376796,
+        "route_rejoin_fraction": 0.0
+      }
+    },
+    "-2_north": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_minus2_current_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1113.0,
+        "selected_runin_m": null,
+        "track_samples": 1036,
+        "track_true_lateral_mae_m": 1.0505688803286002,
+        "track_true_lateral_max_m": 1.9357029856177497,
+        "route_rejoin_fraction": 0.527992277992278
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_minus2_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1113.25,
+        "selected_runin_m": 5.0,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.4711384511647518,
+        "track_true_lateral_max_m": 0.8793295398884937,
+        "route_rejoin_fraction": 0.0
+      }
+    },
+    "+2_south": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_plus2_current_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1113.0,
+        "selected_runin_m": null,
+        "track_samples": 1036,
+        "track_true_lateral_mae_m": 1.0559141999568251,
+        "track_true_lateral_max_m": 1.9714318230759236,
+        "route_rejoin_fraction": 0.5337837837837838
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_plus2_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1113.0,
+        "selected_runin_m": 5.0,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.49494810373217496,
+        "track_true_lateral_max_m": 0.8914741335690768,
+        "route_rejoin_fraction": 0.0
+      }
+    },
+    "+2_north": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_plus2_current_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1114.75,
+        "selected_runin_m": null,
+        "track_samples": 1048,
+        "track_true_lateral_mae_m": 1.2955673037694373,
+        "track_true_lateral_max_m": 2.2803112485575587,
+        "route_rejoin_fraction": 0.6374045801526718
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_plus2_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1112.0,
+        "selected_runin_m": 20.0,
+        "track_samples": 1021,
+        "track_true_lateral_mae_m": 0.5084302045535362,
+        "track_true_lateral_max_m": 0.9690641811608758,
+        "route_rejoin_fraction": 0.0
+      }
+    },
+    "+8_south": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_plus8_current_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1107.0,
+        "selected_runin_m": null,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.8663370716512152,
+        "track_true_lateral_max_m": 1.4983551839302915,
+        "route_rejoin_fraction": 0.4573643410852713
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_plus8_south/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1106.75,
+        "selected_runin_m": 5.0,
+        "track_samples": 1030,
+        "track_true_lateral_mae_m": 0.6990402407201138,
+        "track_true_lateral_max_m": 1.229824136742609,
+        "route_rejoin_fraction": 0.3194174757281553
+      }
+    },
+    "+8_north": {
+      "baseline": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_side_hint_corner_current_20260926/final_gate_plus8_current_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1105.75,
+        "selected_runin_m": null,
+        "track_samples": 1032,
+        "track_true_lateral_mae_m": 0.837063051336047,
+        "track_true_lateral_max_m": 1.4502649459651629,
+        "route_rejoin_fraction": 0.4273255813953488
+      },
+      "adaptive": {
+        "summary_source": "AUV-Master-Mag/results/v2/inspection_rejoin_runin_20260926/adaptive_plus8_north/wire_seed_101_summary.json",
+        "completed": true,
+        "hold_reason": null,
+        "depth_published": false,
+        "duration_s": 1105.25,
+        "selected_runin_m": 20.0,
+        "track_samples": 1025,
+        "track_true_lateral_mae_m": 0.26665793753622874,
+        "track_true_lateral_max_m": 0.5393027374658681,
+        "route_rejoin_fraction": 0.0
+      }
+    }
+  }
+}

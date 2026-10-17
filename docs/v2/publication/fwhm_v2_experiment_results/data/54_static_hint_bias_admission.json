@@ -1,0 +1,244 @@
+{
+  "role": "algorithm_level_static_hint_bias_counterexample",
+  "source_script_sha256": "fe401194b3f67df1d1eaaa5ab946cfe65099ed344e566da4415a05c9d625538a",
+  "target_y_m": 6.0,
+  "neighbor_y_m": 9.0,
+  "neighbor_gain_nt": 10.0,
+  "magnetic_noise_sigma_nt": 0.03,
+  "seeds": [
+    101,
+    102,
+    103
+  ],
+  "caveat": "Synthetic scalar-envelope sum; algorithm-level confirm admission only, no ROS/PVS/field completion claim.",
+  "cases": [
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 101,
+      "magnetic_center_m": 5.993320866125618,
+      "target_center_error_m": -0.006679133874381904,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.7967587480719811,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 101,
+      "magnetic_center_m": 7.015312376607208,
+      "target_center_error_m": 1.0153123766072083,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 101,
+      "magnetic_center_m": 5.993320866125618,
+      "target_center_error_m": -0.006679133874381904,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 101,
+      "magnetic_center_m": 7.015312376607208,
+      "target_center_error_m": 1.0153123766072083,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.7635637389604433,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 102,
+      "magnetic_center_m": 6.000163088578859,
+      "target_center_error_m": 0.00016308857885860562,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.797518879056845,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 102,
+      "magnetic_center_m": 7.023632863142829,
+      "target_center_error_m": 1.0236328631428293,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 102,
+      "magnetic_center_m": 6.000163088578859,
+      "target_center_error_m": 0.00016308857885860562,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 102,
+      "magnetic_center_m": 7.023632863142829,
+      "target_center_error_m": 1.0236328631428293,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.7577317792784934,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 103,
+      "magnetic_center_m": 6.004312365368353,
+      "target_center_error_m": 0.0043123653683529994,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.7965214452130542,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "aligned",
+      "hint_m": [
+        5.5,
+        6.4
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 103,
+      "magnetic_center_m": 7.007274453305616,
+      "target_center_error_m": 1.007274453305616,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": false,
+      "seed": 103,
+      "magnetic_center_m": 6.004312365368353,
+      "target_center_error_m": 0.0043123653683529994,
+      "lateral_valid": false,
+      "mode_after_confirm": "hold",
+      "reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "guidance_speed_mps": 0.0,
+      "burial_depth_m": null
+    },
+    {
+      "interval": "biased",
+      "hint_m": [
+        6.6,
+        7.5
+      ],
+      "hint_width_m": 0.9000000000000004,
+      "observation_tolerance_m": 0.5,
+      "neighbor": true,
+      "seed": 103,
+      "magnetic_center_m": 7.007274453305616,
+      "target_center_error_m": 1.007274453305616,
+      "lateral_valid": true,
+      "mode_after_confirm": "track",
+      "reason_codes": [],
+      "guidance_speed_mps": 0.7716846696521511,
+      "burial_depth_m": null
+    }
+  ]
+}

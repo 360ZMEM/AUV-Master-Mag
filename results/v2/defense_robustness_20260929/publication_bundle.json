@@ -1,0 +1,12 @@
+{
+  "path": "AUV-Master-Mag/results/v2/defense_robustness_20260929/fwhm_v2_defense_robustness_20260929.zip",
+  "sha256": "e1927b229fec22647e7b5dfb22468c4032f299aeba80c22bdf700848877e6ef0",
+  "bytes": 50776868,
+  "members": 562,
+  "crc_and_all_member_sha256_verified": true,
+  "raw_csv_runs": 132,
+  "figure_pairs": 6,
+  "development_included": false,
+  "runtime_sources_per_plan": 127,
+  "report_relative_evidence_links_preserved": true
+}

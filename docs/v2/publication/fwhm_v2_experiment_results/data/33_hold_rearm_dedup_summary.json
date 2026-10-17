@@ -1,0 +1,24 @@
+{
+  "role": "synthetic_dds_mission_retransmission_cannot_clear_hold",
+  "case": "wire_switch_cross_current_seed_101",
+  "first_hold_s": 583.5,
+  "hold_reason": "flythrough_runtime_identity_diverged",
+  "first_recovery_required_s": 583.5,
+  "retransmission_count": 2,
+  "retransmission_types": [
+    "identical_mission",
+    "changed_speed_mission"
+  ],
+  "post_retransmission_zero_rpm_ticks": 41,
+  "completed": false,
+  "source_summary": "AUV-Master-Mag/results/v2/inspection_hold_rearm_dedup_20260927/switch_cross/wire_seed_101_summary.json",
+  "source_summary_sha256": "613cf955fb5d2f4e9eb9239e59d27cb38fb48e12fd1808e11d689413ceb7b22f",
+  "source_csv": "AUV-Master-Mag/results/v2/inspection_hold_rearm_dedup_20260927/switch_cross/wire_seed_101.csv",
+  "source_csv_sha256": "ce94809a6caf730ffbe6475c40b538e9da57b5383b6ba10776434677457beba8",
+  "implementation_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "e0eb97150d4c82dee8b2405d53aad7192a105ce617b9db8f17c28c675f2fbbf3",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "ee6f67012daa81c8ddaf3c3acbe93955e752ce290ee862a32c66e77dff0b5414"
+  },
+  "field_release_authorized": false,
+  "caveat": "Synthetic sonar and PVS; no authenticated external reset or certified PC104 recovery action."
+}

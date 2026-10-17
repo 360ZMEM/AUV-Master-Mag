@@ -1,0 +1,29 @@
+{
+  "role": "non_sim_static_target_prior_startup_gate",
+  "field_release_authorized": false,
+  "scope": "Non-simulation ROS flythrough without runtime sonar cue; pins static source, route, side interval and review window. Software fixture only.",
+  "source_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/static_target_prior.py": "445d781104c5f4ccf768f5fc3b45cd879467ea68ffa6f9cdfd92c588bc6e0468",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "7ce115d9879632fcd76995dbb85f039f62302de45b13ac0a3c7deb06a9f4db37",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_v2_package.py": "174b29b4a3460d309dd746ba605237f82ebcf9b1ab5e0acb32d19e51f7c9e528",
+    "AUV-Master-Mag/docs/v2/static_target_prior_manifest_template.json": "db2a28bd06a0eeb153efe7b233b7e630e72fa1cb927169d004656832ff95a3b2"
+  },
+  "verification": {
+    "ros_package_tests": "47 passed in 5.26 s",
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=brain_linux/src/auv_cable_tracking_v2:AUV-Master-Mag/src:$PYTHONPATH python3 -m pytest -q brain_linux/src/auv_cable_tracking_v2/test",
+    "covered_rejections": [
+      "missing review",
+      "edited side interval",
+      "modified source",
+      "modified route",
+      "expired review"
+    ],
+    "matched_software_fixture_starts": true,
+    "thesis_build": "make -C thuthesis auv-thesis passed, 209 pages"
+  },
+  "limits": [
+    "No physical survey source or approved manifest in repository",
+    "No current-v2 physical PC104 or measured AUV coast acceptance",
+    "Previous same-run synthetic audit predates this new static-only startup gate"
+  ]
+}

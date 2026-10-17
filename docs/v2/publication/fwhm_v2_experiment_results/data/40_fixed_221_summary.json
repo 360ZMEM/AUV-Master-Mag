@@ -1,0 +1,57 @@
+{
+  "role": "single_run_synthetic_raw_sensor_to_passive_inspection_shadow",
+  "ros_domain_id": "221",
+  "healthy_s": 12.0,
+  "imu_dropout_s": 4.0,
+  "mission_published": true,
+  "counts": {
+    "runtime_status": 32,
+    "mpc": 310,
+    "operational_status": 1187,
+    "visual_state": 160,
+    "nav": 247,
+    "covariance": 247,
+    "setpoint": 99,
+    "tracking": 99,
+    "inspection_status": 99,
+    "depth_valid": 99
+  },
+  "tracking_modes": {
+    "search": 71,
+    "sensor_degraded": 28
+  },
+  "nav_publishers": [
+    "auv_localization_node"
+  ],
+  "nav_count_after_imu_dropout": 14,
+  "nav_count_after_one_second_grace": 0,
+  "clock_seconds_at_dropout": 13.042312653997215,
+  "final_nav_stamp_age_s": 4.01,
+  "checks": {
+    "single_localization_publisher": true,
+    "raw_sensor_to_filtered_nav": true,
+    "healthy_inspection_capability": true,
+    "mission_command_sent": true,
+    "tracking_output": true,
+    "setpoint_output": true,
+    "inspection_status_output": true,
+    "visual_state_output": true,
+    "bridge_status_output": true,
+    "passive_bridge_never_authorized": true,
+    "no_uncalibrated_depth": true,
+    "dropout_stops_filtered_navigation": true,
+    "dropout_revokes_capability": true,
+    "dropout_degrades_tracking": true,
+    "dropout_sets_zero_speed": true
+  },
+  "checks_passed": true,
+  "source_sha256": {
+    "probe": "3262a02c61e40b9168720638a79b1db0c0d9f7f16eac345fd8b843bfb862076a",
+    "base_params": "21b296ecf83a0fad6561587715ae22ba4dc6c4eab9824a98e6cd9d5ef0235daf",
+    "v2_config": "52343a728b1e6dab4447cbe09a06f7a537c0a5ff806138e3fdb33d6b60e56d24",
+    "localization": "842dfe55b0052490430c327bfee05741c5a4912bd0b7cbfe350dfc0407e639a0",
+    "v2_node": "6924eb91da5b86caacf54b375d1871bec6f75a9ee8dedcc590eb9e04638a4807"
+  },
+  "physical_sensors_tested": false,
+  "field_release_authorized": false
+}

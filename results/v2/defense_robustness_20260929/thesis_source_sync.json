@@ -1,0 +1,56 @@
+{
+  "changes": {
+    "thuthesis/data/auv-chap05.tex": {
+      "before_sha256": "f378f75f8bedf183cdf253a93a8c4ac11c2a0448f39911bccd2abfaa364fbb06",
+      "after_sha256": "7ee940015b6ad53bd4eb2cfc330024298830fda57b84ec8e5acc6a017fef95c0",
+      "initial_after_sha256": "edad46687287b1c78a696826e2fed1471446bb2e29b3b31dafa06ca451af2da1"
+    },
+    "thuthesis/data/auv-chap06.tex": {
+      "before_sha256": "a423ed5c2e80fe7fa934baef0d413fd246c49dcace25704fc3b95cf2807527f8",
+      "after_sha256": "ef9c0aab35f2ce349899165c77dee017743f5723ea6331706564bda23b28b77a",
+      "initial_after_sha256": "e1b65460bb604bb03642c33b682364b4febe81a55c95c43451a15ba692cefec6"
+    }
+  },
+  "added_figure": "docs/thesis/figures/experiments/fwhm_v2/77_defense_robustness_thesis_summary.pdf",
+  "figure_sha256": "2f59e7131034071a9422f4e685afcd47e7f9f1b4675fe6c91c3b772e95c3d619",
+  "replaced_historical_figure": "61_finite_track_current_envelope_and_clock.pdf remains preserved in assets and 169/236-page backups",
+  "current_pdf_before_backup": "thuthesis/backups/20260929_before_robustness_169p",
+  "initial_figure_sha256": "46d9c7a7ab24ac9e381f97ea571999a040c8dc03b13f594d79eec77e5d37d987",
+  "format_revision": "move legend and annotations off recorded traces; data unchanged",
+  "patch_validation": {
+    "isolated_apply_equal": true,
+    "file_count": 2,
+    "path": "PPT制作/assets/robustness_20260929/thesis_169_to_170.patch",
+    "sha256": "289686108ccd7cfb164f416bf7c52b24b558bc9f6e8c4c006093c8438e9e6045"
+  },
+  "current_pdf": {
+    "path": "thuthesis/auv-thesis.pdf",
+    "pages": 170,
+    "sha256": "100e96e3eb9fcc29a6ce49de44f8d3908e56591f4410d6abb1181898c4ab0a77",
+    "printed_to_pdf_offset": 22
+  },
+  "key_figures": {
+    "71": {
+      "figure": "5.15",
+      "printed_page": 116,
+      "pdf_page": 138
+    },
+    "77": {
+      "figure": "5.16",
+      "printed_page": 117,
+      "pdf_page": 139
+    },
+    "51": {
+      "figure": "5.17",
+      "printed_page": 118,
+      "pdf_page": 140
+    }
+  },
+  "latex_checks": {
+    "build_exit_code": 0,
+    "undefined_references_or_citations": false,
+    "overfull": false,
+    "log": "verification/thesis_build_170.log",
+    "log_sha256": "52dc27692654e43e7a0a6dee8019b863d0a65e50ad334c4c6879c43cef4630ce"
+  }
+}

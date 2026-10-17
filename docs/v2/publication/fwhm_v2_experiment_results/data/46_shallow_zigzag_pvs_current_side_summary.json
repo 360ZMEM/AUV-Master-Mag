@@ -1,0 +1,156 @@
+{
+  "evidence_level": "native_pvs_local_protocol_geometry_probe",
+  "target_identity_verified": false,
+  "field_release_authorized": false,
+  "cases": {
+    "zero_wire": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.028661092202086163,
+      "burial_depth_m": null,
+      "trajectory_sha256": "89b02462f69478e4d676b8aa392f506dac0df185122242d04339d32cc4aa6768"
+    },
+    "positive_current": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1318.5,
+      "reference_track_mae_m": 0.7459194732093728,
+      "reference_track_max_m": 1.5592164413939127,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.024986019125440368,
+      "burial_depth_m": null,
+      "trajectory_sha256": "97a2769acdcc2a139293fd78ddf6fb19c8c43e18a0fbaf394bc908c6dfbc2d48"
+    },
+    "negative_wrong_side": {
+      "terminal_phase": "boundary_margin_exhausted",
+      "elapsed_s": 846.25,
+      "reference_track_mae_m": 7.221952136785435,
+      "reference_track_max_m": 28.550530198576332,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_center_uncertain",
+        "station_2_invalid_samples"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "04497aedcebd4c3dfaa8e1ee3dcc683e2c5cf6769e1e3921ddf9e64d5d1a55de"
+    },
+    "negative_mirrored": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1318.5,
+      "reference_track_mae_m": 0.7459823159107979,
+      "reference_track_max_m": 1.559439982759823,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.009397379495740784,
+      "burial_depth_m": null,
+      "trajectory_sha256": "9558579a91fd323f31bf8c0ae6a78f4f69e1375e8fc7eac9ace3b6b4ee7dfd4c"
+    },
+    "intermediate_shape": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.017820873467588427,
+      "burial_depth_m": null,
+      "trajectory_sha256": "4ef385c035649eac8e168be507ec3e281e15bb41ce9afa58240a07bee7b217bb"
+    },
+    "no_source": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_low_prominence",
+        "station_0_asymmetric_anomaly",
+        "station_0_ambiguous_anomaly_peaks",
+        "station_1_low_prominence",
+        "station_1_peak_not_bracketed",
+        "station_1_right_half_crossing_missing",
+        "station_1_center_geometry_missing",
+        "station_1_asymmetric_anomaly",
+        "station_1_center_coverage_insufficient",
+        "station_1_ambiguous_anomaly_peaks",
+        "station_2_left_half_crossing_missing",
+        "station_2_low_prominence",
+        "station_2_peak_not_bracketed",
+        "station_2_center_geometry_missing",
+        "station_2_asymmetric_anomaly",
+        "station_2_center_coverage_insufficient",
+        "station_2_ambiguous_anomaly_peaks"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "03d5efa56043f1f1f669f266f7f7f688b228b35c9bef6b56f687e2811d92bf74"
+    },
+    "transient_middle": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "survey_line_inconsistent"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "efc209eadc1db98ae3e512ef3446be79e49cf59d26f3342060e6415e2b5f8e2c"
+    },
+    "separated_neighbor": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_asymmetric_anomaly",
+        "station_0_center_coverage_insufficient",
+        "station_1_asymmetric_anomaly",
+        "station_1_center_coverage_insufficient",
+        "station_2_right_half_crossing_missing",
+        "station_2_center_geometry_missing",
+        "station_2_asymmetric_anomaly",
+        "station_2_center_coverage_insufficient",
+        "station_2_ambiguous_anomaly_peaks"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "23ea812e0a22aaeba222414c8fb8c15dd49669ed90de9b17a48663f7002cef8e"
+    },
+    "fused_neighbor": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1338.5,
+      "reference_track_mae_m": 0.8565957141395913,
+      "reference_track_max_m": 2.542175734064321,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.4955555510018052,
+      "burial_depth_m": null,
+      "trajectory_sha256": "cf838361c94f538b2fa3d642bac1ab5b5a94edaf195384de2b21635ed26319ec"
+    }
+  },
+  "source_sha256": {
+    "tools/probe_v2_shallow_zigzag_pvs.py": "261b15c775a0cb51eb93eb71811bc5ae66029e54bf330d69c770d2148872a700",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/corridor_survey.py": "96aa55c23f0f1347a5bbc631d5aad50d7101a5ccf20e700022222e68177fd2d4",
+    "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb"
+  },
+  "raw_summary_sha256": {
+    "zero_wire": "7834392ffca8805ed352912e8e493604ae01fa01a299d7a646c49b093e8b78c8",
+    "positive_current": "af3a362d331d4d4fb769d1e39a0995f9abb4059632cf75d072ea3a0b9f5e2200",
+    "negative_wrong_side": "28f17d2bdd24a089714338b722202f514ff482fe7b77689da3feacee9c78a1c2",
+    "negative_mirrored": "706fbd5e6ced144e897dba42859b552d513b0b7519c1df20521a066a87730e48",
+    "intermediate_shape": "cce160b466d921258abe2cc7d947a224888b82faf1a1b72b095f6217933e8987",
+    "no_source": "90d5ce81b34bfffb27c0a4bc7955a3af7ca5ff05ab27a9b0f538876f3880f1ad",
+    "transient_middle": "3177c07e1fe5d4d8176605c9c50f863db173f5271920a9b16ea52915cc7ab824",
+    "separated_neighbor": "a1a6dfb10db4178055b9acdae98a6905c14db2dc90e604f324dc16a6d8585480",
+    "fused_neighbor": "a852b3b2685229091c10371972a4373aedc80f3afbc06b145b241563eda66c8a"
+  }
+}

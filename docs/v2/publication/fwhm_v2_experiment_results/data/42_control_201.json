@@ -1,0 +1,94 @@
+{
+  "role": "single_run_local_udp_protocol_to_ros_imu_packet_time_control",
+  "cases": [
+    {
+      "case": "valid_initial",
+      "pc104_uptime_ms": 1000,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "valid_advanced_fresh",
+      "pc104_uptime_ms": 1700,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "repeated",
+      "pc104_uptime_ms": 1700,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "missing_marker",
+      "pc104_uptime_ms": null,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "regressed",
+      "pc104_uptime_ms": 900,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    },
+    {
+      "case": "advanced_but_stale",
+      "pc104_uptime_ms": 1710,
+      "expected_imu_increment": 1,
+      "imu_increment": 1,
+      "dvl_increment": 1
+    }
+  ],
+  "counts": {
+    "imu": 6,
+    "dvl": 6
+  },
+  "imu_received_stamps": [
+    {
+      "stamp_s": 1790474589.2211342,
+      "receive_wall_s": 1790474589.2218614
+    },
+    {
+      "stamp_s": 1790474589.9211342,
+      "receive_wall_s": 1790474589.8755834
+    },
+    {
+      "stamp_s": 1790474589.9211342,
+      "receive_wall_s": 1790474590.5435572
+    },
+    {
+      "stamp_s": 1790474591.1994967,
+      "receive_wall_s": 1790474591.2013435
+    },
+    {
+      "stamp_s": 1790474591.8728132,
+      "receive_wall_s": 1790474591.8739307
+    },
+    {
+      "stamp_s": 1790474592.6828132,
+      "receive_wall_s": 1790474592.5507085
+    }
+  ],
+  "checks": {
+    "every_packet_reached_bridge": true,
+    "imu_publication_matches_expected": true,
+    "timebase_behavior_matches_mode": true
+  },
+  "checks_passed": true,
+  "ros_domain_id": "201",
+  "bridge_passive_mode": true,
+  "packet_time_gate_enabled": false,
+  "physical_pc104_tested": false,
+  "imu_sensor_acquisition_time_tested": false,
+  "field_release_authorized": false,
+  "source_sha256": {
+    "probe": "3eff2b14b30ad8cd86bf569862e52c57b4ccce6110a824549f6938221786030b",
+    "bridge": "8cb613c980538e4df1cef67a5c1aaed63487a3d5727a429a9d242446156f8cce",
+    "fixture": "31f6ca7c890cf2ad32234212009212c1b213444803169b8be5f5719e8970e240"
+  }
+}

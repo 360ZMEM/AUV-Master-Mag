@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "evidence_integrity_passed": true,
+  "errors": [],
+  "counts": {
+    "directional_only": {
+      "runs": 3,
+      "completed": 3,
+      "true_quality_passed": 3,
+      "false_geometry_publication": 0,
+      "false_completion": 0,
+      "withdrawal": 0,
+      "zero_tail": 0
+    }
+  },
+  "runs": [
+    {
+      "case": "steady_minus",
+      "method": "directional_only",
+      "seed": 501,
+      "completed": true,
+      "true_quality_passed": true,
+      "false_geometry_publication": false,
+      "false_completion": false,
+      "withdrawal": false,
+      "zero_tail": false,
+      "core_samples": 931,
+      "core_true_mae_m": 0.796045264344395,
+      "core_true_max_m": 1.3403781659008587,
+      "core_coverage": true,
+      "navigation_bound_actually_satisfied": true
+    },
+    {
+      "case": "steady_minus",
+      "method": "directional_only",
+      "seed": 502,
+      "completed": true,
+      "true_quality_passed": true,
+      "false_geometry_publication": false,
+      "false_completion": false,
+      "withdrawal": false,
+      "zero_tail": false,
+      "core_samples": 931,
+      "core_true_mae_m": 0.7960945386445673,
+      "core_true_max_m": 1.3387691144513623,
+      "core_coverage": true,
+      "navigation_bound_actually_satisfied": true
+    },
+    {
+      "case": "steady_minus",
+      "method": "directional_only",
+      "seed": 503,
+      "completed": true,
+      "true_quality_passed": true,
+      "false_geometry_publication": false,
+      "false_completion": false,
+      "withdrawal": false,
+      "zero_tail": false,
+      "core_samples": 931,
+      "core_true_mae_m": 0.7954471074509706,
+      "core_true_max_m": 1.3302446334303486,
+      "core_coverage": true,
+      "navigation_bound_actually_satisfied": true
+    }
+  ],
+  "plan_sha256": "fa7619ca17b8ffed02a5ee20226a8d8f724dfe9e9ec462de0dd381890fa08a29",
+  "manifest_sha256": "03ad1cf9877df3533244ba92b685b27d31bc803b99868ffc9130abe86b35f761",
+  "scope": "finite native-PVS toy conditions; integrity is not field or universal performance acceptance"
+}

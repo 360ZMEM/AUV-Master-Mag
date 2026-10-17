@@ -1,0 +1,73 @@
+{
+  "evidence_level": "same_source_synthetic_ros_pid_native_pvs_fault_injection_no_guard_no_pc104",
+  "truth_current_y_mps": 0.04,
+  "reported_sigma_mps": 0.004,
+  "field_release_authorized": false,
+  "cases": [
+    {
+      "label": "报告无偏",
+      "reported_current_y_mps": 0.04,
+      "true_current_y_mps": 0.04,
+      "reported_sigma_mps": 0.004,
+      "maximum_survey_reference_deviation_m": 0.9643638645312471,
+      "rejoin_duration_s": 196.75,
+      "last_rejoin_truth_cross_track_m": 1.026152384884419,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.33419746838848247,
+      "hold_zero_ticks": 0,
+      "hold_all_zero_commands": true,
+      "hold_to_final_displacement_m": null,
+      "summary_sha256": "1cd5ed205c73a25000a0e405c3aa0780cca70076dedbffd659b7b5ccf6459546",
+      "trajectory_sha256": "0301a16fa2763994d0500d12d637168a9d5a58e9f1c8b526ba912bc277ffe1e7"
+    },
+    {
+      "label": "低报 0.005 m/s",
+      "reported_current_y_mps": 0.035,
+      "true_current_y_mps": 0.04,
+      "reported_sigma_mps": 0.004,
+      "maximum_survey_reference_deviation_m": 1.1005347576124471,
+      "rejoin_duration_s": 203.0,
+      "last_rejoin_truth_cross_track_m": 1.006844320245507,
+      "terminal_reason": "complete",
+      "track_truth_lateral_mae_m": 0.31667330106392194,
+      "hold_zero_ticks": 0,
+      "hold_all_zero_commands": true,
+      "hold_to_final_displacement_m": null,
+      "summary_sha256": "d4961436a341a6c1c0d0ed677d22c5d78c6fb036e53bc59f3dca859ca1caf420",
+      "trajectory_sha256": "50d800982b19af64d501e6b9f934a41077d5c222c221bd0f39b675b9d0548ac9"
+    },
+    {
+      "label": "低报 0.020 m/s",
+      "reported_current_y_mps": 0.02,
+      "true_current_y_mps": 0.04,
+      "reported_sigma_mps": 0.004,
+      "maximum_survey_reference_deviation_m": 2.1303742681834024,
+      "rejoin_duration_s": 397.5,
+      "last_rejoin_truth_cross_track_m": 1.6138620222923172,
+      "terminal_reason": "survey_rejoin_length_exhausted",
+      "track_truth_lateral_mae_m": null,
+      "hold_zero_ticks": 61,
+      "hold_all_zero_commands": true,
+      "hold_to_final_displacement_m": 2.8230614682225976,
+      "summary_sha256": "72944de1f77abaac2921d4e64f271bb8447c33ddd9b8fb61279b895192072ffa",
+      "trajectory_sha256": "9623250e8aa830686e551f80fff46a44b12a3239018c99a5ecc70134e5e946ec"
+    }
+  ],
+  "runner_source_sha256_at_start": {
+    "tools/smoke_v2_shallow_survey_ros_pvs.py": "cd74b03c17765cb344162903400b6d886e683e27f0e0600d8a84b11fde71ae67",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/shallow_survey.py": "3f4e9b6f1a1ce66fe9e34266b486f71a2c34b7ec597b9854360b8d5733522af4",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "52ea5b785f242f1759ed9e20219a1440d34a65f7ca103946b2fb64d5e3b1bf27",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "d0892ac1fd0864c80cf774edc02ce4385ad2e15648e77cca7a42ab127910980b",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_shallow_survey_sim.yaml": "3eaf1a81b6d988eac2d63d63625418fd8d928dba01c368b88455e0c1cab003e1"
+  },
+  "fault_injection_source_sha256_at_start": "ad90eb1322fa2619f7d67c5c14d822ca6e3dd5fc770909be60f26399e05d5df6",
+  "figure_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/53_shallow_survey_current_report_bias.pdf": "1ca219d39d841485ae3abcda2f9a924fbdac4fe3dc91a3d20404680765542936",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/53_shallow_survey_current_report_bias.png": "cbbd6cf69ca65772b0db745f1e8699df10d0f95b8490890560828fbee0ff592f",
+    "docs/thesis/figures/experiments/fwhm_v2/53_shallow_survey_current_report_bias.pdf": "10092fe11d56950764ada1783023328aaec9e787854e03ac3d3678047bc74ab0",
+    "docs/thesis/figures/experiments/fwhm_v2/53_shallow_survey_current_report_bias.png": "cbbd6cf69ca65772b0db745f1e8699df10d0f95b8490890560828fbee0ff592f"
+  },
+  "plot_source_sha256": "0675dcc4670b124e4584ec56e609c633c95f41430bba3240829cfe3e27249f8f"
+}

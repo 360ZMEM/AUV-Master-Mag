@@ -1,0 +1,133 @@
+{
+  "role": "scoped_v2_field_evidence_source_inventory",
+  "raw_root": "/home/zmem063/auv_console_python/AUV-Master-Project",
+  "field_release_authorized": false,
+  "raw_groups": {
+    "tmr_aruco_joint_freehand_record": {
+      "hardware_wrappers/fangkong_adc/raw_data/1783235358_205719.npz": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      },
+      "hardware_wrappers/fangkong_adc/raw_data/relative_pose_log.txt": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      }
+    },
+    "measured_magnetic_background_noise": {
+      "hardware_wrappers/fangkong_adc/raw_data/1780675809_291477.npz": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      },
+      "hardware_wrappers/fangkong_adc/raw_data/1780676130_241387.npz": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      }
+    },
+    "pc104_watchdog_fault_trial": {
+      "results/control/pc104_fault_injection_formal_v2_20260822/fault_timeline.csv": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      },
+      "results/control/pc104_fault_injection_formal_v2_20260822/status.json": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      }
+    },
+    "pc104_firmware_echo_timing": {
+      "results/control/pc104_udp_timing_echo_300s_20260822/udp_timing_samples.csv": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      },
+      "results/control/pc104_udp_timing_echo_300s_20260822/status.json": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      }
+    },
+    "pc104_ros_cross_layer_fault_trial": {
+      "results/control/pc104_cross_layer_fault_sync_20260822_225436/status.json": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      },
+      "results/control/pc104_cross_layer_fault_sync_20260822_225436/summary.json": {
+        "present": false,
+        "sha256": null,
+        "bytes": null
+      }
+    }
+  },
+  "raw_group_complete": {
+    "tmr_aruco_joint_freehand_record": false,
+    "measured_magnetic_background_noise": false,
+    "pc104_watchdog_fault_trial": false,
+    "pc104_firmware_echo_timing": false,
+    "pc104_ros_cross_layer_fault_trial": false
+  },
+  "derived_local": {
+    "tmr_replay_report": {
+      "path": "AUV-Master-Mag/docs/v2/TMR_JOINT_REPLAY.md",
+      "present": true,
+      "sha256": "6aca88ca6c897754d00c2fd9c53549b29ec840aef91241cd36a14d54736db306",
+      "bytes": 1797
+    },
+    "pc104_fault_report": {
+      "path": "docs/real_deployment/15_pc104_fault_injection_and_layered_safety.md",
+      "present": true,
+      "sha256": "1d358c9ba9ba1f3ebed21a919a8e66510d9620e9aa633199d978d38ded7b7dc1",
+      "bytes": 9931
+    },
+    "pc104_fault_derived_summary": {
+      "path": "docs/thesis/figures/hardware/pc104_fault_injection/fault_derived_summary.json",
+      "present": true,
+      "sha256": "7542ffea9f5569e13da18a6df23c8c2e8fb22541c069b13dad038be272df84fb",
+      "bytes": 3073
+    },
+    "pc104_fault_derived_trials": {
+      "path": "docs/thesis/figures/hardware/pc104_fault_injection/fault_trial_metrics.csv",
+      "present": true,
+      "sha256": "bee58303b27b1f291c1daeab294490a52bc78220269d5a89d386694d359d3edf",
+      "bytes": 876
+    },
+    "pc104_timing_report": {
+      "path": "docs/thesis/figures/hardware/pc104_timing/report.md",
+      "present": true,
+      "sha256": "4f6e0d9926dbda81f0b61fe2df537feb588f9ee39061859aefbe573b3455d274",
+      "bytes": 727
+    },
+    "pc104_timing_derived_summary": {
+      "path": "docs/thesis/figures/hardware/pc104_timing/firmware_echo_summary.json",
+      "present": true,
+      "sha256": "917cf45567814ce21f6b1f877d37bc96b486567fc72464d85f604cd7dd9d09ae",
+      "bytes": 3718
+    },
+    "sonar_bag_inventory": {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/field_sonar_evidence_inventory.json",
+      "present": true,
+      "sha256": "c53899deef9afec7318af53fe97e066cabf98c869aff87cafd48661149520862",
+      "bytes": 14190
+    },
+    "v2_same_run_synthetic_audit": {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/inspection_v2_same_run_operator_chain_20260927.json",
+      "present": true,
+      "sha256": "c99cbe24a2186323a7495d6d61114ef510c431cbf8a52c7ed1360a213a1fb2e5",
+      "bytes": 1689
+    }
+  },
+  "local_sonar_target_message_count": 0,
+  "local_sonar_quality_message_count": 0,
+  "local_physically_approved_sonar_calibration_count": 0,
+  "interpretation": {
+    "pc104_history": "Derived reports describe earlier physical zero-actuator and timing tests; missing source bundles cannot be replayed here and did not run the current v2 inspection stack.",
+    "magnetic_history": "The TMR-ArUco report audits incomplete freehand sweeps; it is neither a controlled full-width calibration nor a target-cable identity test.",
+    "field_gate": "A physical target cue, synchronized magnetic scans, vehicle coast/corridor measurements and current-v2-to-PC104 same-run receipt still require separate evidence."
+  },
+  "audit_script_sha256": "3a8214081d79d10b9a6e85b0975aa83f4447ca3abda52e9030a6fc061ce732e8"
+}

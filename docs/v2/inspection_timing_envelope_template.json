@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "data_domain": "physical",
+  "session_id": "",
+  "mission_id": "",
+  "target_id": "",
+  "platform_id": "",
+  "case_kind": "input_loss",
+  "receipt_mode": "",
+  "raw_archive": {"path": "", "sha256": ""},
+  "software_snapshot": {"path": "", "sha256": ""},
+  "clock_alignment": {
+    "method": "",
+    "measured_max_error_ms": null,
+    "raw_alignment_trace": {"path": "", "sha256": ""}
+  },
+  "limits": {
+    "max_gate_gap_s": null,
+    "max_gate_duration_s": null,
+    "max_ros_gap_s": null,
+    "max_pid_gap_s": null,
+    "max_udp_gap_s": null,
+    "max_pc104_gap_s": null,
+    "max_ros_delivery_s": null,
+    "max_sensor_age_s": null,
+    "max_candidate_age_s": null,
+    "max_budget_age_s": null,
+    "max_pc104_lag_s": null,
+    "min_pc104_receipt_fraction": null,
+    "max_local_zero_delay_s": null,
+    "max_fault_zero_delay_s": null
+  },
+  "windows": {
+    "healthy_start_s": null,
+    "healthy_end_s": null,
+    "fault_start_s": null,
+    "record_end_s": null
+  },
+  "exports": {
+    "gate_ticks": {"path": "", "sha256": ""},
+    "ros_setpoint": {"path": "", "sha256": ""},
+    "pid": {"path": "", "sha256": ""},
+    "udp_downlink": {"path": "", "sha256": ""},
+    "pc104_receipt": {"path": "", "sha256": ""},
+    "mission_events": {"path": "", "sha256": ""}
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "role": "non_sim_static_target_prior_startup_mission_and_runtime_lifetime_gate",
+  "field_release_authorized": false,
+  "source_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/static_target_prior.py": "cab5bf4184e0a5b73bfb19b3661fd575ab47d3f9c2375e4f024146037afbb263",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "6924eb91da5b86caacf54b375d1871bec6f75a9ee8dedcc590eb9e04638a4807",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_v2_package.py": "d5dc77c92bd69f59632c5c736f339fde9aadd405c91253d13db5be59ed085b0a",
+    "brain_linux/src/auv_control/auv_decision_ros/cable_mission_autostart_node.py": "ae7f30bff39775a8ddacd46183161226527552e5e9f3127fb257dc3530bf90d6",
+    "brain_linux/src/auv_control/test/test_cable_mission_autostart_ids.py": "7f1a4636e4db73453c0d8340aeb821b17fe6de9f47c35dd87e5c9fade7143c72",
+    "brain_linux/launch/auv_stack.launch.py": "ee470552d9fd7e2a7c25e900aefc5105b32cc7affc8afe93f988b5cd8f0ca1cc",
+    "brain_linux/src/auv_cable_tracking_v2/launch/auv_stack_v2.launch.py": "1b8c0be8a2fc3602e1cea6400532949b6cfe97f8742587c05962c4a2dc1384fa"
+  },
+  "installed_artifacts_match_source": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/static_target_prior.py": "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/static_target_prior.py",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py",
+    "brain_linux/src/auv_control/auv_decision_ros/cable_mission_autostart_node.py": "brain_linux/install/auv_decision_ros/lib/python3.10/site-packages/auv_decision_ros/cable_mission_autostart_node.py",
+    "brain_linux/launch/auv_stack.launch.py": "brain_linux/install/auv_decision_ros/share/auv_decision_ros/launch/auv_stack.launch.py",
+    "brain_linux/src/auv_cable_tracking_v2/launch/auv_stack_v2.launch.py": "brain_linux/install/auv_cable_tracking_v2/share/auv_cable_tracking_v2/launch/auv_stack_v2.launch.py"
+  },
+  "verification": {
+    "installed_ros_package_and_injector_tests": "49 passed in 5.39 s",
+    "rejections": [
+      "missing or wrong mission ID",
+      "wrong target ID",
+      "source modified after startup",
+      "review expired before startup",
+      "review expired during active task"
+    ],
+    "runtime_expiry_result": "latched recovery_required and zero-speed, track_cable=false setpoint",
+    "valid_fixture_admission": "matching IDs and unchanged source admitted"
+  },
+  "limits": [
+    "No physical approved survey or target association",
+    "No current-v2 physical PC104 receipt or measured AUV coast",
+    "Synthetic tests do not prove arbitrary runtime safety"
+  ]
+}

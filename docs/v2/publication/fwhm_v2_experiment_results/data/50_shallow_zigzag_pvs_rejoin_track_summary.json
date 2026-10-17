@@ -1,0 +1,231 @@
+{
+  "evidence_level": "native_pvs_protocol_synthetic_identity_survey_rejoin_track",
+  "identity_source": "synthetic_truth_line_fixture_separate_from_magnetic_fit_not_physical_sonar",
+  "ros_or_pc104_or_field_acceptance": false,
+  "field_release_authorized": false,
+  "cases": {
+    "positive_three_wire": {
+      "terminal_phase": "track_complete",
+      "elapsed_s": 1930.25,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": 0.011802594464043636,
+      "track_start_x_m": 477.11758270939924,
+      "track_sample_count": 1053,
+      "track_truth_lateral_mae_m": 0.35136568392707607,
+      "track_truth_lateral_max_m": 1.0120121678913208,
+      "burial_depth_m": null,
+      "trajectory_sha256": "9351c88307bfcf5bdd81e9f620c8476a437bb0c7ea26e676a8c319a68d9b4a8e"
+    },
+    "negative_four_wire": {
+      "terminal_phase": "track_complete",
+      "elapsed_s": 2453.75,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": 0.0327283112587935,
+      "track_start_x_m": 617.6391549203167,
+      "track_sample_count": 1052,
+      "track_truth_lateral_mae_m": 0.3481163028444063,
+      "track_truth_lateral_max_m": 1.0442945554827539,
+      "burial_depth_m": null,
+      "trajectory_sha256": "e0e98d5b429dd206cfa96997b9a4318ff7d6a447e1d4a240e3dc807abdda93f9"
+    },
+    "negative_four_intermediate": {
+      "terminal_phase": "track_complete",
+      "elapsed_s": 2454.25,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": 0.02478264721511536,
+      "track_start_x_m": 617.7906714055567,
+      "track_sample_count": 1052,
+      "track_truth_lateral_mae_m": 0.33265934802471,
+      "track_truth_lateral_max_m": 1.0280244434928143,
+      "burial_depth_m": null,
+      "trajectory_sha256": "f337bf422dde95bcc829a765208161e062b0b2435ebcd5301cc62f8d2382f49d"
+    },
+    "negative_three_bad_exit": {
+      "terminal_phase": "rejoin_length_exhausted",
+      "elapsed_s": 1830.0,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": 0.01297766017066948,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "c6f122d5ad31682c40fc9d71de4673ad8f0794da22860decdae16bce1c9b6b6d"
+    },
+    "negative_four_no_source": {
+      "terminal_phase": "survey_geometry_rejected",
+      "elapsed_s": 1932.5,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_low_prominence",
+        "station_0_asymmetric_anomaly",
+        "station_0_ambiguous_anomaly_peaks",
+        "station_1_low_prominence",
+        "station_1_asymmetric_anomaly",
+        "station_1_ambiguous_anomaly_peaks",
+        "station_2_low_prominence",
+        "station_2_asymmetric_anomaly",
+        "station_2_ambiguous_anomaly_peaks",
+        "station_3_left_half_crossing_missing",
+        "station_3_low_prominence",
+        "station_3_peak_not_bracketed",
+        "station_3_center_geometry_missing",
+        "station_3_asymmetric_anomaly",
+        "station_3_center_coverage_insufficient",
+        "station_3_ambiguous_anomaly_peaks"
+      ],
+      "identity_residual_at_admission_m": null,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "cc1fddfae86ef30d107a772be1f17d0104c30d230a214bfebfa1b4c9f4ad65bd"
+    },
+    "negative_four_transient": {
+      "terminal_phase": "survey_geometry_rejected",
+      "elapsed_s": 1932.5,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "survey_line_inconsistent"
+      ],
+      "identity_residual_at_admission_m": null,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "36e9b5110ea0fdb4fe70ef23f98ad3df5e470c686c1171cf383e2330e3e06ef4"
+    },
+    "negative_four_separated": {
+      "terminal_phase": "survey_geometry_rejected",
+      "elapsed_s": 1932.5,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_asymmetric_anomaly",
+        "station_1_asymmetric_anomaly",
+        "station_2_asymmetric_anomaly",
+        "station_3_right_half_crossing_missing",
+        "station_3_center_geometry_missing",
+        "station_3_asymmetric_anomaly",
+        "station_3_center_coverage_insufficient"
+      ],
+      "identity_residual_at_admission_m": null,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "e7cb9358e358d97e498107aa983a1c960e61b7c35b82d4de5a819b62210e52aa"
+    },
+    "negative_four_fused": {
+      "terminal_phase": "survey_identity_rejected",
+      "elapsed_s": 1932.5,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": 0.5129504523737083,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "b403e45e90ab02803e4f3be426702b40472b49686a9cd3d452513f6d7e213c6d"
+    },
+    "negative_four_no_identity": {
+      "terminal_phase": "survey_identity_unavailable",
+      "elapsed_s": 1932.5,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "identity_residual_at_admission_m": null,
+      "track_start_x_m": null,
+      "track_sample_count": 0,
+      "track_truth_lateral_mae_m": null,
+      "track_truth_lateral_max_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "5141119eb746c39bcaac875386770ab7f77bfcbf0434b732071ecbc3190a835b"
+    }
+  },
+  "source_sha256": {
+    "tools/probe_v2_shallow_zigzag_rejoin_pvs.py": "580ca7cac8aef94af26c7b609342656eff061719efade903e800567f15876be1",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/corridor_survey.py": "5e5e5a8168bae3af09b9e43316f9b6aac901bf6beab5ca383d2e896f50729d94",
+    "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb"
+  },
+  "raw_summary_sha256": {
+    "positive_three_wire": "e20d89fdbca191971ad5bcba0846d58714242e13e4edcb2b1b78040b05543ba6",
+    "negative_four_wire": "b7bbbf635ae31219688bbcf4602b9bdfc61cfaf6e2468335048931a66e67b554",
+    "negative_four_intermediate": "4887c722fb0bd8c7bdc2aeb06e8d0fe07364394c67d1cac6a376951ecf348c32",
+    "negative_three_bad_exit": "1f960954dbb28fdc2b0482786ff0bbc3e57f24c4860f11804124c1ce9cc72822",
+    "negative_four_no_source": "2db4296882426c2fc1a8815763a07b8d88119334d825684bad987f079c0ed1b9",
+    "negative_four_transient": "33d17c2eaccf7a94744bce74af8017077fac845ead44e711016092bbd8ea9518",
+    "negative_four_separated": "cbebfaa50363793212a5791f9be47e12d6f4f85ec9b18ba352a026574c5fc310",
+    "negative_four_fused": "4fcb855c06d6aae38cb029fb25ae0e76b8d168b8027756a5f06670d840531eb7",
+    "negative_four_no_identity": "d6096081d359a1691b31087509d5f1b574e28633fe379346d0748a51a539ccc1"
+  },
+  "repeat_seeds_102_103": {
+    "positive_three_wire": [
+      {
+        "seed": 102,
+        "terminal_phase": "track_complete",
+        "identity_residual_at_admission_m": 0.022895143634785953,
+        "track_truth_lateral_mae_m": 0.3591687488614843,
+        "track_truth_lateral_max_m": 1.0274837081383144,
+        "trajectory_sha256": "24b27a23f0910f904ae3361381a8fc87fa470f3c5c4f6adad6fb1a78ab914494",
+        "summary_sha256": "1a1b68079716306c467a30b20d2ab71db75e013f61e9c536f404e708aa40f96a"
+      },
+      {
+        "seed": 103,
+        "terminal_phase": "track_complete",
+        "identity_residual_at_admission_m": 0.011832777005126971,
+        "track_truth_lateral_mae_m": 0.3520920597131147,
+        "track_truth_lateral_max_m": 1.013076903535131,
+        "trajectory_sha256": "95ffde0f70b8ef486f2c66cbd3db44054fe716207bf0b3dff4a1d70938ac8fe1",
+        "summary_sha256": "1fb01f685a9e74b08a0002dd9921ba8b6af3ceffb64f5fefb68e15def5888bd7"
+      }
+    ],
+    "negative_four_wire": [
+      {
+        "seed": 102,
+        "terminal_phase": "track_complete",
+        "identity_residual_at_admission_m": 0.02442526509760512,
+        "track_truth_lateral_mae_m": 0.3289072719381658,
+        "track_truth_lateral_max_m": 1.0264111166519285,
+        "trajectory_sha256": "0298980bd7318d703821f479fc95b9f772bb9e6ace2250a0d7b8251b898578ac",
+        "summary_sha256": "04b803d20fe5ac7bba8795423e7ee2fcfbc74e8853010c6399dcd1c7e242c671"
+      },
+      {
+        "seed": 103,
+        "terminal_phase": "track_complete",
+        "identity_residual_at_admission_m": 0.004886927845266342,
+        "track_truth_lateral_mae_m": 0.30548833932868813,
+        "track_truth_lateral_max_m": 1.0038487562980976,
+        "trajectory_sha256": "6a0963dc863efd4bd1eb76ab4a957c1281ac27728f47652868b513551a872ac9",
+        "summary_sha256": "0ba8650a84ed6297e02e43e88dda2b0914004dc3d93e186e7d8b2bec6b2c4a53"
+      }
+    ],
+    "negative_four_fused": [
+      {
+        "seed": 102,
+        "terminal_phase": "survey_identity_rejected",
+        "identity_residual_at_admission_m": 0.5278810606310174,
+        "track_truth_lateral_mae_m": null,
+        "track_truth_lateral_max_m": null,
+        "trajectory_sha256": "fad20a721b5891f6a16495c04837bc4a5377e0233b3b5774ddacfd40e2c8c9e8",
+        "summary_sha256": "5687cdd8ff2cee196d0a4622c306003eb6cfad2ef4cfd0d9bf524ca3df983299"
+      },
+      {
+        "seed": 103,
+        "terminal_phase": "survey_identity_rejected",
+        "identity_residual_at_admission_m": 0.5192847341757627,
+        "track_truth_lateral_mae_m": null,
+        "track_truth_lateral_max_m": null,
+        "trajectory_sha256": "c4e4c89383555ec1785ee9388610c48263c38254cee5338700f8feecac3e5564",
+        "summary_sha256": "b4735c1a36c0dd2882202f695014da92044bf8b60177bc19f27e98cc73b42982"
+      }
+    ]
+  }
+}

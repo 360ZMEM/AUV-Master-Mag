@@ -1,0 +1,56 @@
+{
+  "role": "installed_ros_native_pvs_route_deviation_withdrawal_and_coast_boundary",
+  "scope": "three independent seed-101 synthetic ROS/PID/guard/localhost-UDP/native-PVS runs; no physical current or stopping evidence",
+  "configured_online_lateral_limit_m": 2.0,
+  "hold_budget_configured": false,
+  "fault_hold_budget_reason": "hold_budget_unconfigured",
+  "current_step_start_s": 844.5,
+  "fault_first_hold_s": 850.0,
+  "fault_post_hold_zero_command_cycles": 241,
+  "fault_boundary_cross_s": 907.5,
+  "cases": {
+    "normal_final": {
+      "completed": true,
+      "first_hold_s": null,
+      "first_hold_reason": null,
+      "route_observed_lateral_max_m": 1.3323522082606756,
+      "hold_to_final_displacement_m": null,
+      "summary_sha256": "68ff443c190cd01c4a1a868a11749eb0342d31c0581d36fd1104ec7daf4013dc",
+      "csv_sha256": "b40c6d20683d8f43a125631c7838360acc838a02a106f3ef1b3dd83434244853",
+      "log_sha256": "c79fcf0f58c1c5e507ed8a5ea891734ca58e697b39ff7fda099129eaff8f27b3"
+    },
+    "current_step_0p04": {
+      "completed": true,
+      "first_hold_s": null,
+      "first_hold_reason": null,
+      "route_observed_lateral_max_m": 0.5961836099478637,
+      "hold_to_final_displacement_m": null,
+      "summary_sha256": "9826a3fb35236fddb7ead6dccce2dd3604db872b196a88959acb46a07612c098",
+      "csv_sha256": "ad25bd221c169122fd4db81e90cef01e9f1bf44cc5bf9bdbcccf124fe89e6e2a",
+      "log_sha256": "3f1b6b74df26142ebadfd09222b1096bfe43756de4eeaa1893026fc3e6797727"
+    },
+    "current_step_0p4_live": {
+      "completed": false,
+      "first_hold_s": 850.0,
+      "first_hold_reason": "flythrough_route_deviation_exceeded",
+      "route_observed_lateral_max_m": 2.0196311203621153,
+      "hold_to_final_displacement_m": 23.53144776559437,
+      "summary_sha256": "472776780ca447d2e9819a6a2d33f28dc81c346ab0b0f9d80c293829c0542f0d",
+      "csv_sha256": "52fd662e83f07a582a3ef49a0afe7722a0bedf4a3b38d144178587fbb250823f",
+      "log_sha256": "add588846e0584a5e8b1961e904081db81f58f3b37fa1a94c5c89193bb48ad32"
+    }
+  },
+  "source_script_sha256": "06e36d399b9e8dfa134d5a0e3aad3b9c57e2ae0cf2f16c030e5f16a80b577fa4",
+  "harness_sha256": "e29ac4c571ae9de0308dc3e3814b56adc60e3df8c86730dd676247b8d5997df4",
+  "flythrough_sha256": "ef251414c8b303189ea91593a5753d5191855d381090e76bf33d659e9b39dd24",
+  "ros_node_sha256": "1a0b6486574b3f2e96e34ef7d9fad555264845c8c84856f750663da3b6abd034",
+  "config_sha256": "52343a728b1e6dab4447cbe09a06f7a537c0a5ff806138e3fdb33d6b60e56d24",
+  "png_sha256": "ba15ba4d6491f35a67667439c6e18affc0e63f29a01328893413158baf074e89",
+  "pdf_sha256": "893636c23805c789d3f6e69166c857a2d690f38be983d46d66aeec915f0162fa",
+  "source_snapshots": {
+    "audit_script": "repro_sources/60_route_online_audit_original.py",
+    "harness": "repro_sources/60_smoke_v2_flythrough_ros_pvs_original.py",
+    "ros_node": "repro_sources/60_cable_tracking_v2_node_original.py"
+  },
+  "provenance_correction": "Harness hash restored to the executable snapshot that produced the raw CSV; an intermediate re-audit after the later ground-velocity option had incorrectly recorded the current harness hash. Raw CSV, figure and numerical outcomes are unchanged."
+}

@@ -1,0 +1,17 @@
+{
+  "role": "source_audit_gx3_cf_timer_lost_before_pc104_uplink",
+  "source_sha256": {
+    "plot": "60ff6d3c5db89db8b3c00beb911a39dbe4a0fe9c63cbc26149e734d732f32ee3",
+    "protocol_pdf": "20d1d51df069982bb27c81a22dd2a1e71316861025703292c777e6443e98369d",
+    "firmware_com": "7d951f5ad1cdc10b7d0409631134b5d5398bef0624e08dcf9bab67ba593d431b",
+    "firmware_data_process": "f05bd06e833e3bdd9ade97279eae55b4519a6ea911dd55cca59b4f8a5351c03a",
+    "offline_decoder": "b7bed21acadb7d98002357aed109eb844113a32e196b105bb7999dd9a06d82d1"
+  },
+  "figure_sha256": {
+    "43_gx3_timer_provenance_gap.pdf": "4008f4df0e0baab5dae9f62644b51376708f896e8fa49a98e74c89796a752285",
+    "43_gx3_timer_provenance_gap.png": "62f5ceaed2f4a7b56a3e9da66e6cd6e852a6c15b9323a7567b151e2b03371f10"
+  },
+  "physical_imu_replay_tested": false,
+  "firmware_modified": false,
+  "field_release_authorized": false
+}

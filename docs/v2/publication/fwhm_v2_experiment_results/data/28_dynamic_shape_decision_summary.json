@@ -1,0 +1,140 @@
+{
+  "role": "frozen_dynamic_pvs_shape_decision_audit",
+  "source_script_sha256": "60c5b92bf1efb4ea22eea2f1ec31686cf167f29df5cc16e8879204fa7db1d4af",
+  "synthetic_true_vertical_separation_m": 3.0,
+  "declared_shape": "thesis_dipole",
+  "counterfactual_caveat": "width/2 is a diagnostic of wrong-coefficient risk, not a published estimate",
+  "cases": [
+    {
+      "shape": "wire",
+      "seed": 101,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/wire_seed_101.csv",
+      "source_sha256": "c9c79f071b58cc534f40f4fa2f044d5d4e57b3642151d06e928e5eb63fa8bd2f",
+      "first_decision_time_s": 575.5,
+      "width_m": 8.853813928976841,
+      "counterfactual_declared_dipole_distance_m": 4.4269069644884205,
+      "counterfactual_error_to_synthetic_3m_m": 1.4269069644884205,
+      "equal_dof_declared_residual": 0.016064647951635938,
+      "equal_dof_competing_residual": 0.026415192985834092,
+      "declared_advantage": 0.010350545034198154,
+      "minimum_side_support_widths": 1.0048936478515924,
+      "reason_codes": [
+        "depth_shape_ambiguous",
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    },
+    {
+      "shape": "wire",
+      "seed": 102,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/wire_seed_102.csv",
+      "source_sha256": "b0295da4bf44eac92b658fc27a3ae93e484442d3fa24f7996e037f06b54e94b1",
+      "first_decision_time_s": 575.5,
+      "width_m": 8.828368367110603,
+      "counterfactual_declared_dipole_distance_m": 4.414184183555301,
+      "counterfactual_error_to_synthetic_3m_m": 1.4141841835553013,
+      "equal_dof_declared_residual": 0.016421669438034133,
+      "equal_dof_competing_residual": 0.02636090598157259,
+      "declared_advantage": 0.009939236543538458,
+      "minimum_side_support_widths": 1.0078239413836982,
+      "reason_codes": [
+        "depth_shape_ambiguous",
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    },
+    {
+      "shape": "wire",
+      "seed": 103,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/wire_seed_103.csv",
+      "source_sha256": "b8c18d15a8174e0e49b62880cf03ddcdf8f7c9423e2da7caf1cd1ceb1f34b6c0",
+      "first_decision_time_s": 575.5,
+      "width_m": 8.854795489596516,
+      "counterfactual_declared_dipole_distance_m": 4.427397744798258,
+      "counterfactual_error_to_synthetic_3m_m": 1.4273977447982578,
+      "equal_dof_declared_residual": 0.016198874842849192,
+      "equal_dof_competing_residual": 0.02610886085315224,
+      "declared_advantage": 0.00990998601030305,
+      "minimum_side_support_widths": 1.0048418566475212,
+      "reason_codes": [
+        "depth_shape_ambiguous",
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    },
+    {
+      "shape": "dipole",
+      "seed": 101,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/dipole_seed_101.csv",
+      "source_sha256": "36621de3fc1742a358a53eceb57f9567a8b22631051c8fde22742f66dbb15aee",
+      "first_decision_time_s": 575.5,
+      "width_m": 5.997102473015123,
+      "counterfactual_declared_dipole_distance_m": 2.9985512365075615,
+      "counterfactual_error_to_synthetic_3m_m": 0.0014487634924384984,
+      "equal_dof_declared_residual": 0.0011611892547192897,
+      "equal_dof_competing_residual": 0.02713179933153234,
+      "declared_advantage": 0.02597061007681305,
+      "minimum_side_support_widths": 1.483970673159525,
+      "reason_codes": [
+        "vertical_separation_below_altitude",
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    },
+    {
+      "shape": "dipole",
+      "seed": 102,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/dipole_seed_102.csv",
+      "source_sha256": "f9b0610b62f39458fe7642591b176ca8bf74387c25f71f547a6958dccfa7157d",
+      "first_decision_time_s": 575.5,
+      "width_m": 5.997851460329382,
+      "counterfactual_declared_dipole_distance_m": 2.998925730164691,
+      "counterfactual_error_to_synthetic_3m_m": 0.0010742698353087832,
+      "equal_dof_declared_residual": 0.0011533877649094102,
+      "equal_dof_competing_residual": 0.02668146239886402,
+      "declared_advantage": 0.025528074633954612,
+      "minimum_side_support_widths": 1.4825148327803765,
+      "reason_codes": [
+        "vertical_separation_below_altitude",
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    },
+    {
+      "shape": "dipole",
+      "seed": 103,
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_flythrough_pvs_final_20260926/dipole_seed_103.csv",
+      "source_sha256": "82441c4812b1022f14235bf422bc40a8e0e65577ae1bf651e1aff93cca139ac4",
+      "first_decision_time_s": 575.5,
+      "width_m": 6.005785881410448,
+      "counterfactual_declared_dipole_distance_m": 3.002892940705224,
+      "counterfactual_error_to_synthetic_3m_m": 0.0028929407052240563,
+      "equal_dof_declared_residual": 0.0012956624867396368,
+      "equal_dof_competing_residual": 0.026742668247444448,
+      "declared_advantage": 0.02544700576070481,
+      "minimum_side_support_widths": 1.4794333259073957,
+      "reason_codes": [
+        "depth_shape_support_insufficient",
+        "depth_calibration_required",
+        "fresh_altitude_required"
+      ],
+      "any_lateral_valid": true,
+      "any_depth_valid": false
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "role": "single_synthetic_ros_pid_guard_udp_pvs_zenoh_pyside6_audit",
+  "field_release_authorized": false,
+  "pvs_cycles": 2577,
+  "pvs_authorized_cycles": 2336,
+  "pvs_guard_revoked_zero_udp_cycles": 241,
+  "bridge_and_console_matched_statuses": 7732,
+  "console_guard_revoked_statuses": 723,
+  "final_console_label": "定位: 已定位（埋深未许可） | 自治许可: 禁止（上行失鲜）",
+  "scope": "one isolated host, synthetic magnetic/sonar/AMD fixtures and native PVS; no PC104 or physical AUV",
+  "source_sha256": {
+    "bridge": "53c4a30f415c2a37ce98a28324224862749e03be2062c235670ead7b2944ad38",
+    "console": "e165160d12d44ca8cf9857ed016570ecef90c114d613ee6b0776b3a33a8e1c2b",
+    "pvs_harness": "d23480125d8a97438d2dd0d34de7971f73b0e61223b8d29e6002bc3ec0a4b971",
+    "same_run_harness": "b4db3eaf34133a2ccdf85b9d617d24f54e9e10f683361618ac1c5ff019a3dc67"
+  },
+  "evidence_sha256": {
+    "wire_guard_telemetry_loss_seed_101.csv": "d4bcba473cb389cfd782e23cfad1cff032801f96ff7846bc36d4881139c4a1ea",
+    "console_operational_status.json": "0af52f8cfdab6e9d25ed4706fb830a9341db00470e79c686919ef54202da3a5f",
+    "console_same_run_guard_loss.png": "69d277242a5507dcf53ad7488f56df008fb998611f9f43534a63300dc34276e9",
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_guard_loss_verified/same_run_summary.json": "2665ae8eaaada197ec1cb18294c9126e66b52bf7a38ddf6048060f792decbf6d",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/operator_console_same_run_guard_loss.png": "69d277242a5507dcf53ad7488f56df008fb998611f9f43534a63300dc34276e9"
+  },
+  "audit_script_sha256": "11138ef29abb11ca83fb13e3940b0c62b1ce1ffe03a63a93402872590d2196ef"
+}

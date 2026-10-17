@@ -1,0 +1,63 @@
+algorithm_version: v2
+
+search:
+  search_width_m: 30.0
+  lane_spacing_m: 6.0
+  velocity_mps: 0.7
+  waypoint_spacing_m: 5.0
+  arrival_tolerance_m: 1.5
+  guidance_lookahead_m: 12.0
+
+detection:
+  window_samples: 80
+  min_ready_samples: 20
+  threshold_on: 6.0
+  threshold_off: 3.0
+  consecutive_on: 3
+  consecutive_off: 6
+  minimum_noise_nt: 0.05
+  peak_prominence_score: 2.0
+
+cross_scan:
+  half_span_levels_m: [4.0, 8.0, 14.0, 20.0]
+  velocity_mps: 0.45
+  arrival_tolerance_m: 0.6
+  boundary_margin_m: 0.2
+  max_attempts: 4
+  alignment_tolerance_deg: 8.0
+  alignment_speed_mps: 0.3
+  maximum_along_track_range_m: 5.0
+
+fwhm:
+  minimum_samples: 21
+  smoothing_window: 5
+  edge_fraction: 0.15
+  minimum_prominence_nt: 0.25
+  minimum_snr_db: 6.0
+  minimum_side_samples: 3
+  minimum_coverage_factor: 0.15
+  maximum_model_residual: 0.35
+  minimum_shape_support_widths: 0.65
+  minimum_competing_shape_advantage: 0.02
+  maximum_competing_shape_residual_ratio: 0.75
+  minimum_validity_score: 0.55
+  # 0.5 is the thesis far-field dipole model. Do not treat it as validated for
+  # the finite-wire simulator; tools/v2_fwhm_model_consistency.py measures that
+  # model's implied coefficient.
+  shape_model: thesis_dipole
+  shape_factor: 0.5
+  altitude_m: 6.0
+  shape_factor_relative_sigma: 0.05
+  altitude_sigma_m: 0.25
+
+tracking:
+  heading_gain_deg_per_m: 3.0
+  lateral_gain: 0.8
+  max_heading_correction_deg: 20.0
+  max_lateral_correction_m: 3.0
+  nominal_speed_mps: 0.8
+  minimum_speed_mps: 0.3
+  offset_deadband_m: 0.1
+  route_lookahead_m: 8.0
+  endpoint_tolerance_m: 2.0
+  stop_at_endpoint: true

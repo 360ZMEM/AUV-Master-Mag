@@ -1,0 +1,8 @@
+{
+  "scope": "20260926 current-offset joint revision; Figure 25 independent publication increment",
+  "artifacts": {
+    "figures/25_current_offset_peak_gate.png": "f7505761c95862d0ef56f01f8e186a98ef5195fec3297ba74adae09e3335e0fd",
+    "figures/25_current_offset_peak_gate.pdf": "e62b6e90f4e3b347997a1205b75df4ec567b10dc25092276f8fa2c60ca32761e",
+    "data/25_current_offset_peak_gate_summary.json": "070cfd6faf916dda9434f50e1d889fc586784b76c1e7191afa42d664a738e9f5"
+  }
+}

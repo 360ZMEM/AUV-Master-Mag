@@ -1,0 +1,60 @@
+{
+  "role": "native_pvs_ros_pid_guard_udp_static_hint_bias_counterexample",
+  "source_script_sha256": "0db29afc1845e612e9c01008581b36f0b376957e415bb5a16d1c5f8aa761f18c",
+  "harness_sha256": "696a948ceda035d897c9fd2b7d2becc05376ee59b200af412ac100f1da649b19",
+  "biased_config_source": "AUV-Master-Mag/results/v2/inspection_static_hint_bias_20260927/biased_hint_config.yaml",
+  "biased_config_sha256": "fd712a1e5656b19bae6f915ac316c4df2ed0541a5940b61c5dd181236b77d1c0",
+  "hint_m": [
+    6.6,
+    7.5
+  ],
+  "target_y_m": 6.0,
+  "neighbor_y_m": 9.0,
+  "neighbor_gain_nt": 10.0,
+  "seed": 101,
+  "caveat": "Synthetic scalar-envelope superposition and native PVS; no physical target, sonar, or PC104 input.",
+  "cases": [
+    {
+      "case": "biased_clean",
+      "summary_source": "AUV-Master-Mag/results/v2/inspection_static_hint_bias_20260927/biased_clean/wire_seed_101_summary.json",
+      "csv_source": "AUV-Master-Mag/results/v2/inspection_static_hint_bias_20260927/biased_clean/wire_seed_101.csv",
+      "summary_sha256": "5c8064a969f43f76cc48e7e1f0a5f72b2057d1671637ffbc3e8295c7bf6a3087",
+      "csv_sha256": "4a13ab687af33755df6e7420e76599b85454e320e548a6eaa1a1459e3e5509a9",
+      "duration_s": 577.0,
+      "completed": false,
+      "ever_track": false,
+      "magnetic_center_m": 6.01369257172632,
+      "lateral_valid": false,
+      "last_lateral_reason_codes": [
+        "side_hint_observation_inconsistent"
+      ],
+      "online_track_mae_m": null,
+      "target_true_track_mae_m": null,
+      "target_true_track_max_m": null,
+      "target_true_track_samples": 0,
+      "depth_published": false,
+      "final_pid_thrust_percent": 0.0,
+      "final_udp_rpm": 0
+    },
+    {
+      "case": "biased_double",
+      "summary_source": "AUV-Master-Mag/results/v2/inspection_static_hint_bias_20260927/biased_double/wire_seed_101_summary.json",
+      "csv_source": "AUV-Master-Mag/results/v2/inspection_static_hint_bias_20260927/biased_double/wire_seed_101.csv",
+      "summary_sha256": "35047ad2f76e86e9577040831301f6376266ff2b0fbf8c26be764f39e3eb7614",
+      "csv_sha256": "c1c42f38fa82ba64fbad88343977caa8bb0db6194103e86f21f21b8a2cedba80",
+      "duration_s": 1105.0,
+      "completed": true,
+      "ever_track": true,
+      "magnetic_center_m": 7.025917285483986,
+      "lateral_valid": true,
+      "last_lateral_reason_codes": [],
+      "online_track_mae_m": 0.7210851575401637,
+      "target_true_track_mae_m": 1.0898021934994768,
+      "target_true_track_max_m": 2.3092857803357862,
+      "target_true_track_samples": 1039,
+      "depth_published": false,
+      "final_pid_thrust_percent": 0.0,
+      "final_udp_rpm": 0
+    }
+  ]
+}

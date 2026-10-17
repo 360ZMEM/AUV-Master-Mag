@@ -1,0 +1,23 @@
+{
+  "preflight_passed": false,
+  "field_release_authorized": false,
+  "manifest_sha256": "6f75838eb3e1ea160c9e6ded699a53947d775a1402cc4695d3f317d642587f33",
+  "audit_script_sha256": "4a9150d85508986f33f5bf67ed17d9457720a04fd1fcdca949f94f08bf5ce47e",
+  "calibration_tool_sha256": "8e06c13d55def17283caa5aa0397cae2df5ef3112533d20c8ee8bfb1dad9b5b8",
+  "calibration_sha256": null,
+  "scan_counts": {
+    "train": 0,
+    "holdout": 0
+  },
+  "blockers": [
+    "data_domain must be physical; synthetic evidence cannot qualify depth",
+    "calibration_json: path missing",
+    "at least five complete train and five complete holdout scans are required",
+    "both splits require distinct physical sessions"
+  ],
+  "manual_review_required": [
+    "verify actual physical acquisition and independent geometry truth",
+    "verify sensor extrinsics, time synchronization, altitude and deployment envelope",
+    "approve the exact release configuration and physical execution package"
+  ]
+}

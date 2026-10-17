@@ -1,0 +1,10 @@
+{
+  "role": "synthetic_ros_pid_guard_local_udp_pvs_status_boundary",
+  "transition_time_s": 585.0,
+  "authorized_before_cycles": 2336,
+  "revoked_after_cycles": 241,
+  "localization_still_valid_after_cycles": 241,
+  "zero_udp_rpm_after_cycles": 241,
+  "source_csv_sha256": "d4bcba473cb389cfd782e23cfad1cff032801f96ff7846bc36d4881139c4a1ea",
+  "caveat": "Synthetic sonar and telemetry; zero command is not stationary vehicle or physical PC104 verification."
+}

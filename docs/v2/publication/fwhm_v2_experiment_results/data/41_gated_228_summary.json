@@ -1,0 +1,90 @@
+{
+  "role": "single_run_synthetic_wall_clock_imu_stamp_replay_on_passive_inspection_shadow",
+  "ros_domain_id": "228",
+  "healthy_s": 10.0,
+  "replay_s": 4.0,
+  "counts": {
+    "bridge": 1058,
+    "nav": 216,
+    "covariance": 216,
+    "capability": 28,
+    "tracking": 89,
+    "setpoint": 89,
+    "depth_valid": 89
+  },
+  "tracking_modes": {
+    "hold": 62,
+    "sensor_degraded": 27
+  },
+  "last_tracking_payload": {
+    "time_s": 1790472852.7708716,
+    "mode": "SENSOR_DEGRADED",
+    "quality_flags": [
+      "navigation"
+    ],
+    "acceptance_flags": [
+      "navigation_unavailable"
+    ],
+    "industrial_ready": false,
+    "industrial_acceptance_pass": false,
+    "dlt1278": {
+      "state": "传感器降级",
+      "total_score": 0,
+      "industrial_conclusion_readiness": "limited",
+      "industrial_acceptance_pass": false,
+      "acceptance_flags": [
+        "navigation_unavailable"
+      ],
+      "score_items": [],
+      "output_products": [
+        "tracking.jsonl",
+        "inspection_summary.json"
+      ]
+    },
+    "diagnostics": {
+      "ready": false,
+      "reason": "navigation_unavailable",
+      "blocked_sensors": [
+        "navigation"
+      ],
+      "blocked_capabilities": [
+        "cable_inspection"
+      ],
+      "inspection_limited": true,
+      "degraded_hold_setpoint_published": true
+    }
+  },
+  "last_covariance_diag": [
+    0.010431704111397266,
+    0.010431704111397266,
+    4.1463692468823865e-05,
+    4.1463692468823865e-05,
+    0.252081960439682
+  ],
+  "last_position_min_eigenvalue": 0.010431704111397266,
+  "nav_count_after_fault": 16,
+  "nav_count_after_one_second_grace": 0,
+  "checks": {
+    "raw_sensor_to_filtered_nav": true,
+    "healthy_inspection_capability": true,
+    "mission_command_sent": true,
+    "tracking_and_setpoint_output": true,
+    "unapproved_synthetic_side_hint_does_not_search": true,
+    "passive_bridge_never_authorized": true,
+    "no_uncalibrated_depth": true,
+    "replay_stops_filtered_navigation": true,
+    "replay_revokes_capability": true,
+    "replay_degrades_tracking": true,
+    "replay_sets_zero_speed": true
+  },
+  "checks_passed": true,
+  "source_sha256": {
+    "probe": "28244ec60deb34e2b003b36ac47da00462ed730330d18bf25fec04ffdfcbf955",
+    "localization": "842dfe55b0052490430c327bfee05741c5a4912bd0b7cbfe350dfc0407e639a0",
+    "shadow_launch": "4a316fbb9b89be21ea7682f57f3322f32f49882e9a410e7dc048d1776915ea4d",
+    "v2_config": "52343a728b1e6dab4447cbe09a06f7a537c0a5ff806138e3fdb33d6b60e56d24",
+    "base_params": "21b296ecf83a0fad6561587715ae22ba4dc6c4eab9824a98e6cd9d5ef0235daf"
+  },
+  "physical_sensors_tested": false,
+  "field_release_authorized": false
+}

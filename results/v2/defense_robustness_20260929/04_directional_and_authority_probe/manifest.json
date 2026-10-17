@@ -1,0 +1,24 @@
+{
+  "plan_sha256": "db8d9d7ae5426ac25d045e34f6009d2facd5ddc49cfa390d99e48731cff3793b",
+  "sources_unchanged": true,
+  "artifacts": {
+    "clean_wire_diagnostic_only_seed401.csv": "de330e531f9f18d14d34d217b90174becbf7bf8adacdf4c9bda372f8e18ab070",
+    "clean_wire_legacy_seed401.csv": "e7ba04f44d3d8e3e691912dfb1cfafa384ffd0ca9dfa09942dbe7dbb631b8bd9",
+    "clean_wire_supervised_seed401.csv": "546784a4ca4e8be38b066a13e119a603ac27ecab774ca3439f0431ffd87a35b3",
+    "fused_neighbor_diagnostic_only_seed401.csv": "e7d5518f0455d73a39316940bbb2ed176dd299e688afee5e8f640ffe79907dfa",
+    "fused_neighbor_legacy_seed401.csv": "2bfcbd44d54d6fced25968327eb9824873eb07e38729147e8a90b6770e49226f",
+    "fused_neighbor_supervised_seed401.csv": "0a05f60a6fe2d15427f4b570ed71d02b8c44f93ea367d75754f10cd92d400c97",
+    "magnetic_gain_step_diagnostic_only_seed401.csv": "8dd6f9bbd675497f15a3d1766abb68c99b28bcc31a6cb84decd9e1c2f915a7e5",
+    "magnetic_gain_step_legacy_seed401.csv": "0503a55f9c46202798b9c0d1c45c29ef27967cf16fae26ab60e1a03eb50cc5de",
+    "magnetic_gain_step_supervised_seed401.csv": "988287d2ef3ab46e9ebbab8d1ecb5e0fb549da5a11d8d8c8d73678bff812b5a3",
+    "no_source_diagnostic_only_seed401.csv": "87641ff7da5093d2213ce5b11acbfee38ae1e90955a4e9dec80e112d26851041",
+    "no_source_legacy_seed401.csv": "7d34974724e29971a0f7e6439e7c291a4fed44dffa1200e89538ecbc72e358df",
+    "no_source_supervised_seed401.csv": "87641ff7da5093d2213ce5b11acbfee38ae1e90955a4e9dec80e112d26851041",
+    "plan.json": "db8d9d7ae5426ac25d045e34f6009d2facd5ddc49cfa390d99e48731cff3793b",
+    "source_snapshot_index.json": "1a5806b57ac2d9f25e06251785efebdf1d565688d617e490c80b902843730b91",
+    "steady_minus_diagnostic_only_seed401.csv": "66aed448895a47906710e25275d9eaa87fbb2b91531c4e2caf34c379b348dbb8",
+    "steady_minus_legacy_seed401.csv": "26bd86cca5ad193039b6f51da9f5dd86ca109ff2ee59c85c752d1ad6ae97206c",
+    "steady_minus_supervised_seed401.csv": "e68ed0b132f4e123bd7f08d2927ac06daf070c08f7464f401bc63d0005424410",
+    "summary.json": "a17af917576be248935b14a6376c7b255bed88d75ec7ce0a26d7964807cc21e0"
+  }
+}

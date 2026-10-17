@@ -1,0 +1,148 @@
+{
+  "generator": "tools/plot_fwhm_v2_publication.py",
+  "style": "tools/thesis_plot_style.py",
+  "source_artifacts": [
+    {
+      "path": "AUV-Master-Mag/results/v2/cases_a_d/manifest.json",
+      "sha256": "b9ff719fe97ecab5c755cc5e21b085fcf7ceafac0222f13ff3fe9957bd4e922d"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/ablations/manifest.json",
+      "sha256": "2fa0b5641fd38a585d8ca1d4b761d2bbf4b52812285510eb7d254c55455efeed"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/fwhm_model_consistency/manifest.json",
+      "sha256": "5e04e9729038701345b08ef319ac3017397ecb9c32dbbdc4f6ccbd7c4ef098ec"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/tmr_joint_replay/manifest.json",
+      "sha256": "03d0d0fa219e2300c91d16ed4f2c8594a8a881b7bf2488260b8b35b909cccf76"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/process_visual_demo/manifest.json",
+      "sha256": "a1fff3134eb545f2e72ca9e9bd1159cb7b6f7b8f244d0cc1583f8911aac4bef9"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/stability_comparison/manifest.json",
+      "sha256": "0f836e519d48250b98caf6617020e5213d2120a55c3c513c38a2f475db19481b"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/shape_guard_validation/manifest.json",
+      "sha256": "37a8bb9b63be737c246cf8ad167db67af1c670e0d450e68960d7bd73db72a234"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/pvs_geometry_controlled/summary.json",
+      "sha256": "b3871292dd5c4b1c9ae684fc8cf681173ec05cb6612219213f9e712b74d0f1ba"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/pvs_geometry_calibrated/summary.json",
+      "sha256": "8aa6f33970a17c69fc70ad8ecb0e3414aa3d36840a5d3c42f475c8fb01aff559"
+    }
+  ],
+  "published_figures": [
+    {
+      "path": "figures/01_cases_a_d_overview.pdf",
+      "sha256": "6ba9c4d634ff3de8d80035df79c6e940d5f9620e7285bb011e49ba4549eeed91"
+    },
+    {
+      "path": "figures/01_cases_a_d_overview.png",
+      "sha256": "c12b41fa93a5d3ee27c893e479a007f6697a4d99d9e830f1595a5212c05bbab1"
+    },
+    {
+      "path": "figures/02_noise_confidence_insight.pdf",
+      "sha256": "787db456aae77b44bc553d3037a90a763475c64fe2df4d77e6c458678220bfcc"
+    },
+    {
+      "path": "figures/02_noise_confidence_insight.png",
+      "sha256": "b23c03f6f8910af0f5079af78593eaf68bf7ab9b06c0a4d3c0cdbd43a8297d29"
+    },
+    {
+      "path": "figures/03_key_design_ablations.pdf",
+      "sha256": "bbfce6ccf849e72b0953d87d693f9d5e17f9aa91bd4d072a7de5f8a5b10421e4"
+    },
+    {
+      "path": "figures/03_key_design_ablations.png",
+      "sha256": "1d6a9d9181b6d7009bd504b02d59c490e4ef670ab29e01fba362eb1d0df3b1b0"
+    },
+    {
+      "path": "figures/04_detection_and_scan_gates.pdf",
+      "sha256": "49dc16a71f7655acfdac50e8f40e67150e5f6e21c4305528a9e0eb9ec1259a63"
+    },
+    {
+      "path": "figures/04_detection_and_scan_gates.png",
+      "sha256": "23f84cd76829dd8cf55a2a61b80ee202cb1ae7ce4ee7373006fcc06338449822"
+    },
+    {
+      "path": "figures/05_field_model_consistency.pdf",
+      "sha256": "919834e523ca4c4c9c69e5fe35c8a729462288d4b4ed637df7c409934455ecc0"
+    },
+    {
+      "path": "figures/05_field_model_consistency.png",
+      "sha256": "c2c1991ac287e921726b3521d95cf202a7504dfd3ee7b09175405b0419c54242"
+    },
+    {
+      "path": "figures/06_closed_loop_evidence_boundary.pdf",
+      "sha256": "6af1450590d6a8bca899075a40cb307fbc2500aa693fad9baa1d905744dcc8fc"
+    },
+    {
+      "path": "figures/06_closed_loop_evidence_boundary.png",
+      "sha256": "4bfe8ab1d1e15aac4a61ddf0e36ff9028d84ff8ce082024a93145f56c6a77a7a"
+    },
+    {
+      "path": "figures/07_tmr_quality_gate_audit.pdf",
+      "sha256": "e5621912e3f35d44a587d7a88954d1e02fd8dda5a808c3466ffd32cc7a77e9dd"
+    },
+    {
+      "path": "figures/07_tmr_quality_gate_audit.png",
+      "sha256": "d2db8cf81a7585fcb38afced04c80291036dfed27c46f5915b6d9e471301e7c9"
+    },
+    {
+      "path": "figures/08_mission_process_plan_view.pdf",
+      "sha256": "900e64826725323e8ea908d0ebf86ce489a40d886b31bc9670b95cd94e7ba819"
+    },
+    {
+      "path": "figures/08_mission_process_plan_view.png",
+      "sha256": "31b4c4b72a6f595f94d8a2e5bb42f71fea652cf979919cd072eb2cc7feec620e"
+    },
+    {
+      "path": "figures/09_explicit_fwhm_profile.pdf",
+      "sha256": "aac0d2518fc332f416b605c7748307e92ac8ff44381bd0b7361367e65ce80289"
+    },
+    {
+      "path": "figures/09_explicit_fwhm_profile.png",
+      "sha256": "e96c8c1a4a7c67a0afc7e414e0b89289427aa0e6a1091ff2b364b7751d6e1ecf"
+    },
+    {
+      "path": "figures/10_burial_depth_reconstruction_process.pdf",
+      "sha256": "838a0a88a1241dae82fe724803705131b43b617f217a30b18265b687af3f70b4"
+    },
+    {
+      "path": "figures/10_burial_depth_reconstruction_process.png",
+      "sha256": "42fbe499364f5005ee79e8a572a59e08c8cb55cd2763ad39e877b339438a0366"
+    },
+    {
+      "path": "figures/11_fwhm_stability_comparison.pdf",
+      "sha256": "d257a95f0962c56c073383634f3caa729e550995e2442b3adb5972eed5278496"
+    },
+    {
+      "path": "figures/11_fwhm_stability_comparison.png",
+      "sha256": "7476458357e756e2e45a68700607aab90547b1a2651b1bfd6ea7188de2062668"
+    },
+    {
+      "path": "figures/12_fwhm_stability_sensitivity.pdf",
+      "sha256": "e0e73a55bd06f630415af225dbf53c912217bcddd15cb90c7ecf610527d7fcac"
+    },
+    {
+      "path": "figures/12_fwhm_stability_sensitivity.png",
+      "sha256": "d59195b3b1cb2ef9888aca1379bd261f9949fdf852224a4fcf33f27d78fc7a6f"
+    },
+    {
+      "path": "figures/13_shape_guard_held_out_validation.pdf",
+      "sha256": "218ba86178b939ad043ba299727881edcbfb7816298c92649cd42acde4d8368a"
+    },
+    {
+      "path": "figures/13_shape_guard_held_out_validation.png",
+      "sha256": "7b6ce7a08d85d4f3e8623c62c5b8e95d96e24be38b4f5231f729616fb6c60ffb"
+    }
+  ]
+}

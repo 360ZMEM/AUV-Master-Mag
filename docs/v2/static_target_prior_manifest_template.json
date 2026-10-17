@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "source_kind": "survey_map",
+  "mission_id": "",
+  "target_id": "",
+  "reviewer": "",
+  "reviewed_for_mission": false,
+  "reviewed_at_utc": "",
+  "valid_until_utc": "",
+  "frame": "local_ned",
+  "prior_points_sha256": "",
+  "mission_config_sha256": "",
+  "side_hint_min_m": null,
+  "side_hint_max_m": null,
+  "source_file": "",
+  "source_sha256": ""
+}

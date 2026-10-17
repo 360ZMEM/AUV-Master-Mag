@@ -1,0 +1,142 @@
+{
+  "evidence_level": "native_pvs_local_protocol_geometry_probe",
+  "target_identity_verified": false,
+  "field_release_authorized": false,
+  "cases": {
+    "zero_wire": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.009333700459724112,
+      "burial_depth_m": null,
+      "trajectory_sha256": "2532c6690d9d6e3f19cee0cf3eb758a14e09984b3e6f480171edd5c576d2f1eb"
+    },
+    "positive_current": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1426.5,
+      "reference_track_mae_m": 0.7118543524048375,
+      "reference_track_max_m": 1.4965526546271146,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.02168513020941069,
+      "burial_depth_m": null,
+      "trajectory_sha256": "94542eb8a307102df3320456428f6f8f1cab6b772b52dd3a83523165c35bb766"
+    },
+    "negative_wrong_side": {
+      "terminal_phase": "boundary_margin_exhausted",
+      "elapsed_s": 874.25,
+      "reference_track_mae_m": 7.72426742875792,
+      "reference_track_max_m": 30.49427081679181,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_2_invalid_samples"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "e152a3bdd4252bff3b82a7e7c6393bdb26f1e9dc8f5fc29850d8f75867e5823f"
+    },
+    "negative_mirrored": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1426.5,
+      "reference_track_mae_m": 0.7120640839434108,
+      "reference_track_max_m": 1.4976550196950935,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.01214835691367148,
+      "burial_depth_m": null,
+      "trajectory_sha256": "01b46254c47024b17ec64c8c47faf524b76da00600e4897de9f63570f42df99f"
+    },
+    "intermediate_shape": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.007420366248656052,
+      "burial_depth_m": null,
+      "trajectory_sha256": "ab8b194bf555b3e13e6fefbb047b9c351b0d8ddd1854d26a52dcc7431f40685d"
+    },
+    "no_source": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_low_prominence",
+        "station_0_ambiguous_anomaly_peaks",
+        "station_1_low_prominence",
+        "station_1_ambiguous_anomaly_peaks",
+        "station_2_low_prominence",
+        "station_2_asymmetric_anomaly",
+        "station_2_ambiguous_anomaly_peaks"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "16d166a856ceb904400c41dba46d546e9f8e090d4f8ca9f605a4f282c890a354"
+    },
+    "transient_middle": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "survey_line_inconsistent"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "34deee4d220769f9ea0860758ee69638079403c8ea22e2932283390691717ac8"
+    },
+    "separated_neighbor": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": false,
+      "geometry_reason_codes": [
+        "station_0_asymmetric_anomaly",
+        "station_1_asymmetric_anomaly",
+        "station_2_right_half_crossing_missing",
+        "station_2_center_geometry_missing",
+        "station_2_asymmetric_anomaly",
+        "station_2_center_coverage_insufficient"
+      ],
+      "center_mae_m": null,
+      "burial_depth_m": null,
+      "trajectory_sha256": "aca2a4285cd65b233f6dba57bb8297b2556043ba4e420e5fa982e2b1f7057b63"
+    },
+    "fused_neighbor": {
+      "terminal_phase": "survey_path_end",
+      "elapsed_s": 1453.75,
+      "reference_track_mae_m": 0.29911558512126857,
+      "reference_track_max_m": 1.4350065329175266,
+      "geometry_valid": true,
+      "geometry_reason_codes": [],
+      "center_mae_m": 0.505497249606108,
+      "burial_depth_m": null,
+      "trajectory_sha256": "548f18a7590a45381e1df142a93b513b75a3f13d8aac41e0bc5337e1030cdcb7"
+    }
+  },
+  "source_sha256": {
+    "tools/probe_v2_shallow_zigzag_pvs.py": "fbc65a9e596ff3526a9db8c89c5ff7b9f342d560f532176fca51dd2aba79078a",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/corridor_survey.py": "5e5e5a8168bae3af09b9e43316f9b6aac901bf6beab5ca383d2e896f50729d94",
+    "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb"
+  },
+  "raw_summary_sha256": {
+    "zero_wire": "396aaa31d99ae04b39357286ce03dd6b81640162c71261269a1b33768dd165b7",
+    "positive_current": "588433c0234836ffa4535260d74acb083f57d64828bd75bfe6fa153c66b28841",
+    "negative_wrong_side": "84b2a967cc381fee4057f4b68c9449143abb1ff068769f07db6ba771e07a11b5",
+    "negative_mirrored": "13e0bf74b17c9b3c3e3e2e4590be0293a20d3ab0d493b74609e90b1c3cb5c035",
+    "intermediate_shape": "a9e873a8bd3ce201c29fc1c9cb569f28334fae6090f3b23a579589ef0abefa1e",
+    "no_source": "c2223621cdb704d0167b012d791a75786d4543273a64d6a02f2eb9f7fb11597d",
+    "transient_middle": "634c8705b4e3211225bf9ac16f6d7b395ea34ae56eced2d63bc891a0656e0ccd",
+    "separated_neighbor": "a649446720b30fffe44e0fcd6f3de020d00f66269cf6777eb37b576244bf72d6",
+    "fused_neighbor": "e741787bd6a75d916e1c1059b875470464f5852088b1a21b4bab8c2f263548f8"
+  }
+}

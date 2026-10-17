@@ -1,0 +1,47 @@
+{
+  "role": "inspection_v2_bridge_zenoh_console_candidate",
+  "field_release_authorized": false,
+  "guard_loss": {
+    "authorized_before_cycles": 2336,
+    "revoked_after_cycles": 241,
+    "localized_after_cycles": 241,
+    "zero_udp_rpm_after_cycles": 241
+  },
+  "identity_hold": {
+    "hold_cycles": 41,
+    "revoked_cycles": 41,
+    "zero_udp_rpm_cycles": 41
+  },
+  "ui_loopback": {
+    "bridge_to_console_received": true,
+    "duplicate_sample_does_not_refresh_status": true,
+    "hardware_connected": false
+  },
+  "source_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "350b828b46022aec336d5a08b9ae6e5813288c84ccac8680f919f07b9d505951",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/operational_status.py": "04bafe16261e238b852bf6b1fec1ba7066cb6020bfbb3e828c085305896e45ab",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_corridor_budget_sim.yaml": "39b589de9b3b9f910c298429988718259822c9f720fb4ec761dee9f61bf95631",
+    "console_soft/auv_console_pyside6/src/ui/inspection_operational_view.py": "3c943cb5c837777be08cbf179ec865f2feeb2527092d370c02f3f15bd4902d31",
+    "console_soft/auv_console_pyside6/src/ui/main_window.py": "849bf796b08591f0210b634a6365dc7722239fcc53c76895439db318c6a5bf04",
+    "console_soft/auv_console_pyside6/console_config.defense.yaml": "e2638f1bed1945c4935207374d815c11962a089701d006440e38d4e5a1984ef4",
+    "console_soft/auv_console_pyside6/tests/test_inspection_operational_view.py": "da802d62d64faa3b1c62fb76e3f2f93f47ba84ad9b091777951c4fa1c63c6ee9",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "d23480125d8a97438d2dd0d34de7971f73b0e61223b8d29e6002bc3ec0a4b971",
+    "tools/smoke_v2_operator_side_channel.py": "1eb59eab9be74f6a9620086ecdb43d58bab946c698cbc6ed639c859a90c26215",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/operator_console_status_loopback.png": "a305d09d6259dd50f6871877ba5179c312258320992a76a1ca3f17a1a9a02d8f"
+  },
+  "evidence_sha256": {
+    "AUV-Master-Mag/results/v2/operator_chain/guard_loss/wire_guard_telemetry_loss_seed_101.csv": "d4bcba473cb389cfd782e23cfad1cff032801f96ff7846bc36d4881139c4a1ea",
+    "AUV-Master-Mag/results/v2/operator_chain/guard_loss/wire_guard_telemetry_loss_seed_101_summary.json": "779ced4ea6205334965f274d9a4e25922169003766b1ebe84b276d49e272006c",
+    "AUV-Master-Mag/results/v2/operator_chain/identity_hold/wire_seed_101.csv": "e9a3d5c37cc836a05ef9af03815fceb101f3d2d05fc9fa41360620283200391a",
+    "AUV-Master-Mag/results/v2/operator_chain/identity_hold/wire_seed_101_summary.json": "c7f2e012588e08252345a1832448ea50bc567104f27a77691dae70a298a63b1a",
+    "AUV-Master-Mag/results/v2/operator_chain/zenoh_ui/summary.json": "c76127a184f9400860bd8ec10fd5b5ab3bfa76b9c2419f5cb161be5620197e54",
+    "AUV-Master-Mag/results/v2/operator_chain/zenoh_ui/console_inspection_authority.png": "a305d09d6259dd50f6871877ba5179c312258320992a76a1ca3f17a1a9a02d8f"
+  },
+  "audit_script_sha256": "cb79331f79b9e464cc3e2f391dfcc2d98c2a27a7eb83d6bb54bcbf06c8111f49",
+  "remaining_field_gates": [
+    "physical target-sonar evidence and independent identity calibration",
+    "measured AUV zero-thrust drift/current and actual corridor bounds",
+    "cross-device Zenoh continuity, physical PC104 receipt and upper-level disposition timing",
+    "magnetic width-to-distance and synchronized altitude calibration before depth release"
+  ]
+}

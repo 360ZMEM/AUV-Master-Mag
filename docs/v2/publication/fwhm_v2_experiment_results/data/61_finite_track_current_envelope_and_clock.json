@@ -1,0 +1,103 @@
+{
+  "role": "synthetic_installed_ros_stable_current_vs_track_step_with_dual_clock_disposition",
+  "scope": "eight independent ROS/PID/guard/localhost-UDP/native-PVS synthetic runs; ideal position-derived ground velocity; magnetic noise seeds only; no physical sonar/current/PC104",
+  "route_minimum_clearance_m": 25.0,
+  "route_required_clearance_m": 19.6,
+  "declared_current_bound_mps": 0.05,
+  "steady_cases_completed": 6,
+  "steady_cases_total": 6,
+  "negative_post_hold_zero_command_cycles": 241,
+  "cases": {
+    "steady_plus_101": {
+      "completed": true,
+      "route_observed_lateral_max_m": 0.742135598876831,
+      "route_observed_lateral_mae_m": 0.41585524591528183,
+      "duration_s": 1106.0,
+      "summary_sha256": "60ae8827c3fff3769799bec1bb153aa788dddd76c643f03b7233c7bcae9c7e94",
+      "csv_sha256": "f8e21a3e53840b43a750be613dd06849b8883e5bc1a4924e60b50617eccc0ad8",
+      "log_sha256": "4a6826f10401809c376ba1af4636c961af067758959ef9dd24d5fccf5e9442b4"
+    },
+    "steady_minus_101": {
+      "completed": true,
+      "route_observed_lateral_max_m": 1.233339152097476,
+      "route_observed_lateral_mae_m": 0.6895002762407799,
+      "duration_s": 1106.0,
+      "summary_sha256": "70181642431899eb74516e4af5c8e186917332c380f6d089467d936b7489ec83",
+      "csv_sha256": "2870481da5d5ed3864545986cdf73fbc8c46be1fd13762d63c760e2bc3108308",
+      "log_sha256": "7c2aaa6a03074d89cb75b60e71fb72cc6b57f23e5e83d9a50b40714d19bd8100"
+    },
+    "steady_plus_102": {
+      "completed": true,
+      "route_observed_lateral_max_m": 0.7416511141159177,
+      "route_observed_lateral_mae_m": 0.4154175078858054,
+      "duration_s": 1106.0,
+      "summary_sha256": "7dce551e708946f80df8a231654cfc55de5d6794592bb8db4c6a767f1e61c6bc",
+      "csv_sha256": "f114af5830f38f5a723fb7541ebd99d2f8e6031f458b589ad2a1ba98ab312894",
+      "log_sha256": "8cfc0673ae8d33cdf1859312d56c928ad3720017738e6b2844d14b815462dde8"
+    },
+    "steady_minus_102": {
+      "completed": true,
+      "route_observed_lateral_max_m": 1.2338842312601734,
+      "route_observed_lateral_mae_m": 0.6898485694824522,
+      "duration_s": 1106.0,
+      "summary_sha256": "6cb7215a3c1cad8b137ecca9b7023d883da6e3fb2b5e406240ff6acf4c29379c",
+      "csv_sha256": "152c6bad23e61c1d9acc08c69bf125c77eedcdaf2f6a01638a4423e837f74c84",
+      "log_sha256": "60e674c640f6ee0325a61ea19b12a03a626b6872fc2c6f747f6a069aabe9724f"
+    },
+    "steady_plus_103": {
+      "completed": true,
+      "route_observed_lateral_max_m": 0.7434571882347472,
+      "route_observed_lateral_mae_m": 0.4166830508447051,
+      "duration_s": 1106.0,
+      "summary_sha256": "5c680227af50304e59d54cbad7c11486cacbcf6ffdd297325ee3f7ceb1215088",
+      "csv_sha256": "1128b9bd806f7c8ee3fb88bf6c8df5b822970511cb4f6fa694cde6dc016a0b7b",
+      "log_sha256": "6a0ab1b99dc8029561b1b788aa8f2bfb4ed4398bcac0f359ed25b33b3bc8c811"
+    },
+    "steady_minus_103": {
+      "completed": true,
+      "route_observed_lateral_max_m": 1.2327088335084637,
+      "route_observed_lateral_mae_m": 0.6887586388019048,
+      "duration_s": 1106.0,
+      "summary_sha256": "60fcf85fad5dfa25675de3da464366f407e0537ca7bf7de5f7fb2e8a644f75f7",
+      "csv_sha256": "3ac0e01fbe8fff902b76eab1946d8b1d7031f7d74a99ba07629bb1d38296237d",
+      "log_sha256": "c5de27500dda84e842e9ae0fb3df484fd41c2bf27c623c0747eec371c07801c7"
+    },
+    "step_plus_101": {
+      "completed": true,
+      "first_hold_s": null,
+      "first_hold_reason": null,
+      "first_recovery_required_s": null,
+      "first_recovery_reason": null,
+      "route_observed_lateral_max_m": 0.9602853244803757,
+      "hold_to_final_displacement_m": null,
+      "summary_sha256": "19c8d90e132272215101dead010bb9ebaa9935ecf839c5cb50764ecb62ca43b6",
+      "csv_sha256": "926eee1c8e0405938f342d8e0ed631582221063c6f8821948e5b4a5ee961356a",
+      "log_sha256": "90602ca73a28ceb29a845f87ff579c7f159ed8c8a590b088b4a6f40e3de76aa3"
+    },
+    "step_minus_coast_101": {
+      "completed": false,
+      "first_hold_s": 883.5,
+      "first_hold_reason": "flythrough_route_deviation_exceeded",
+      "first_recovery_required_s": 913.5,
+      "first_recovery_reason": "hold_time_budget_exhausted",
+      "route_observed_lateral_max_m": 2.009149717324596,
+      "hold_to_final_displacement_m": 5.682610057898091,
+      "summary_sha256": "b8054ec8119d7311c5ed6c8cfb6ed79e9b91a8bbf81de36f2f9627ed2b4c23ad",
+      "csv_sha256": "036bf8f64e375aad244f8751593d2ee7c30f7a42c35546d79e3e60daf2f88bb7",
+      "log_sha256": "edfc1143b983a2d1a0dee19943f8063e5e64b0ea90fb2c67e0cfbdea960e1e37"
+    }
+  },
+  "source_script_sha256": "a74ada8578727438585bc4e80e4fc064f00c4f85df2f0f47915280826cbaa673",
+  "harness_sha256": "c77be82cd6fe54aeebd846afcfa940a51459186f3e44c5d7195a57befe992fc1",
+  "flythrough_sha256": "ef251414c8b303189ea91593a5753d5191855d381090e76bf33d659e9b39dd24",
+  "ros_node_sha256": "bccd3166e7d268e909ea6a80466a2cb7c774579540a79cac12531ee1e1c8d5e7",
+  "config_sha256": "0d7dcf44f4df41f225a71d358bbf953b27f77997b8eb718a07cdd7403aef4993",
+  "png_sha256": "3857aac4ba3e17077b3daf427beb257f9248388e99190787483bc06e97de9b6c",
+  "pdf_sha256": "60ca19c6c95624c4f890af7107c54cf5df28ef891adae0d249d6d18ff01a318d",
+  "source_snapshots": {
+    "audit_script": "repro_sources/61_finite_current_audit_original.py",
+    "harness": "repro_sources/61_smoke_v2_flythrough_ros_pvs_original.py",
+    "flythrough": "repro_sources/61_flythrough_original.py",
+    "ros_node": "repro_sources/61_cable_tracking_v2_node_original.py"
+  }
+}

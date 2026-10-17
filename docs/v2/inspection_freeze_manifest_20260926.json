@@ -1,0 +1,114 @@
+{
+  "version": "v2-inspection-20260926",
+  "scope": "final integration snapshot; run-time experiment manifests retained separately; not a hardware release",
+  "files": [
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/artifacts.py",
+      "sha256": "d66f8b871823f02f615be7b1831064689f1d0656445f0614c5b6577aba6ff713"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/cable_estimator.py",
+      "sha256": "50a4421e900a92a583609405bb8eb726b0213555a1b5fcbd5c3711319d6843d8"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/config.py",
+      "sha256": "991990d8f99a8a4a031bb420736714edf3af39a9700d66635e61ff3abe8e07d1"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/cross_scan.py",
+      "sha256": "fb2c7a50b8d878272cb2161db88c0bddd59d8d89ba3fddf9acd2123a64754e76"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/detection.py",
+      "sha256": "1dee52e3ce190845602ad7c4e8d239e846f78814f47f5b8c38475dae44907690"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/fwhm.py",
+      "sha256": "06bccae203fa95ad21b5e4c52845deeac3eaa00531ddf651cb94f9c3cc5abdfe"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/lateral.py",
+      "sha256": "6e12c3a0c4f777a2f93ad70925967dc873ff0fb3b70ceacca15bab02f7f4915a"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/metrics.py",
+      "sha256": "a0b2af9b373ea2aea6c1c051a89758dfba2c23afce2c0436b2c01889f460cf6a"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/physics.py",
+      "sha256": "3d14332d54fa7a9cf5d9fa2434ada7c9bc27337f049622b6c4f948d0313a76cc"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/pipeline.py",
+      "sha256": "17b303cfad025f68b8229aefc6d789242b010108a7c2d2256439ced39f39f7a3"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/search.py",
+      "sha256": "800b3da5e5f9c44137eb1e314f27d085e8d2def41487645a25fe7ea467f98617"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/shape_calibration.py",
+      "sha256": "7500cdfdb603c5aad165c81285fdf3c421f42b8a94dd5b7349b3c34f25b50da5"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/state_machine.py",
+      "sha256": "554012d5d522a31df26918fceff5ed7926095f04af3f2e32589d048fe26050ee"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/tracking.py",
+      "sha256": "91d45cfb42262ef84f78254d0f0d5c5d189d545b5de04818278473f7d986550f"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/types.py",
+      "sha256": "f0c34bfd3720940328101f217e37c14c675a88dc4d13ec9ea6896912f63fc3fc"
+    },
+    {
+      "path": "AUV-Master-Mag/src/auv_mag_tracking/v2/__init__.py",
+      "sha256": "e30531129337098212800aea7a5c076162b95871243eee3fbb8c85204a19c887"
+    },
+    {
+      "path": "AUV-Master-Mag/tools/run_v2_inspection_closed_loop.py",
+      "sha256": "e2081ba556cd1b78d48b8fb76b787dad0b48837f26cdedb855b145da6bc01f14"
+    },
+    {
+      "path": "AUV-Master-Mag/tests/v2/test_inspection_contract.py",
+      "sha256": "acf61ae2f0d41888c14f63fb1161638bae2b653d7606630317b84c45e9c75c70"
+    },
+    {
+      "path": "tools/smoke_v2_inspection_ros.py",
+      "sha256": "887b087ce5be9dcc3d69e032131955d1fbfb4c7df7b49104ee6bc576f01473dd"
+    },
+    {
+      "path": "tools/plot_v2_inspection_contract.py",
+      "sha256": "e2039d3fbbc91b67767c68de089599047619d0f9372ad36644121108bfe01272"
+    },
+    {
+      "path": "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py",
+      "sha256": "84805f8471051d874c631b8290821d22cda956a3c198bbcb550b709a15fc9c41"
+    },
+    {
+      "path": "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_inspection.yaml",
+      "sha256": "163680c7504e9f074057ad37a64d5bd8e61905732cc92145f7635f7bd5599509"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/INSPECTION_CONTRACT_20260926.md",
+      "sha256": "deb93e21e2bca8ff065c348fc3546041a2c3366b43a4f6f4c2bec425c173222b"
+    },
+    {
+      "path": "thuthesis/data/auv-chap03.tex",
+      "sha256": "4a364a7836af9ed9a378dafc82a28015993b6788afbecc9e43dbf4c161208784"
+    },
+    {
+      "path": "thuthesis/data/auv-chap05.tex",
+      "sha256": "9a7caf4699eb59cbe09202ab55c666fa3e73fa46113c60f672cfcc30fce6f788"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_contract_validation_20260926/summary.json",
+      "sha256": "283dfb1a2890c84f120bf8b2e56a034b1f01c1aea775779ba625bd6b651a5538"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_ros_dds_20260926/summary.json",
+      "sha256": "770b4e321a82e2df1ff834a0f69205d32173937a25b7d70d1fa27a0beda61268"
+    }
+  ]
+}

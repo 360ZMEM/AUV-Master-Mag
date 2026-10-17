@@ -1,0 +1,77 @@
+{
+  "scope": "inspection supplement only; historical figures and results retained",
+  "files": [
+    {
+      "path": "tools/plot_v2_inspection_contract.py",
+      "sha256": "e2039d3fbbc91b67767c68de089599047619d0f9372ad36644121108bfe01272"
+    },
+    {
+      "path": "tools/thesis_plot_style.py",
+      "sha256": "bbaef5aa64a29647046295d59c14053aaeb0a3d090c683ad5478d27c51a383f0"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_contract_validation_20260926/summary.json",
+      "sha256": "283dfb1a2890c84f120bf8b2e56a034b1f01c1aea775779ba625bd6b651a5538"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_contract_validation_20260926/magnetic_dropout_seed_101.csv",
+      "sha256": "d97f25ff23abccff4e5e027892a03bfeaa6b102f3bddebff02daae06b5c8bd70"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_closed_loop_transverse/summary.json",
+      "sha256": "933132f0de4b516573ba309d9b720fcfc881180fe7b2fdf6f990ea9b9eb2ffbf"
+    },
+    {
+      "path": "AUV-Master-Mag/results/v2/inspection_closed_loop_flank_follow/summary.json",
+      "sha256": "9daa4a98b01f81cc1f30706d1030b45e4fbcf2f80c833113d5d955687ca5c41d"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/figures/15_inspection_contract_process.png",
+      "sha256": "ea60330401f69e5cfc522d47501ad23ee942a7ba306681e3ca222a1354850a37"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/15_inspection_contract_process.png",
+      "sha256": "ea60330401f69e5cfc522d47501ad23ee942a7ba306681e3ca222a1354850a37"
+    },
+    {
+      "path": "docs/thesis/figures/experiments/fwhm_v2/15_inspection_contract_process.png",
+      "sha256": "ea60330401f69e5cfc522d47501ad23ee942a7ba306681e3ca222a1354850a37"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/figures/15_inspection_contract_process.pdf",
+      "sha256": "571d024bd75be523e714132227b559caf5ab053ac315c2da5bb79a24e9e2b3c1"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/15_inspection_contract_process.pdf",
+      "sha256": "571d024bd75be523e714132227b559caf5ab053ac315c2da5bb79a24e9e2b3c1"
+    },
+    {
+      "path": "docs/thesis/figures/experiments/fwhm_v2/15_inspection_contract_process.pdf",
+      "sha256": "571d024bd75be523e714132227b559caf5ab053ac315c2da5bb79a24e9e2b3c1"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/figures/16_inspection_contract_insight.png",
+      "sha256": "0240121889aee68520451be8ca46f39ae9578c458ce1377084bb5631b59a00ec"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/16_inspection_contract_insight.png",
+      "sha256": "0240121889aee68520451be8ca46f39ae9578c458ce1377084bb5631b59a00ec"
+    },
+    {
+      "path": "docs/thesis/figures/experiments/fwhm_v2/16_inspection_contract_insight.png",
+      "sha256": "0240121889aee68520451be8ca46f39ae9578c458ce1377084bb5631b59a00ec"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/figures/16_inspection_contract_insight.pdf",
+      "sha256": "0ce465092feb0f5d0f5ba121289656196d12fe60d1d7d95f439a6c8a5b3bd008"
+    },
+    {
+      "path": "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/figures/16_inspection_contract_insight.pdf",
+      "sha256": "0ce465092feb0f5d0f5ba121289656196d12fe60d1d7d95f439a6c8a5b3bd008"
+    },
+    {
+      "path": "docs/thesis/figures/experiments/fwhm_v2/16_inspection_contract_insight.pdf",
+      "sha256": "0ce465092feb0f5d0f5ba121289656196d12fe60d1d7d95f439a6c8a5b3bd008"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "role": "synthetic_zero_propulsion_motion_after_identity_hold",
+  "corridor_bounds_xy_m": [
+    -270.0,
+    120.0,
+    -30.0,
+    30.0
+  ],
+  "candidate_stop_margin_m": 10.0,
+  "pvs_fixture_caveat": "Native PVS with synthetic magnetics and sonar; not measured AUV stopping distance or PC104 response.",
+  "cases": {
+    "dropout_zero": {
+      "case": "dropout_zero",
+      "first_hold_s": 587.0,
+      "last_recorded_elapsed_s": 60.0,
+      "post_step_final_elapsed_s": 60.25,
+      "reason": "flythrough_runtime_identity_lost",
+      "zero_rpm_ticks_after_hold": 241,
+      "first_hold_ground_speed_mps": 0.30311269889767034,
+      "last_ground_speed_mps": 0.010344011435326731,
+      "hold_to_final_displacement_m": 4.640749824055989,
+      "hold_to_final_lateral_m": 0.8645274391528837,
+      "minimum_boundary_clearance_m": 13.720965188321074,
+      "boundary_clearance_at_hold_m": 14.584977605642727,
+      "current_speed_mps": 0.0,
+      "current_direction_deg": 0.0,
+      "source_summary": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/dropout_zero/wire_seed_101_summary.json",
+      "source_summary_sha256": "e26aed733db9c42767e98cf5011f1d7d9ca4f2f472df21c596d57b480f081c4a",
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/dropout_zero/wire_seed_101.csv",
+      "source_csv_sha256": "5e5d28b4a44481db9622616d8a876cdd0f75298c3781fe73b1392527ec9078a4"
+    },
+    "switch_zero": {
+      "case": "switch_zero",
+      "first_hold_s": 585.0,
+      "last_recorded_elapsed_s": 60.0,
+      "post_step_final_elapsed_s": 60.25,
+      "reason": "flythrough_runtime_identity_diverged",
+      "zero_rpm_ticks_after_hold": 241,
+      "first_hold_ground_speed_mps": 0.3031612047724387,
+      "last_ground_speed_mps": 0.010364822833322301,
+      "hold_to_final_displacement_m": 4.645621494174469,
+      "hold_to_final_lateral_m": 0.856760277428517,
+      "minimum_boundary_clearance_m": 13.834644832514066,
+      "boundary_clearance_at_hold_m": 14.690894599238742,
+      "current_speed_mps": 0.0,
+      "current_direction_deg": 0.0,
+      "source_summary": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/switch_zero/wire_seed_101_summary.json",
+      "source_summary_sha256": "cdd7cc61f9e437f6bd93e0a80529603cd7f8063831c27dccc713477a76b21e68",
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/switch_zero/wire_seed_101.csv",
+      "source_csv_sha256": "d36868ceae0463f3b17cdcd555086803afe46f92d4abedac51a384077761611b"
+    },
+    "switch_cross": {
+      "case": "switch_cross",
+      "first_hold_s": 583.5,
+      "last_recorded_elapsed_s": 60.0,
+      "post_step_final_elapsed_s": 60.25,
+      "reason": "flythrough_runtime_identity_diverged",
+      "zero_rpm_ticks_after_hold": 241,
+      "first_hold_ground_speed_mps": 0.30255196891335306,
+      "last_ground_speed_mps": 0.05108976243979013,
+      "hold_to_final_displacement_m": 5.476996490673457,
+      "hold_to_final_lateral_m": 2.968586100017765,
+      "minimum_boundary_clearance_m": 11.525353205342487,
+      "boundary_clearance_at_hold_m": 14.481428458575644,
+      "current_speed_mps": 0.05,
+      "current_direction_deg": 90.0,
+      "source_summary": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/switch_cross/wire_seed_101_summary.json",
+      "source_summary_sha256": "3cad42b15f95a9484f4da3c6df6b4159b34be3222fb9ffd3ed8ddb8c9be32845",
+      "source_csv": "AUV-Master-Mag/results/v2/inspection_identity_stop_drift_20260927/switch_cross/wire_seed_101.csv",
+      "source_csv_sha256": "944e17d43da5909b7bacced2ad1ae90decee681df09b0afa37e4b47a5e0bdd2f"
+    }
+  },
+  "source_implementation_sha256": {
+    "tools/smoke_v2_flythrough_ros_pvs.py": "4340e51d8be0982366e6664eba81d519642c513280a2d25a5bb9a553ff670018",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/flythrough.py": "39fce0b6c320e10f3e043ea9876a5ec7b472bb528257ad4bd26d6851a07be6f8",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4e52dd01e3e73a160dfb30ea35fff6ab504a26e574e257934c78509ac75f91c9",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "5e55f8118aca7f103101ba94edabf8847c3ab5581fa5d98a366a4c039e1408c2"
+  }
+}

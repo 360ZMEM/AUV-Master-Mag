@@ -1,0 +1,11 @@
+{
+  "role": "inspection_same_session_timing_envelope",
+  "data_reviewable": false,
+  "timing_bounds_passed": false,
+  "field_release_authorized": false,
+  "blockers": [
+    "session_id required"
+  ],
+  "red_flags": [],
+  "audit_script_sha256": "7c6f5fb53b19c5800237dd12e1b6ec4e5113c3375f6dfd4eedb9cc9bc393e227"
+}

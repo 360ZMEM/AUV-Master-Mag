@@ -1,0 +1,22 @@
+{
+  "evidence_level": "non_sim_wall_clock_ros_dds_synthetic_static_review_no_navigation_or_vehicle",
+  "ros_domain_id": "225",
+  "use_sim_time": false,
+  "ros_package_loaded_from_install": true,
+  "bad_speed_rejected_via_dds": true,
+  "matching_mission_accepted_via_dds": true,
+  "changed_boundary_rejected_at_node_start": "static target prior mission config hash mismatch",
+  "physical_target_connected": false,
+  "navigation_connected": false,
+  "controller_or_pc104_connected": false,
+  "field_release_authorized": false,
+  "file_sha256": {
+    "AUV-Master-Mag/results/v2/static_target_prior_ros_admission_20260927/installed_verified/synthetic_target_line.json": "4dad4bec81b64522846f27fafa95fc33c764e6a7ff3d5e74ef834e1c4a7f9454",
+    "AUV-Master-Mag/results/v2/static_target_prior_ros_admission_20260927/installed_verified/synthetic_review_schema_v2.json": "0254aa230923e9af0d695ea7418f0e02cd7113c405f39d66a72f39d57ed5a0f2",
+    "AUV-Master-Mag/results/v2/static_target_prior_ros_admission_20260927/installed_verified/static_trial.yaml": "9f7674a5c5559ba812bf9fd235ae1f2d428302379169aa80de3f7fc3f19702ba",
+    "AUV-Master-Mag/results/v2/static_target_prior_ros_admission_20260927/installed_verified/static_trial_changed_boundary.yaml": "d696d50b906237008066670427190d0345596476e6834b4301da66fd8424cae6",
+    "tools/probe_v2_static_prior_ros_admission.py": "0cbede9e1e9209ba91495d67c3b8715702510b28b461e6924bd29cef53f8ecb0",
+    "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4c34018fc51420ccd0781f14ac7d7f9431e395a2d67b9bb6c30c627c31d14a64",
+    "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/static_target_prior.py": "1fca845a142e2cb47f62f1c080dfd1b9f46cd54f08dd24694f96fad3ecb71822"
+  }
+}

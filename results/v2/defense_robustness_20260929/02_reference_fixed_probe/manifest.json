@@ -1,0 +1,16 @@
+{
+  "plan_sha256": "e781b03b34655bdc7240248bd6822bd6df5c4f428f31b624acfb4ffc74d62327",
+  "sources_unchanged": true,
+  "artifacts": {
+    "clean_wire_legacy_seed401.csv": "eec2197c6fcce389f28cca5871ed0436e81dc553d5ae8a7819bc12748aabd21e",
+    "clean_wire_supervised_seed401.csv": "2b4b5211755a7429b375a3b3c04a325042f73ed15176fedcb0e3bbb7e3172e52",
+    "fused_neighbor_legacy_seed401.csv": "d688f4c6465c150a70320fb086fc2fcc1555dac8f6d550ad805d54ed433023cb",
+    "fused_neighbor_supervised_seed401.csv": "1624ca501cc59225cf07d634759f9d63459ea70f1c5c547c3cf8ef448ba56c25",
+    "navigation_jump_legacy_seed401.csv": "f4221eedf4231f6aee1d4c3bb65a63fea030b98ed10d4c8a348f937784bb5870",
+    "navigation_jump_supervised_seed401.csv": "c62e4d40d9bd6a7bd7810073e2e72e052a166af3985237f3021bf8ed4a3f82bd",
+    "navigation_noise_legacy_seed401.csv": "a2cc6272eb84ebf048a64754fbaa8381be26305a584668f7632d6f7fcda51101",
+    "navigation_noise_supervised_seed401.csv": "55095baf03b28b94984b69c796bbe684cdbe347ac4f909e840714bdae717620a",
+    "plan.json": "e781b03b34655bdc7240248bd6822bd6df5c4f428f31b624acfb4ffc74d62327",
+    "summary.json": "38364af7d0a07fe75226bc9bd02075c63e07552f32426472505fab62f1a5fe9b"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "candidate": "inspection_v2_identity_continuity_with_field_calibration_preflight",
+  "release_level": "synthetic_software_candidate",
+  "field_identity_input_evidence_present": false,
+  "field_release_authorized": false,
+  "scope": "ROS/PID/guard/local UDP/native PVS with synthetic magnetic and sonar input; no physical sonar, field cable or PC104 actuation.",
+  "source_sha256": {
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/flythrough.py": "39fce0b6c320e10f3e043ea9876a5ec7b472bb528257ad4bd26d6851a07be6f8",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/identity_cue.py": "a3ed6419f72b4b4a68e6c47caa53fa8e7c43ded909f0543370a09617b58bd41e",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/field_identity_calibration.py": "af97f1cea00162665470b01f181ad7e9b8e155d0b88b19a3e973fe7265c7cb9f",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4e52dd01e3e73a160dfb30ea35fff6ab504a26e574e257934c78509ac75f91c9",
+    "brain_linux/src/auv_cable_tracking_v2/launch/flythrough_nodes.launch.py": "c4e170dec0f315cd3694880750f87aea12877b2f762723346c95524369fffc85",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "5e55f8118aca7f103101ba94edabf8847c3ab5581fa5d98a366a4c039e1408c2",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "1b171b0e372a505aa0d694649a6baac6ffad06b189acb7127f4c6141380c740f",
+    "tools/plot_v2_identity_continuity.py": "a29d6a3d4b5c59f58bd9bdc6278be2198e0cb36aa8a6f85f03d98877b869e3c1"
+  },
+  "evidence_sha256": {
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/30_runtime_identity_continuity_summary.json": "a3cc4ddd0f5641058301bd05bc3157e86920581090257f9860fbc862207477c3",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/30_runtime_identity_continuity_manifest.json": "0951a5db6fff9295cd6639a68b51cd48af6a054e2004c9cad4c1b2410ea60358",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/30_identity_continuity_three_seed_audit.json": "4324bc73823abe4ecc70f6f37b72dd7067922aed179f7e0954daf5c88310689f",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/field_sonar_evidence_inventory.json": "c53899deef9afec7318af53fe97e066cabf98c869aff87cafd48661149520862"
+  },
+  "remaining_field_gates": [
+    "physical cable-sonar observation and quality records with acquisition timestamps",
+    "held-out physical probability and geometric calibration with target association",
+    "parallel-cable and false-line refusal audit",
+    "measured AUV turn/stop envelope and PC104 command-to-motion audit",
+    "independent magnetic width-to-distance and altitude calibration before burial release"
+  ],
+  "snapshot_script_sha256": "1cbc63a07f20e63528e7cc3a2f4e0373eb6e6c9f11250a05794ce0da68af0a5b"
+}

@@ -1,0 +1,25 @@
+{
+  "role": "passive_inspection_shadow_stack_launch_snapshot",
+  "graph_checks_passed": true,
+  "source_launch_sha256": "4122da32f2fe7bb381785d41feaec206cf9aa286d25b64533ff5341cc63f159f",
+  "graph_audit_sha256": "cfe035682013be3b1d13d29f96dd02b8e3dba0f7413125bb61f3c3e4357d7e35",
+  "scene_audit_sha256": "4e44d506199cdd360c96b48f032ff1de7905cbb4ef22feb3e9d87d628da69077",
+  "scene_fallback_checks_passed": true,
+  "launch_log_sha256": "35aeca14bc7675c5a7cbc0b5e88433ecb09244e8cd14e8ddab7c9270900586b0",
+  "observed_timeout_exit_code": 124,
+  "started_processes_before_test_shutdown": [
+    "cable_tracking_v2_node-1",
+    "inspection_controller_node-2",
+    "inspection_bridge_node-3",
+    "auv_localization_node-4",
+    "zenoh_viz_bridge_node-5",
+    "sensor_supervisor_node-6"
+  ],
+  "runtime_errors_before_first_shutdown_traceback": [],
+  "shutdown_traceback_count": 10,
+  "shutdown_keyboard_interrupt_count": 10,
+  "shutdown_classified_from_external_exit_and_log": true,
+  "physical_actuation_tested": false,
+  "field_release_authorized": false,
+  "interpretation": "One live ROS graph snapshot, a bounded no-scene topic audit, and a bounded idle launch. The 124 exit code was observed by the external timeout caller; the log alone cannot prove its cause or sustained stability."
+}

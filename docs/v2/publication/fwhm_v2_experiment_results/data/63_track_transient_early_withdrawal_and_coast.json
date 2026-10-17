@@ -1,0 +1,66 @@
+{
+  "role": "candidate_track_disturbance_change_early_withdrawal",
+  "scope": "three completed seed-101 synthetic installed ROS/PID/guard/UDP/native-PVS runs, ideal position-derived world ground speed and synthetic sonar; separate steady-plus attempts aborted after fail-closed navigation-age withdrawal; threshold selected after Figure 61 observation, no physical current or upper-level recovery",
+  "candidate_limit_mps_per_4s": 0.01,
+  "cases": {
+    "steady_minus": {
+      "completed": true,
+      "first_hold_s": null,
+      "first_hold_reason": null,
+      "route_observed_lateral_max_m": 1.233339152929985,
+      "summary_sha256": "c8c9261acb0a6a3fe060c8ebe11bfbe807e620052cc4837fc1ca93b53dbb517d",
+      "csv_sha256": "7779b8bd158746a4aed583f1294e36a7e00dc51bf5c84103fcf6143d8a185106",
+      "log_sha256": "d88e2d388a45c6b08fd58396103dd00c7bce9cfe1a76b8de01614b2b9af74e3a"
+    },
+    "step_plus": {
+      "completed": true,
+      "first_hold_s": null,
+      "first_hold_reason": null,
+      "route_observed_lateral_max_m": 0.9602853244803757,
+      "summary_sha256": "221b0996b6af2e964c6e3dbe7fc40bb71ed3f504159033e67b63ccc3e415d660",
+      "csv_sha256": "f8abbf348e676413ed4765e3c588709ecf86c1e7acb5cff9f97b22efe1365a56",
+      "log_sha256": "a8f102ffe01e850dca67cec48fb66b0ffa1e82d770afbabae91d9f0de67e4892"
+    },
+    "step_minus": {
+      "completed": false,
+      "first_hold_s": 848.5,
+      "first_hold_reason": "flythrough_track_disturbance_changed",
+      "route_observed_lateral_max_m": 0.6055842378662488,
+      "summary_sha256": "e40467d1634e0509c37ca298dbfc006c1a505d1a70a4776a5fd8956855aebd9d",
+      "csv_sha256": "dc13aad056f5ac7f9a7eaf8452cd3fd5a65e71a2021dc22e105c600072a917d3",
+      "log_sha256": "42ee7522d1047b883aa74efaaeb1a8ea7dc45beb0df0fc9022d112b7d9c70924"
+    }
+  },
+  "old_fault": {
+    "first_hold_s": 883.5,
+    "summary_sha256": "092f42ab951a5c1c13a4f1366cfc6f7641cf88d09d0326fba1b62235cf8f172c",
+    "csv_sha256": "e110038e57079d07c8fbb37d0dd0cbcd0e24cafe3f8c60281928320566eebfd1",
+    "log_sha256": "667566166712dd2bdbe98daff95da3e488472f36ee49d5ef937849d569493784"
+  },
+  "early_withdrawal_lead_s": 35.0,
+  "first_physical_2m_band_exit_s_after_hold": 897.25,
+  "recovery_request_to_band_exit_s": 18.75,
+  "post_hold_zero_cycles": 241,
+  "uncompleted_diagnostic_logs": {
+    "steady_plus_interrupted.log": "04ccf62b88ba887608cbf73aa8af1db97d887246b8c8d8aa15d66306fd730a35",
+    "steady_plus.log": "b0a9bb3bdff31ea71e862652a8973f0a531d59b86a75caab25faae346f5cac6e",
+    "steady_plus_diagnostic.log": "62c519a018d5f8cf7bfcca5802d93a8c482785e30d8f25a86a5c0f6373f5f7da",
+    "steady_plus_diagnostic_2.log": "e4df6dc95945d2ce0cfb160aa856d5fdff26a68e6a16a1b77adee5a1a6455b1e",
+    "steady_plus_budget_fallback.log": "9d4aa4ce8f3342291463b7b443f27824e47bd6331c896c73bdd55a791254f055"
+  },
+  "config_sha256": "29a7217cd702c3610b09520e46daeaab9dad47bc01462c708b687bf285615c99",
+  "source_sha256": {
+    "audit": "be1c6789a48835e4f66f267a06f77a3e35b3382fb0c983fce9a8a6e5ff4b32fa",
+    "flythrough": "44f94c347839e7f9f9495b2c33436f9a0a63db798b1541859d658dc89ea529d7",
+    "node": "bccd3166e7d268e909ea6a80466a2cb7c774579540a79cac12531ee1e1c8d5e7",
+    "harness": "12d2943d6d3db5943e0f3d1220fa13e57bdd126eeb65b9ee1f799e19f82d2137"
+  },
+  "png_sha256": "04ab84ecd27d3399f3ab60147756853885bb379248620715ecb82bc288444b8f",
+  "pdf_sha256": "ada6bbbc5ebea2edd8e3a19de7947e3c8313b0b0fcdb75879ac8541f968d14ad",
+  "source_snapshots": {
+    "audit": "repro_sources/63_audit_original.py",
+    "flythrough": "repro_sources/63_flythrough_original.py",
+    "node": "repro_sources/63_algorithm_node_original.py",
+    "harness": "repro_sources/63_harness_original.py"
+  }
+}

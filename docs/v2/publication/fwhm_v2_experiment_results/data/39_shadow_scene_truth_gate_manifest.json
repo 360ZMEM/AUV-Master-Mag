@@ -1,0 +1,14 @@
+{
+  "role": "inspection_shadow_scene_truth_gate_figure",
+  "legacy_audit_sha256": "a500db7a64f869ee3f8d4a92e6f282a09adf1ff873b4f16d9cb5b44bd266daf3",
+  "safe_audit_sha256": "4e44d506199cdd360c96b48f032ff1de7905cbb4ef22feb3e9d87d628da69077",
+  "plot_script_sha256": "a05343a6298c883df23bc8e70e5e9ad87aa9fc276ae4ece0c9a101d80e292546",
+  "viz_bridge_source_sha256": "0976fc611d618c6be407c6625498f9eb6b4aa373c8a6c56c650bd7ecac3325c5",
+  "shadow_launch_source_sha256": "4122da32f2fe7bb381785d41feaec206cf9aa286d25b64533ff5341cc63f159f",
+  "figure_sha256": {
+    "39_shadow_scene_truth_gate.pdf": "c9b330841f8c8d6baf2c8c006855d7543da0aa4630879ea84a224b43273c0acf",
+    "39_shadow_scene_truth_gate.png": "dd7f1106c214b322160c1518260d5673658799a42e7c4160472f358873e0fd81"
+  },
+  "scene_provenance": "legacy standalone viz and safe six-node passive shadow launch",
+  "field_release_authorized": false
+}

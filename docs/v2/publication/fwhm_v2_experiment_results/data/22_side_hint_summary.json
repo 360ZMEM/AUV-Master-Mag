@@ -1,0 +1,40 @@
+{
+  "scope": "seed 101 synthetic single straight wire; actual ROS2/PID/guard/localhost UDP/native PVS; no physical PC104",
+  "precondition": "side hint selects the opposite starting side; prealigned vehicle, 390 x 60 m corridor, target speed 0.3 m/s, zero current",
+  "south_start_cable_plus6": {
+    "ticks": 4484,
+    "duration_s": 1121.75,
+    "completed": true,
+    "first_hold_reason": null,
+    "track_x_ge_0_samples": 1057,
+    "track_x_ge_0_true_lateral_mae_m": 1.026262985256122,
+    "track_x_ge_0_true_lateral_p95_m": 1.7701840329154437,
+    "track_x_ge_0_true_lateral_max_m": 1.8052743746530115,
+    "depth_published": false,
+    "maximum_abs_lateral_m": 16.893299424873394
+  },
+  "north_start_cable_minus6": {
+    "ticks": 4484,
+    "duration_s": 1121.75,
+    "completed": true,
+    "first_hold_reason": null,
+    "track_x_ge_0_samples": 1057,
+    "track_x_ge_0_true_lateral_mae_m": 1.0259066996639263,
+    "track_x_ge_0_true_lateral_p95_m": 1.7702004172261747,
+    "track_x_ge_0_true_lateral_max_m": 1.8053112635446578,
+    "depth_published": false,
+    "maximum_abs_lateral_m": 16.89162415642883
+  },
+  "wrong_south_start_cable_minus6": {
+    "ticks": 1876,
+    "duration_s": 469.75,
+    "completed": false,
+    "first_hold_reason": "flythrough_scan_timeout",
+    "track_x_ge_0_samples": 0,
+    "track_x_ge_0_true_lateral_mae_m": null,
+    "track_x_ge_0_true_lateral_p95_m": null,
+    "track_x_ge_0_true_lateral_max_m": null,
+    "depth_published": false,
+    "maximum_abs_lateral_m": 15.0
+  }
+}

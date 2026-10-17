@@ -1,5 +1,9 @@
 # AUV Magnetic Cable Tracking Demo
 
+## 当前 FWHM v2 巡检（2026-10-17 仓库同步）
+
+`src/auv_mag_tracking/v2/`、`config/v2/`、`tests/v2/` 和 `tools/run_v2_*` 是本仓库的现行磁巡检算法线。限定条件下的闭环仿真、场形检查、横向／埋深分层许可与稳健性边界见 [v2 发布记录](docs/v2/publication/fwhm_v2_experiment_results/README.md)。当前论证中埋深未获标定许可时保持空值，不能从 FWHM 测宽或置信度直接宣称真实海缆埋深。完整原始留出包为 Git LFS 管理的 [压缩证据包](results/v2/defense_robustness_20260929/fwhm_v2_defense_robustness_20260929.zip)；逐例 CSV 从该包解压后可审阅，不将开发探针目录纳入发布体积。历史主项目说明如下。
+
 基于洋葱架构的 AUV 磁电缆跟踪数学仿真实验室。它不复刻完整海上测绘系统，而是把"数学灵魂"跑通并保持高度可维护：磁场生成、坐标补偿、传感器误差、过峰检测、中心线拟合、三态任务 FSM、纵/横分轴控制、磁法埋深反演与实时可视化在一个可调参、可扩展的 Python 工程里闭环联通。
 
 > 完整文档体系（方法论 / 数学 / 配置 / 调优）见 [`docs/README.md`](docs/README.md)。

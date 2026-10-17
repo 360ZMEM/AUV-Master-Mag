@@ -1,0 +1,43 @@
+{
+  "role": "synthetic_saved_trace_transient_recovery_audit",
+  "checks_passed": true,
+  "field_release_authorized": false,
+  "problems": [],
+  "case": "wire_navigation_dropout",
+  "seed": 108,
+  "ticks": 4800,
+  "simulated_duration_s": 1200.75,
+  "fault_window_s": [
+    585.0,
+    600.0
+  ],
+  "fault_rows": 60,
+  "fault_zero_guidance_pid_udp_rows": 60,
+  "autonomous_resume_observed": false,
+  "first_positive_udp_after_fault_s": null,
+  "after_fault_track_rows": 2404,
+  "after_fault_authorized_rows": 0,
+  "after_fault_zero_udp_rows": 2404,
+  "after_fault_zero_guidance_pid_udp_rows": 2404,
+  "first_hold_reason": "navigation_invalid",
+  "first_recovery_reason": "hold_geometry_invalid",
+  "completed": false,
+  "route_observed_lateral_mae_m": null,
+  "route_observed_lateral_max_m": null,
+  "summary_sha256": "0de4f0d08706edfe4f3b8c008a27e17c4d6bdb137e53807d0d5397d507c5e09b",
+  "csv_sha256": "6dba1a02d5ad8c62a0f3f541149b7b0554095ffb0316e2130d8a6d2d60841787",
+  "source_sha256": {
+    "tools/smoke_v2_flythrough_ros_pvs.py": "696a948ceda035d897c9fd2b7d2becc05376ee59b200af412ac100f1da649b19",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "6924eb91da5b86caacf54b375d1871bec6f75a9ee8dedcc590eb9e04638a4807",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_controller_node.py": "22186f788bc06aec59e9095de55dd69bfa3afbfdace9d9cf7e542262f52ebc30",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "53c4a30f415c2a37ce98a28324224862749e03be2062c235670ead7b2944ad38",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_corridor_budget_sim.yaml": "39b589de9b3b9f910c298429988718259822c9f720fb4ec761dee9f61bf95631"
+  },
+  "installed_source_equal": {
+    "cable_tracking_v2_node.py": true,
+    "inspection_controller_node.py": true,
+    "inspection_bridge_node.py": true
+  },
+  "audit_script_sha256": "2bcaea0fcff19d577771428b2261fa52f1e2cdf683c65c76cce0f404ba478d57",
+  "interpretation": "One independent, scripted 15 s NaN navigation dropout in native PVS with ROS/PID/guard/local UDP and synthetic target-sonar cue. Perception returns to Track, but invalid Hold geometry latches RECOVERY_REQUIRED and execution remains denied. This is a safe disposition, not autonomous task recovery, physical vessel stopping, statistical reliability, or uninterrupted endurance."
+}

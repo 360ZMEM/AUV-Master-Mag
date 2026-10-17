@@ -1,0 +1,20 @@
+{
+  "role": "bounded_hold_no_recovery_action_candidate_snapshot",
+  "field_release_authorized": false,
+  "status": "software_alarm_and_zero_command_latch_only",
+  "missing_acceptance": [
+    "physical sonar and independent calibration",
+    "measured AUV zero-effort drift and current bound",
+    "certified upper-level disposition and PC104 response"
+  ],
+  "files_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/hold_budget.py": "60da78dc748865cb780ea5baad3955d4384987c3f3b969fd2e86232a5e111d18",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "07d9cde1a7d2429fda2ad90c3bd99d7c2898fda9f782a5c6b5e3149471b9c0aa",
+    "brain_linux/src/auv_cable_tracking_v2/config/cable_tracking_v2_flythrough_sonar_identity_sim.yaml": "99dd4873d5782cbd6cc9b0eb29329c86f24a926b97481ee099ab41d4ee341fd5",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "4b472655be53bf6d5adfd5232f4a1f05e36e23cf130881d7b2b485d337d19687",
+    "tools/plot_v2_hold_budget.py": "2e0bfaf0d9414a9e5dae50252d752bdd0217ac15264c6372d83099e58f2b9358",
+    "AUV-Master-Mag/results/v2/inspection_hold_budget_20260927/switch_cross/wire_seed_101.csv": "0ea6aeea82301db0ae69ec2945262651583e22282ce10d3bc9e2e5529b73c06c",
+    "AUV-Master-Mag/results/v2/inspection_hold_budget_20260927/switch_cross/wire_seed_101_summary.json": "56de139a50582f1cc1b192d410d71c0f9ebb7c97a22158c66853d339a498d1b7",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/32_bounded_hold_disposition_manifest.json": "d5dc0b8199d8126515346ab12113237fbc32727d7e824846347883c7b57ef82a"
+  }
+}

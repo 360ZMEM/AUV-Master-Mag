@@ -1,0 +1,40 @@
+# Isolated native-PVS experiment contract; not accepted by a ROS launch profile.
+mission_geometry: shallow_cosine_zigzag_rejoin_pvs_candidate
+prior_frame: local_ned
+target_line_fixture:
+  source: synthetic_truth_line_only
+  intercept_y_m: 6.0
+  slope_y_per_x: 0.02
+  identity_half_width_m: 0.25
+  repeated_each_simulation_step: true
+  physical_identity_verified: false
+survey:
+  half_wavelength_m: 135.0
+  waypoint_spacing_m: 0.5
+  velocity_mps: 0.3
+  minimum_turn_radius_m: 50.0
+  prior_offset_bound_m: 6.0
+  prior_heading_error_bound_deg: 1.15
+  half_crossing_bound_m: 5.2
+  tail_margin_m: 1.5
+  navigation_lateral_margin_m: 3.0
+  candidate_routes:
+    positive_crosscurrent:
+      start_side: -1
+      station_count: 3
+      amplitude_m: 24.0
+    negative_crosscurrent:
+      start_side: 1
+      station_count: 4
+      amplitude_m: 27.0
+rejoin:
+  maximum_heading_correction_deg: 10.0
+  maximum_distance_after_survey_m: 120.0
+  arrival_lateral_tolerance_m: 1.0
+track:
+  distance_m: 80.0
+  magnetic_depth_release: false
+release:
+  ros_pipeline_tested: false
+  pc104_or_field_tested: false
+  field_release_authorized: false

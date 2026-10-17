@@ -1,0 +1,30 @@
+{
+  "evidence_level": "synthetic_non_sim_static_prior_ros_software_gate",
+  "schema_version": 2,
+  "review_binding": "canonical_full_cable_tracking_config_except_v2.static_target_prior",
+  "negative_cases": [
+    "schema_v1_rejected",
+    "search_boundary_changed",
+    "flythrough_end_along_changed",
+    "control_max_speed_changed",
+    "side_hint_changed",
+    "source_hash_changed",
+    "route_points_changed",
+    "expired_review",
+    "mission_target_depth_changed",
+    "mission_target_speed_changed",
+    "mission_target_depth_or_speed_omitted",
+    "mission_target_depth_boolean"
+  ],
+  "ros_package_tests": "66 passed",
+  "installed_source_matches_workspace": true,
+  "field_release_authorized": false,
+  "file_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/static_target_prior.py": "1fca845a142e2cb47f62f1c080dfd1b9f46cd54f08dd24694f96fad3ecb71822",
+    "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/static_target_prior.py": "1fca845a142e2cb47f62f1c080dfd1b9f46cd54f08dd24694f96fad3ecb71822",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4c34018fc51420ccd0781f14ac7d7f9431e395a2d67b9bb6c30c627c31d14a64",
+    "brain_linux/install/auv_cable_tracking_v2/lib/python3.10/site-packages/auv_cable_tracking_v2/cable_tracking_v2_node.py": "4c34018fc51420ccd0781f14ac7d7f9431e395a2d67b9bb6c30c627c31d14a64",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_v2_package.py": "2382110ffad7bd6299f5ee347fb3b19e23649b8823e3ff36b368765a96b13c60",
+    "AUV-Master-Mag/docs/v2/static_target_prior_manifest_template.json": "03d5fc9158bc8b7aceaf6ac80057fd002c52f8897b4460d928ab87493d1ddfba"
+  }
+}

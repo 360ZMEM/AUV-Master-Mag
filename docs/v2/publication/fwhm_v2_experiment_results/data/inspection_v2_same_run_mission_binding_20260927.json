@@ -1,0 +1,33 @@
+{
+  "role": "mission_bound_current_source_single_synthetic_operator_chain_audit",
+  "field_release_authorized": false,
+  "pvs_cycles": 2577,
+  "pvs_authorized_cycles": 2336,
+  "pvs_guard_revoked_zero_pid_udp_cycles": 241,
+  "bridge_and_console_matched_statuses": 7730,
+  "console_guard_revoked_statuses": 721,
+  "scope": "one host, synthetic magnetic/sonar/AMD inputs, native PVS; no PC104, physical survey or AUV",
+  "source_sha256": {
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/cable_tracking_v2_node.py": "da73eec38db6f6012698c0389394807e2ccdfdfd9a2997cb02dca045e6540822",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/static_target_prior.py": "d2c10740eb7109eb4718fa3b9b93315be008c715dc77ed9ac67a003eb241190a",
+    "brain_linux/src/auv_cable_tracking_v2/auv_cable_tracking_v2/inspection_bridge_node.py": "53c4a30f415c2a37ce98a28324224862749e03be2062c235670ead7b2944ad38",
+    "console_soft/auv_console_pyside6/src/ui/main_window.py": "e165160d12d44ca8cf9857ed016570ecef90c114d613ee6b0776b3a33a8e1c2b",
+    "tools/smoke_v2_flythrough_ros_pvs.py": "696a948ceda035d897c9fd2b7d2becc05376ee59b200af412ac100f1da649b19",
+    "tools/smoke_v2_operator_chain_same_run.py": "1198479fedb6793553a860ffdca47051c9b2d58ad9cb2e0e7b8d4e45f96a19af",
+    "brain_linux/src/auv_cable_tracking_v2/test/test_v2_package.py": "071434e298855f2b2393023e6cb4473fe7f312562f3a2b732492acf9a527ab5d",
+    "brain_linux/src/auv_control/auv_decision_ros/cable_mission_autostart_node.py": "ae7f30bff39775a8ddacd46183161226527552e5e9f3127fb257dc3530bf90d6",
+    "brain_linux/src/auv_control/test/test_cable_mission_autostart_ids.py": "7f1a4636e4db73453c0d8340aeb821b17fe6de9f47c35dd87e5c9fade7143c72",
+    "brain_linux/launch/auv_stack.launch.py": "ee470552d9fd7e2a7c25e900aefc5105b32cc7affc8afe93f988b5cd8f0ca1cc",
+    "brain_linux/src/auv_cable_tracking_v2/launch/auv_stack_v2.launch.py": "1b8c0be8a2fc3602e1cea6400532949b6cfe97f8742587c05962c4a2dc1384fa"
+  },
+  "evidence_sha256": {
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_static_mission_binding_20260927/wire_guard_telemetry_loss_seed_101.csv": "d4bcba473cb389cfd782e23cfad1cff032801f96ff7846bc36d4881139c4a1ea",
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_static_mission_binding_20260927/console_operational_status.json": "483815d57982dd2a5a03c58866e71ab4b0f28bce128a6cf5ea2eb89e51512f68",
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_static_mission_binding_20260927/bridge_operational_status.json": "d097f4f83533545c2124d6ec86fe48b4929954a62a6b70ff9c26ba445c7b4281",
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_static_mission_binding_20260927/same_run_summary.json": "4f95e8c4015f5f2e7cf906f02e8c93ac4e971c96e6fb42aff08466f2d439362d",
+    "AUV-Master-Mag/results/v2/operator_chain/same_run_static_mission_binding_20260927/console_same_run_guard_loss.png": "69d277242a5507dcf53ad7488f56df008fb998611f9f43534a63300dc34276e9",
+    "AUV-Master-Mag/docs/v2/publication/fwhm_v2_experiment_results/data/inspection_v2_static_target_mission_binding_20260927.json": "07e7c903b299e6d3084100aa8751676ca7b815c7dbdceda48914f3fc189a5f56"
+  },
+  "audit_script_sha256": "b73d00de781ecb3a82cf6f62fdf2b2cf6f361fa01c2cfca65a9e9b899616dfb3",
+  "parent_audit_script_sha256": "58e0596c727f0d7a7ad78b4e6d65bcb3d667f4989dd32b09147dab70422d179a"
+}

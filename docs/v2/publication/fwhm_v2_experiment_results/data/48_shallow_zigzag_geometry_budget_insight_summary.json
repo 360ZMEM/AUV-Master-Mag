@@ -1,0 +1,39 @@
+{
+  "evidence_level": "analytic_geometry_and_native_pvs_one_seed",
+  "case_source_sha256": {
+    "tools/probe_v2_shallow_zigzag_pvs.py": "fbc65a9e596ff3526a9db8c89c5ff7b9f342d560f532176fca51dd2aba79078a",
+    "AUV-Master-Mag/src/auv_mag_tracking/v2/corridor_survey.py": "5e5e5a8168bae3af09b9e43316f9b6aac901bf6beab5ca383d2e896f50729d94",
+    "brain_linux/src/auv_controller/auv_controller/pid_controller.py": "787a4a5b8e80f49f01dfdf7abcc24584afe9c06303f1f527da9cf02ec0f92b52",
+    "sim_holoocean/interfaces/pvs_sim_wrapper.py": "bacfed5da8bdb0c039bfa4069d188dc717f62c1004d0b03280b65630120805bb"
+  },
+  "case_summary_sha256": {
+    "zero_wire": "396aaa31d99ae04b39357286ce03dd6b81640162c71261269a1b33768dd165b7",
+    "positive_current": "588433c0234836ffa4535260d74acb083f57d64828bd75bfe6fa153c66b28841",
+    "negative_mirrored": "13e0bf74b17c9b3c3e3e2e4590be0293a20d3ab0d493b74609e90b1c3cb5c035",
+    "negative_wrong_side": "84b2a967cc381fee4057f4b68c9449143abb1ff068769f07db6ba771e07a11b5"
+  },
+  "conditions": {
+    "station_count": 3,
+    "prior_offset_bound_m": 6.0,
+    "prior_heading_error_bound_deg": 1.15,
+    "half_crossing_bound_m": 5.2,
+    "tail_margin_m": 1.5,
+    "navigation_lateral_margin_m": 3.0,
+    "minimum_turn_radius_m": 50.0,
+    "boundary_halfwidth_m": 42.0,
+    "boundary_margin_m": 5.0
+  },
+  "candidate": {
+    "amplitude_m": 24.0,
+    "half_wavelength_m": 135.0,
+    "coverage_required_m": 23.82996275670143,
+    "minimum_curvature_radius_m": 76.94077382840025
+  },
+  "maximum_reference_track_error_m": {
+    "zero_wire": 1.4350065329175266,
+    "positive_current": 1.4965526546271146,
+    "negative_mirrored": 1.4976550196950935,
+    "negative_wrong_side": 30.49427081679181
+  },
+  "field_release_authorized": false
+}
