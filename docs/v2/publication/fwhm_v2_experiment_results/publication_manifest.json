@@ -122,27 +122,33 @@
     },
     {
       "path": "figures/11_fwhm_stability_comparison.pdf",
-      "sha256": "d257a95f0962c56c073383634f3caa729e550995e2442b3adb5972eed5278496"
+      "sha256": "2ac627aee23c4a85a343bb3b3bfde15d53b3b775eb0f76f323a895c218cd7e52"
     },
     {
       "path": "figures/11_fwhm_stability_comparison.png",
-      "sha256": "7476458357e756e2e45a68700607aab90547b1a2651b1bfd6ea7188de2062668"
+      "sha256": "5f4ccc6fc71aee93103c39b9f729da27df99415c502f840aa3ca69bd334f9cc9"
     },
     {
       "path": "figures/12_fwhm_stability_sensitivity.pdf",
-      "sha256": "e0e73a55bd06f630415af225dbf53c912217bcddd15cb90c7ecf610527d7fcac"
+      "sha256": "0b27a2e83ccefa66f5e57dd341cc754568a77be5b802ee7a5312fb19bbd99e49"
     },
     {
       "path": "figures/12_fwhm_stability_sensitivity.png",
-      "sha256": "d59195b3b1cb2ef9888aca1379bd261f9949fdf852224a4fcf33f27d78fc7a6f"
+      "sha256": "a0dcfb97dd0893502be5df6a2ce14649207b56248d37a8da2e259bbb5e7201ff"
     },
     {
       "path": "figures/13_shape_guard_held_out_validation.pdf",
-      "sha256": "218ba86178b939ad043ba299727881edcbfb7816298c92649cd42acde4d8368a"
+      "sha256": "5281f0217acb42e89bee469fd1c88a36b4ab07c40a13fe5155490e6233c4628f"
     },
     {
       "path": "figures/13_shape_guard_held_out_validation.png",
-      "sha256": "7b6ce7a08d85d4f3e8623c62c5b8e95d96e24be38b4f5231f729616fb6c60ffb"
+      "sha256": "f30ff306d6f5627b45e15ea1880c261f537a81092c3b7b14cefb936d39da2c83"
     }
-  ]
+  ],
+  "presentation_update_20261021": {
+    "record": "docs/thesis/figure-polish/",
+    "scope": "仅布局/图例/宋体矢量嵌入；原数据不变",
+    "generator_sha256": "e5627951a0d5b7f57d9f6394c86e988eb17b1097fc7ba5087cafff5d213079b0",
+    "style_sha256": "c9e1cdd68c5bd000924e4dda3f41051741cfadb8a329aaf0fe62558ef700c64c"
+  }
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from xml.sax.saxutils import escape
 
 
@@ -140,6 +141,8 @@ def add_edge(
     main: bool = False,
     dashed: bool = False,
     safe: bool = False,
+    label_offset: tuple[float, float] | None = None,
+    label_font_size: int | None = None,
 ) -> None:
     style = EDGE
     if main:
@@ -150,14 +153,18 @@ def add_edge(
         style += "dashed=1;dashPattern=7 5;"
     if safe:
         style = style.replace("strokeColor=#536F87", "strokeColor=#A34F55")
+    if label_font_size is not None:
+        style = re.sub(r"fontSize=\d+;", f"fontSize={label_font_size};", style, count=1)
+    label_attrs = (f' x="{label_offset[0]}" y="{label_offset[1]}"'
+                   if label_offset is not None else "")
     if points:
         point_xml = "".join(f'<mxPoint x="{x}" y="{y}" />' for x, y in points)
         geometry = (
-            '<mxGeometry relative="1" as="geometry"><Array as="points">'
+            f'<mxGeometry relative="1"{label_attrs} as="geometry"><Array as="points">'
             f"{point_xml}</Array></mxGeometry>"
         )
     else:
-        geometry = '<mxGeometry relative="1" as="geometry" />'
+        geometry = f'<mxGeometry relative="1"{label_attrs} as="geometry" />'
     cells.append(
         f'<mxCell id="{id_}" value="{xml_value(label)}" style="{style + extra}" '
         f'edge="1" parent="1" source="{source}" target="{target}">{geometry}</mxCell>'
@@ -272,30 +279,30 @@ def zigzag_probe() -> None:
         "sonar",
         "声呐锚点",
         "消除 180° 方向歧义",
-        1040,
-        55,
-        250,
-        72,
+        1000,
+        25,
+        300,
+        100,
         "purple",
         "io",
     )
     add_free_edge(
         cells,
         "sonar_link",
-        (1165, 127),
+        (1315, 75),
         (1115, 300),
-        points=[(1165, 220), (1115, 220)],
+        points=[(1460, 75), (1460, 210), (1115, 210)],
         color="#8F78AF",
         width=2.8,
         dashed=True,
         end_arrow="block",
     )
-    add_text(cells, "t_path", "AUV 受控横切航迹", 480, 55, 360, 42, size=20, bold=True, color="#456FA8")
-    add_text(cells, "t_prior", "先验走廊", 115, 125, 190, 38, size=18, color="#777777")
-    add_text(cells, "t_truth", "真值电缆", 1120, 245, 170, 38, size=18, bold=True, color="#555555")
-    add_text(cells, "t_est", "估计中心线（加权 PCA）", 870, 335, 360, 42, size=19, bold=True, color="#4D8B3C")
-    add_text(cells, "t_peak", "穿缆峰值观测", 110, 350, 240, 42, size=18, bold=True, color="#A87000")
-    add_text(cells, "t_angle", "横切角 θ", 265, 245, 180, 40, size=19, bold=True)
+    add_text(cells, "t_path", "AUV 受控横切航迹", 480, 25, 360, 42, size=20, bold=True, color="#456FA8")
+    add_text(cells, "t_prior", "先验走廊", 115, 75, 190, 38, size=18, color="#777777")
+    add_text(cells, "t_truth", "真值电缆", 1325, 250, 170, 38, size=18, bold=True, color="#555555")
+    add_text(cells, "t_est", "估计中心线<br>峰值点加权拟合（PCA）", 1325, 315, 260, 80, size=19, bold=True, color="#4D8B3C")
+    add_text(cells, "t_peak", "穿缆峰值观测", 110, 535, 240, 42, size=18, bold=True, color="#A87000")
+    add_text(cells, "t_angle", "横切角 θ", 340, 535, 180, 40, size=19, bold=True)
     add_free_edge(cells, "guide1", (645, 320), (645, 505), color="#999999", dashed=True)
     add_free_edge(cells, "guide2", (755, 315), (755, 505), color="#999999", dashed=True)
     add_free_edge(
@@ -308,58 +315,56 @@ def zigzag_probe() -> None:
         start_arrow="block",
         end_arrow="block",
     )
-    add_text(cells, "t_distance", "扫描间距 d", 620, 495, 160, 38, size=18, bold=True)
-    write("fig_zigzag_probe", cells, 1400, 560)
+    add_text(cells, "t_distance", "扫描间距 d", 620, 535, 160, 38, size=18, bold=True)
+    write("fig_zigzag_probe", cells, 1640, 620)
 
 
 def perception_pipeline() -> None:
     cells: list[str] = []
-    add_lane(cells, "sampling_lane", "高频磁采样与特征提取（现实现 200 Hz）", 30, 30, 1340, 155, "purple")
-    add_lane(cells, "geometry_lane", "声磁几何估计", 30, 205, 1340, 245, "yellow")
-    add_lane(cells, "output_lane", "置信度融合与统一输出（现实现约 20 Hz）", 30, 470, 1340, 150, "blue")
+    add_lane(cells, "sampling_lane", "高频磁采样与特征提取（现实现 200 Hz）", 30, 30, 1900, 350, "purple", start_size=60)
+    add_lane(cells, "geometry_lane", "声磁几何估计", 30, 560, 1900, 1000, "yellow", start_size=60)
+    add_lane(cells, "output_lane", "置信度融合与统一输出（现实现约 20 Hz）", 30, 1770, 1900, 350, "blue", start_size=60)
     for spec in [
-        ("raw", "原始磁场块", "三轴块采样", 35, 65, 240, 68, "purple", "io", "sampling_lane"),
-        ("mag_filter", "滤波与包络", "稳健去噪 / RMS", 325, 65, 240, 68, "yellow", "process", "sampling_lane"),
-        ("vector", "梯度与磁矢量", "幅值 / 方向特征", 615, 65, 240, 68, "yellow", "process", "sampling_lane"),
-        ("peaks", "峰值检测", "升峰 / 落峰 / 时效", 905, 65, 240, 68, "yellow", "decision", "sampling_lane"),
-        ("sonar", "声呐定位观测", "稀疏绝对锚点", 30, 80, 195, 72, "purple", "io", "geometry_lane"),
-        ("fit", "中心线拟合", "加权 PCA", 260, 80, 195, 72, "green", "process", "geometry_lane"),
-        ("path", "局部路径几何", "中心线 / 前视", 490, 80, 210, 72, "green", "data", "geometry_lane"),
-        ("mag_path", "磁路径与影子", "候选路径 / 时效", 735, 80, 210, 72, "orange", "process", "geometry_lane"),
-        ("cross", "横偏与埋深", "近过线反演 / 质量", 980, 80, 210, 72, "yellow", "process", "geometry_lane"),
-        ("region", "失锁重捕区", "有界候选区域", 1090, 160, 210, 62, "yellow", "gate", "geometry_lane"),
-        ("confidence", "置信度融合", "质量 / 新鲜度 / 一致性", 335, 55, 260, 72, "yellow", "process", "output_lane"),
-        ("state", "统一感知状态", "路径 / 横偏 / 埋深 / 置信度", 750, 50, 320, 82, "blue", "data", "output_lane"),
+        ("raw", "原始磁场块", "三轴块采样", 60, 120, 300, 160, "purple", "io", "sampling_lane"),
+        ("mag_filter", "滤波与包络", "稳健去噪 / RMS", 500, 120, 300, 160, "yellow", "process", "sampling_lane"),
+        ("vector", "梯度与磁矢量", "幅值 / 方向特征", 940, 120, 300, 160, "yellow", "process", "sampling_lane"),
+        ("peaks", "峰值检测", "升峰 / 落峰 / 时效", 1380, 80, 430, 240, "yellow", "decision", "sampling_lane"),
+        ("sonar", "声呐定位观测", "稀疏绝对锚点", 80, 160, 300, 180, "purple", "io", "geometry_lane"),
+        ("fit", "中心线拟合", "峰值点加权直线拟合（PCA）", 600, 170, 330, 160, "green", "process", "geometry_lane"),
+        ("path", "局部路径几何", "中心线 / 前视", 1150, 160, 380, 180, "green", "data", "geometry_lane"),
+        ("mag_path", "磁路径与影子", "候选路径 / 时效", 600, 470, 380, 160, "orange", "process", "geometry_lane"),
+        ("cross", "横偏与埋深", "近过线反演 / 质量", 1150, 470, 380, 160, "yellow", "process", "geometry_lane"),
+        ("region", "失锁重捕区", "有界候选区域", 1550, 660, 300, 180, "yellow", "gate", "geometry_lane"),
+        ("confidence", "置信度融合", "质量 / 新鲜度 / 一致性", 600, 140, 380, 160, "yellow", "process", "output_lane"),
+        ("state", "统一感知状态", "路径 / 横偏 / 埋深 / 置信度", 1250, 130, 500, 180, "blue", "data", "output_lane"),
     ]:
-        add_shape(cells, *spec)
-    for i, (a, b) in enumerate(
-        [("raw", "mag_filter"), ("mag_filter", "vector"), ("vector", "peaks")], 1
-    ):
-        add_edge(cells, f"p{i}", a, b, "", main=True, extra="exitX=1;entryX=0;")
-    add_edge(cells, "p4", "peaks", "fit", "峰值序列", main=True, points=[(1250, 195), (388, 195)], extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
-    add_edge(cells, "p5", "sonar", "fit", "方向锚定", dashed=True, extra="exitX=1;entryX=0;")
-    add_edge(cells, "p6", "fit", "path", "", main=True, extra="exitX=1;entryX=0;")
-    add_edge(cells, "p7", "path", "mag_path", "", main=True, extra="exitX=1;entryX=0;")
-    add_edge(cells, "p8", "mag_path", "cross", "", main=True, extra="exitX=1;entryX=0;")
-    add_edge(cells, "p9", "cross", "region", "失锁触发", dashed=True, extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
-    add_edge(cells, "p10", "cross", "confidence", "", points=[(1085, 460), (465, 460)], extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
-    add_edge(cells, "p11", "region", "confidence", "", dashed=True, points=[(1265, 460), (550, 460)], extra="exitX=0.5;exitY=1;entryX=0.8;entryY=0;")
-    add_edge(cells, "p12", "confidence", "state", "", main=True, extra="exitX=1;entryX=0;")
-    write("fig_perception_pipeline", cells, 1400, 650)
+        add_shape(cells, *spec, extra="fontSize=22;")
+    for i, (a, b) in enumerate([("raw", "mag_filter"), ("mag_filter", "vector"), ("vector", "peaks")], 1):
+        add_edge(cells, f"p{i}", a, b, "", main=True, extra="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
+    add_edge(cells, "p4", "peaks", "fit", "峰值序列", main=True, points=[(1625, 450), (795, 450)], extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+    add_edge(cells, "p5", "sonar", "fit", "方向锚定", dashed=True, extra="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
+    add_edge(cells, "p6", "fit", "path", "", main=True, extra="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
+    add_edge(cells, "p7", "path", "mag_path", "", main=True, points=[(1370, 970), (820, 970)], extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+    add_edge(cells, "p8", "mag_path", "cross", "", main=True, extra="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
+    add_edge(cells, "p9", "cross", "region", "失锁触发", dashed=True, points=[(1730, 1110)], extra="exitX=1;exitY=0.5;entryX=0.9444444444;entryY=0.5;entryPerimeter=0;")
+    add_edge(cells, "p10", "cross", "confidence", "", points=[(1370, 1510), (500, 1510), (500, 1870), (820, 1870)], extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+    add_edge(cells, "p11", "region", "confidence", "", dashed=True, points=[(1730, 1610), (1400, 1610), (1400, 1840), (934, 1840)], extra="exitX=0.0555555556;exitY=0.5;exitPerimeter=0;entryX=0.8;entryY=0;")
+    add_edge(cells, "p12", "confidence", "state", "", main=True, extra="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
+    write("fig_perception_pipeline", cells, 1980, 2180)
 
 
 def architecture_layers() -> None:
     cells: list[str] = []
     lanes = [
-        ("viz", "可视化与编排层", 30, 30, 1020, 115, "blue"),
-        ("control", "控制与决策层", 30, 155, 1020, 115, "green"),
-        ("perception", "感知与融合层", 30, 280, 1020, 125, "yellow"),
-        ("physics", "环境与物理层", 30, 415, 1020, 115, "gray"),
-        ("sensor", "传感器输入层", 30, 540, 1020, 115, "purple"),
+        ("viz", "可视化与编排层", 30, 30, 1020, 185, "blue"),
+        ("control", "控制与决策层", 30, 225, 1020, 185, "green"),
+        ("perception", "感知与融合层", 30, 420, 1020, 220, "yellow"),
+        ("physics", "环境与物理层", 30, 650, 1020, 185, "gray"),
+        ("sensor", "传感器输入层", 30, 845, 1020, 185, "purple"),
     ]
     for spec in lanes:
         add_lane(cells, *spec)
-    add_lane(cells, "loop", "每帧闭环（约 20 Hz）", 1080, 30, 290, 625, "teal")
+    add_lane(cells, "loop", "每帧闭环（约 20 Hz）", 1080, 30, 290, 965, "teal")
     nodes = [
         ("v1", "运行编排", "场景 / 任务 / 记录", 35, 55, 270, 55, "blue", "process", "viz"),
         ("v2", "实时看板", "态势 / 诊断 / 报告", 375, 55, 270, 55, "blue", "data", "viz"),
@@ -369,7 +374,7 @@ def architecture_layers() -> None:
         ("c3", "探测窗口", "触发 / 恢复 / 冷却", 690, 55, 270, 55, "green", "gate", "control"),
         ("p1", "磁感知编排", "块采样 / 时效", 35, 60, 210, 55, "yellow", "process", "perception"),
         ("p2", "滤波与特征", "包络 / 峰值 / 矢量", 275, 60, 220, 55, "yellow", "process", "perception"),
-        ("p3", "中心线与路径", "PCA / 局部几何", 525, 60, 220, 55, "yellow", "data", "perception"),
+        ("p3", "中心线与路径", "加权拟合（PCA）<br>局部几何", 525, 60, 220, 55, "yellow", "data", "perception"),
         ("p4", "横偏与埋深", "反演 / 置信度", 775, 60, 205, 55, "yellow", "process", "perception"),
         ("e1", "电缆磁场环境", "场景与物理响应", 40, 55, 250, 55, "gray", "io", "physics"),
         ("e2", "几何变换工具", "投影 / 拟合", 365, 55, 250, 55, "gray", "process", "physics"),
@@ -386,7 +391,14 @@ def architecture_layers() -> None:
         ("l6", "载体推进", "", 35, 505, 220, 52, "gray", "io", "loop"),
     ]
     for spec in nodes:
-        add_shape(cells, *spec)
+        node_id, title, detail, x, y, width, height, color, kind, parent = spec
+        if parent == "loop":
+            y, height = 55 + 145 * (int(node_id[1:]) - 1), 85
+        elif parent == "perception":
+            y, height = 60, 140
+        else:
+            y, height = 60, 110
+        add_shape(cells, node_id, title, detail, x, y, width, height, color, kind, parent)
     for i in range(1, 6):
         add_edge(cells, f"loop{i}", f"l{i}", f"l{i+1}", "", main=True, extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
     add_edge(
@@ -396,19 +408,19 @@ def architecture_layers() -> None:
         "l1",
         "反馈",
         dashed=True,
-        points=[(1360, 615), (1360, 90)],
+        points=[(1360, 945), (1360, 95)],
         extra="exitX=1;entryX=1;",
     )
-    write("fig_arch_onion", cells, 1400, 690)
+    write("fig_arch_onion", cells, 1400, 1070)
 
 
 def mission_fsm() -> None:
     cells: list[str] = []
     for spec in [
-        ("search", "SEARCH", "之字形覆盖搜索", 70, 120, 240, 82, "blue", "state"),
-        ("lock", "LOCK ALIGN", "对齐锁定 / 减速", 415, 120, 240, 82, "green", "state"),
-        ("track", "TRACK ACTIVE", "声磁协同跟踪", 760, 120, 240, 82, "green", "state"),
-        ("reacquire", "REACQUIRE", "有界区域重捕", 760, 345, 240, 82, "yellow", "gate"),
+        ("search", "SEARCH", "之字形覆盖搜索", 80, 120, 220, 82, "blue", "state"),
+        ("lock", "LOCK ALIGN", "对齐锁定 / 减速", 425, 120, 220, 82, "green", "state"),
+        ("track", "TRACK ACTIVE", "声磁协同跟踪", 770, 120, 220, 82, "green", "state"),
+        ("reacquire", "REACQUIRE", "有界区域重捕", 745, 340, 270, 115, "yellow", "gate"),
         ("emergency", "EMERGENCY SURFACE", "应急上浮 / 终态", 360, 545, 310, 86, "red", "terminal"),
     ]:
         add_shape(cells, *spec)
@@ -442,6 +454,7 @@ def mission_fsm() -> None:
         dashed=True,
         points=[(1070, 385), (1070, 55), (190, 55)],
         extra="exitX=1;entryX=0.5;entryY=0;",
+        label_offset=(-0.25, 22),
     )
     add_edge(
         cells,
@@ -452,6 +465,7 @@ def mission_fsm() -> None:
         safe=True,
         points=[(1080, 240), (1080, 500), (515, 500)],
         extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;",
+        label_offset=(0.05, 20),
     )
     add_edge(
         cells,
@@ -460,8 +474,8 @@ def mission_fsm() -> None:
         "emergency",
         "",
         safe=True,
-        points=[(880, 500), (515, 500)],
-        extra="exitX=0.5;exitY=1;entryX=0.5;entryY=0;",
+        points=[(880, 475), (720, 475), (720, 588)],
+        extra="exitX=0.0869565217;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;",
     )
     write("fig_mission_fsm", cells, 1140, 690)
 
@@ -475,7 +489,7 @@ def state_machine_hierarchy() -> None:
         ("bt_node", "电缆跟踪子树", "安全抢占 / 任务授权 / 回退入口", 410, 65, 500, 70, "green", "module", "bt"),
         ("fsm_node", "五态模式管理", "搜索 → 锁定 → 跟踪 → 重捕 → 应急", 350, 75, 620, 78, "blue", "state", "fsm"),
         ("control_node", "控制子机制", "基线跟踪 / 受限横切 / 恢复 / 冷却", 120, 75, 440, 82, "green", "process", "mechanisms"),
-        ("perception_node", "感知子机制", "局部路径 / 候选区域 / 埋深 / 置信度", 760, 75, 440, 82, "yellow", "data", "mechanisms"),
+        ("perception_node", "感知子机制", "局部路径 / 候选区域 / 埋深 / 置信度", 760, 75, 440, 96, "yellow", "data", "mechanisms"),
     ]:
         add_shape(cells, *spec)
     add_edge(
@@ -516,8 +530,10 @@ def state_machine_hierarchy() -> None:
         dashed=True,
         points=[(1260, 515), (1260, 300), (1040, 300)],
         extra="exitX=1;entryX=1;",
+        label_font_size=19,
     )
-    add_edge(cells, "h5", "control_node", "perception_node", "主动观测激励", dashed=True, extra="exitX=1;entryX=0;")
+    add_edge(cells, "h5", "control_node", "perception_node", "主动观测激励", dashed=True,
+             extra="exitX=1;entryX=0;", label_font_size=19)
     write("fig_statemachine_hierarchy", cells, 1400, 650)
 
 

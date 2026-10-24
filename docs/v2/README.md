@@ -1,5 +1,7 @@
 # AUV Magnetic Cable Tracking v2
 
+**2026-10-20 答辩定版**：[收口决定与真实巡检首验路径](INSPECTION_DEFENSE_FREEZE_20261020.md)固定现有核心算法，优先已知目标短直段的 F 剖面，埋深保持独立标定许可；[151 文件快照与本次 105+3 项回归](../../results/v2/defense_algorithm_freeze_20261020/README.md)已归档。此为算法基线，现场自主执行仍未放行。
+
 新增[扰流／导航／多源的条件性稳健性实验](../../results/v2/defense_robustness_20260929/README.md)与[风险边界](DEFENSE_ROBUSTNESS_BOUNDARIES_20260929.md)：冻结留出 120 次、无参考 9 次、仅改接入 3 次；新增独立 opt-in 监督和方向接入。默认 ROS 工厂与生产控制器未接入这些实验模块，本组不含 DDS 时序或实艇部署证据。
 
 新增可选 [独立巡检输出契约（20260926）](INSPECTION_CONTRACT_20260926.md)：横向定位与埋深独立授权，有界侧翼移心、观测更新与故障保持。默认关闭，使用专用 `cable_tracking_v2_inspection.yaml`；40 次运动学复核和 DDS smoke 仅覆盖报告所列条件。

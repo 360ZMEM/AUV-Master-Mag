@@ -1,0 +1,89 @@
+{
+  "scope": "2026-10-22 presentation-only replay of current thesis-linked publication figures; historical experiments unchanged",
+  "style_sha256": "c9e1cdd68c5bd000924e4dda3f41051741cfadb8a329aaf0fe62558ef700c64c",
+  "adapter_sha256": "ac9ffefd889226fff9ea3a286b3377efca519bc598947471739af1fb16e56c6e",
+  "font": "FandolSong; Type3 vector outlines, Chinese PDF text extraction incomplete",
+  "figures": [
+    {
+      "stem": "71_current_magnetic_simulation_closure",
+      "input_sha256": {
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_pvs/dipole_seed_101.csv": "55db474534a3daaf03d1e95c5c43df448ebb1677d654f7d368d9f52eb52f19d2",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_pvs/no_source_seed_101.csv": "62616d13b38a2d1aec1ded3f57fbcc3d115821d2203cbcde92ca593a1498f8bb",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_pvs/wire_seed_101.csv": "1cb6853993671761b6fc5e04e873d1d2689df817e4cc187bffad73f74a7e07ea",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/dipole_seed_102.csv": "ac7facf214f285d4bb79693a88e147a29ef16c49c276e90cb941d25e4ac0690c",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/dipole_seed_103.csv": "6ef15aaf0b7688ce4d76b989127e612b989a27b837e00400c443d6f2ce3268e3",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/no_source_seed_102.csv": "6a49c1a913a1a8df36bcaf29376e64ab5dd2a19bed039192b919be09fa6257d2",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/no_source_seed_103.csv": "f32705f07ea3b7d343fbc739828c3bb1724a1ea4fd0a23cc629a1d8dec50ee70",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/wire_seed_102.csv": "ad2e142b1985d9ab7c646af527fdfd3bf41232e5c230996e8007d9b624f26e05",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/inspection_simulation_closure_20260928/native_seed102_103/wire_seed_103.csv": "d5c8b1ce896628c5fef0ffdaa393fe436a59c6dc189603e7154f1f7c362ad055"
+      },
+      "outputs": {
+        "pdf": "8aed9984ddfac8d9fbee36259446dabba7f3de75a4ba06104dda38b52e2e51ab",
+        "png": "864f35445aff259bac330c753deb89d0e762117fcf2022d2559c6fb3f12377c0"
+      },
+      "change": "Font embedding / legend placement / spacing only; numerical inputs and interpretation unchanged"
+    },
+    {
+      "stem": "51_shallow_survey_ros_pvs_chain",
+      "input_sha256": {
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/wire_positive_seed101.csv": "867e48d692e591f09e6f90f414d36bbb52d304efce9989b39e5aa6d1ab626c5a",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/wire_negative_seed101.csv": "06f7b522c9cd7704329906524be1a00050c92b326bdd915a31e0a91948ec4acf",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/fused_neighbor_positive_seed101.csv": "ee0cfd53ffe71ba8876d8e4bd8509f4eae86ac72c2e185d180d9380a0e3a895d",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/identity_dropout_positive_seed101.csv": "c7478709180e65b9ac8a4a2efea391bb07dde4110448e99d4fc15aa0dae43cb4",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/no_source_positive_seed101.csv": "9166dcd2a065c8091026864e8f309c5af2e395f1124d4959bfca573ca7c04428",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/wire_positive_seed101_summary.json": "c4f4be3317a1eee1617128f953c96f2d649dcf87d9fb2b1ac262acfc19c0ff12",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/wire_negative_seed101_summary.json": "75f52e2579e2d4931992bdab931a08bfbc837ed93d7b2e47616bb9f7ea76e173",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/fused_neighbor_positive_seed101_summary.json": "0faae41046847d3b2e25fac27daceb2a9655bdd18469fb7d5a543631e4a50b7b",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/bridge/identity_dropout_positive_seed101_summary.json": "7c49ec20c6d670342ab0e398e23800d94714f13bfbb1e75b6a4dfbf926b6d129",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shallow_survey_ros_pvs_final_20260927/no_source_positive_seed101_summary.json": "eab6a426b2cfe8c3307c0c3083b953917361be0283eba2ee9ddc194157599f3b"
+      },
+      "outputs": {
+        "pdf": "9884a3c8eb26574bb0f8f1b66aa77e05c8ced68321e7204e47e7fe1bb9563e85",
+        "png": "476db099a9f855e84a6408bab611de07d497b92162e9a16af8fb12465f14906b"
+      },
+      "change": "Font embedding / legend placement / spacing only; numerical inputs and interpretation unchanged"
+    },
+    {
+      "stem": "11_fwhm_stability_comparison",
+      "input_sha256": {
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/summary.json": "778ab4f5157c03229d2fc5883d77074c1851b8afa55eb1284c2df9bddb3f29ef",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/per_run.csv": "024492ee5f3f8875fe7956e133ddee37719f05145ce098b89383043fb5efb403",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/summary.json": "60e9c0da0e2e714aeb0515d1472e8872d940515e3e096eee1016b09a7206c9dc",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/per_run.csv": "70ab6fa11c562e49dd3257e98df702cf5ac9cb39f2b7222b4ac74e5f259dc32e"
+      },
+      "outputs": {
+        "pdf": "2ac627aee23c4a85a343bb3b3bfde15d53b3b775eb0f76f323a895c218cd7e52",
+        "png": "5f4ccc6fc71aee93103c39b9f729da27df99415c502f840aa3ca69bd334f9cc9"
+      },
+      "change": "Font embedding / legend placement / spacing only; numerical inputs and interpretation unchanged"
+    },
+    {
+      "stem": "12_fwhm_stability_sensitivity",
+      "input_sha256": {
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/summary.json": "778ab4f5157c03229d2fc5883d77074c1851b8afa55eb1284c2df9bddb3f29ef",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/per_run.csv": "024492ee5f3f8875fe7956e133ddee37719f05145ce098b89383043fb5efb403",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/summary.json": "60e9c0da0e2e714aeb0515d1472e8872d940515e3e096eee1016b09a7206c9dc",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/per_run.csv": "70ab6fa11c562e49dd3257e98df702cf5ac9cb39f2b7222b4ac74e5f259dc32e"
+      },
+      "outputs": {
+        "pdf": "0b27a2e83ccefa66f5e57dd341cc754568a77be5b802ee7a5312fb19bbd99e49",
+        "png": "a0dcfb97dd0893502be5df6a2ce14649207b56248d37a8da2e259bbb5e7201ff"
+      },
+      "change": "Font embedding / legend placement / spacing only; numerical inputs and interpretation unchanged"
+    },
+    {
+      "stem": "13_shape_guard_held_out_validation",
+      "input_sha256": {
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/summary.json": "778ab4f5157c03229d2fc5883d77074c1851b8afa55eb1284c2df9bddb3f29ef",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/stability_comparison/per_run.csv": "024492ee5f3f8875fe7956e133ddee37719f05145ce098b89383043fb5efb403",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/summary.json": "60e9c0da0e2e714aeb0515d1472e8872d940515e3e096eee1016b09a7206c9dc",
+        "/home/zmem063/auv_console_python/AUV-Master-Project/AUV-Master-Mag/results/v2/shape_guard_validation/per_run.csv": "70ab6fa11c562e49dd3257e98df702cf5ac9cb39f2b7222b4ac74e5f259dc32e"
+      },
+      "outputs": {
+        "pdf": "5281f0217acb42e89bee469fd1c88a36b4ab07c40a13fe5155490e6233c4628f",
+        "png": "f30ff306d6f5627b45e15ea1880c261f537a81092c3b7b14cefb936d39da2c83"
+      },
+      "change": "Font embedding / legend placement / spacing only; numerical inputs and interpretation unchanged"
+    }
+  ]
+}
